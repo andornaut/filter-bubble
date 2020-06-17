@@ -1,0 +1,62 @@
+.form {
+  margin-bottom: calc(2 * var(--spacing));
+}
+
+.form__date {
+  display: block;
+  font-size: 0.9em;
+  margin-top: calc(2 * var(--spacing));
+}
+
+.form__date-label {
+  color: var(--subtle-text-color);
+}
+
+.form__field {
+  margin: var(--spacing) 0;
+}
+
+.form__field input[type='text'],
+.form__field textarea {
+  box-sizing: border-box;
+  font-size: 1.1em;
+  margin-bottom: var(--spacing);
+  width: 100%;
+}
+
+.form__field textarea {
+  resize: none;
+}
+
+.form_field input:focus,
+.form_field textarea:focus,
+.form_field input:invalid,
+.form_field textarea:invalid {
+  outline: none;
+}
+
+.form__hint {
+  color: var(--subtle-text-color);
+  margin-bottom: var(--spacing);
+  margin-left: var(--spacing);
+}
+
+.form__label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: var(--spacing);
+}
+
+.form__actions-container {
+  display: flex;
+  justify-content: space-between;
+  margin: calc(2 * var(--spacing)) 0;
+}
+
+.form__actions-primary {
+  display: flex;
+}
+
+.form__actions-primary .btn--primary {
+  margin-right: calc(2 * var(--spacing));
+}

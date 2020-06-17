@@ -1,0 +1,8 @@
+.topics__text {
+  display: block;
+  font-weight: bold;
+}
+
+.list__item--disabled .topics__text {
+  font-weight: normal;
+}

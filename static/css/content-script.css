@@ -1,0 +1,13 @@
+.filter-bubble--hide {
+  visibility: hidden !important;
+}
+
+.filter-bubble--highlight {
+  background-color: #aaa !important;
+  border: 5px solid #ff77cc !important;
+  outline: 5px solid #77aaff !important;
+}
+
+.filter-bubble--remove {
+  display: none !important;
+}

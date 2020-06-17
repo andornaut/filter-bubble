@@ -1,0 +1,46 @@
+{
+  "name": "filter-bubble",
+  "version": "0.2.0",
+  "description": "A browser extension for Chrome and Firefox that helps you to filter-out content from the web",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andornaut/filter-bubble.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andornaut/filter-bubble/issues"
+  },
+  "homepage": "https://github.com/andornaut/filter-bubble#readme",
+  "private": true,
+  "scripts": {
+    "build": "webpack --mode=development",
+    "build-production": "webpack --mode=production",
+    "format": "prettier-eslint --write  \"${PWD}/**/*.{css,js,json,jsx,md}\"",
+    "package": "npm run build-production && web-ext build",
+    "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
+    "web-ext": "npm run build && web-ext run",
+    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.firefox --verbose",
+    "web-ext-android-firefox-preview-nightly": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.fenix.nightly --verbose"
+  },
+  "dependencies": {
+    "lit-html": "^1.2.1",
+    "statezero": "^0.5.14"
+  },
+  "devDependencies": {
+    "clean-webpack-plugin": "^3.0.0",
+    "copy-webpack-plugin": "^6.0.1",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-loader": "^4.0.2",
+    "eslint-plugin-import": "^2.21.1",
+    "eslint-plugin-import-order-alphabetical": "^1.0.0",
+    "eslint-plugin-sort-destructure-keys": "^1.3.4",
+    "husky": "^4.2.5",
+    "lint-staged": "^10.2.7",
+    "prettier-eslint-cli": "^5.0.0",
+    "web-ext": "^4.2.0",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  }
+}

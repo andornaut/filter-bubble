@@ -1,0 +1,12 @@
+:root {
+  --danger-color: #f36666;
+  --danger-bg-color: #5f0000;
+  --divider-color: #666;
+  --primary-color: #ff77cc;
+  --secondary-color: #77aaff;
+  --secondary-bg-color: #3f3f99;
+  --text-color: #eee;
+  --subtle-text-color: #999;
+  --subtle-bg-color: #444;
+  --spacing: 0.5em;
+}

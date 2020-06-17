@@ -1,0 +1,40 @@
+body {
+  background-color: #333;
+  color: var(--text-color);
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+  font-size: calc(10px + 1vw);
+  line-height: calc(1.1em + 0.5vw);
+  /* If we set max-width of eg. 800px, then Firefox (Fennic) on Android will constrain the landscape width too much. */
+  min-width: 440px;
+  padding: calc(2 * var(--spacing));
+}
+
+:any-link {
+  color: var(--secondary-color);
+}
+
+.btn {
+  background-color: var(--subtle-bg-color);
+  border-color: #bbb;
+  border-radius: 4px;
+  border-width: 2px;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 0.4em 0.6em;
+}
+
+.btn:focus {
+  outline: none;
+}
+
+.btn--primary {
+  background-color: var(--secondary-bg-color);
+  border-color: var(--secondary-color);
+}
+
+.btn--danger {
+  background-color: var(--danger-bg-color);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  float: right;
+}

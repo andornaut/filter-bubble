@@ -1,0 +1,25 @@
+.errors {
+  background-color: #111;
+  border: 2px solid var(--danger-color);
+  color: var(--danger-color);
+  margin: var(--spacing) 0;
+  padding: 0;
+}
+
+.errors__item {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-left: 0;
+  padding: var(--spacing) var(--spacing) var(--spacing) calc(2 * var(--spacing));
+}
+.errors__item:first-of-type {
+  background-color: var(--danger-bg-color);
+}
+
+.errors__delete {
+  background: transparent;
+  border: 0 none;
+  color: var(--danger-color);
+  font-weight: bold;
+}

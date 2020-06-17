@@ -1,0 +1,22 @@
+.app__nav {
+  display: flex;
+  justify-content: space-around;
+}
+
+.app__nav :any-link {
+  text-decoration: none;
+}
+
+.app__tab {
+  border-bottom: var(--spacing) solid transparent;
+  color: var(--subtle-text-color);
+  display: inline-block;
+  font-size: 1.2em;
+  outline: none;
+  padding: var(--spacing);
+}
+
+.app__tab--active {
+  border-bottom-color: var(--primary-color);
+  color: var(--secondary-color);
+}

@@ -1,0 +1,89 @@
+.list {
+  align-content: flex-start;
+  border-top: 1px dashed var(--divider-color);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding-top: calc(2 * var(--spacing));
+  padding-left: 0;
+}
+
+.list__empty {
+  border: 2px dashed var(--divider-color);
+  border-radius: var(--spacing);
+  font-size: 1.2em;
+  margin: 0;
+  padding: calc(2 * var(--spacing));
+}
+
+.list__item {
+  cursor: pointer;
+  display: flex;
+}
+
+.list__item:not(:last-of-type) {
+  margin-bottom: calc(2 * var(--spacing));
+}
+
+.list__content {
+  border: 2px solid var(--subtle-bg-color);
+  border-bottom-left-radius: var(--spacing);
+  border-right: 0 none;
+  border-top-left-radius: var(--spacing);
+  flex-grow: 1;
+  padding: var(--spacing) calc(2 * var(--spacing));
+}
+
+.list__toggle {
+  align-items: center;
+  background-color: var(--subtle-bg-color);
+  border: 2px solid var(--subtle-bg-color);
+  border-bottom-right-radius: var(--spacing);
+  border-left: 0 none;
+  border-top-right-radius: var(--spacing);
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing) calc(2 * var(--spacing));
+  width: 6em;
+}
+
+.list__toggle:focus {
+  outline: none;
+}
+
+.list__item--disabled .list__content {
+  border-color: var(--subtle-bg-color);
+  color: var(--subtle-text-color);
+  text-decoration: line-through;
+}
+
+.list__item--disabled .list__toggle {
+  border-color: var(--subtle-bg-color);
+  color: var(--subtle-text-color);
+}
+
+.list__item--active .list__content {
+  background-color: var(--secondary-bg-color);
+  border-color: var(--secondary-color);
+}
+
+.list__item--active .list__toggle {
+  background-color: #5f5f99;
+  border-color: var(--secondary-color);
+}
+
+.list__item--active.list__item--disabled .list__content {
+  background-color: var(--subtle-bg-color);
+  border-color: var(--divider-color);
+}
+
+.list__item--active.list__item--disabled .list__toggle {
+  background-color: var(--divider-color);
+  border-color: var(--divider-color);
+  color: var(--text-color);
+}

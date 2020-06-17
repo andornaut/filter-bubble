@@ -1,0 +1,13 @@
+.websites__addresses {
+  display: block;
+  font-weight: bold;
+  margin-bottom: var(--spacing);
+}
+
+.list__item--disabled .websites__addresses {
+  font-weight: normal;
+}
+
+.websites__selectors-label {
+  color: var(--subtle-text-color);
+}
