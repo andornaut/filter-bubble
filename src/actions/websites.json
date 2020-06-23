@@ -20,11 +20,11 @@
     },
     {
       "addresses": ["old.reddit.com", "reddit.com", "www.reddit.com"],
-      "selectors": ["article", "[class*=scrollerItem]", "[href^=\\/search]", "[data-url]"]
+      "selectors": ["[class*=scrollerItem]", "[data-url]", "[href^=\\/search]", "article"]
     },
     {
-      "addresses": ["facebook.com, m.facebook.com, www.facebook.com"],
-      "selectors": ["[role=article], article"]
+      "addresses": ["facebook.com", "m.facebook.com", "www.facebook.com"],
+      "selectors": ["[role=article]", "article"]
     },
     {
       "addresses": ["digg.com"],
@@ -32,7 +32,7 @@
     },
     {
       "addresses": ["arstechnica.com"],
-      "selectors": [".article"]
+      "selectors": [".article", "li > article"]
     }
   ]
 }
