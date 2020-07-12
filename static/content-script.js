@@ -4,6 +4,7 @@
     return { isFirstRun: false };
   }
 
+
   const CSS_HIDE_CLASS = 'filter-bubble--hide';
   const CSS_REMOVE_CLASS = 'filter-bubble--remove';
   const CSS_HIGHLIGHT_CLASS = 'filter-bubble--highlight';
@@ -70,26 +71,32 @@
 
   class FilterBubble {
     constructor() {
-      this.update = this.update.bind(this);
-      this.watch = this.watch.bind(this);
+      this.observer = new MutationObserver(this.update.bind(this));
     }
 
     disable() {
-      this.enabled = false;
+      this.observer.disconnect();
       this.state = {};
       resetDOM();
     }
 
-    enable({ isFirstRun, ...state }) {
+    enable(state) {
       // May be triggered several times for a single page load.
-      this.enabled = true;
       this.state = state; // { filterMode, pattern, selectors, tabId }
-      resetDOM();
-      this.count = applyDOM(this.state);
+      // document.body can be null on the first onUpdated.status===loading event.
 
-      if (isFirstRun) {
-        window.addEventListener('scroll', this.watch, { passive: true });
-        this.watch();
+      const inner = () => {
+        this.observer.disconnect();
+        resetDOM();
+        this.count = applyDOM(this.state);
+        this.observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+      }
+
+      if (!document.body) {
+        // Try again in a bit.
+        setTimeout(inner, 250);
+      } else {
+        inner();
       }
       return this.count;
     }
@@ -102,28 +109,15 @@
     }
 
     update() {
-      if (!this.enabled || this.updateCallCount === 35) {
-        // 30 secs in total.
-        this.timeoutId = null;
+      // Don't update more often than once every 300ms.
+      if (this.pending) {
         return;
       }
-
-      let delayInMs = 250;
-      if (this.updateCallCount > 20) {
-        delayInMs = 1500;
-      } else if (this.updateCallCount > 10) {
-        delayInMs = 500;
-      }
+      this.pending = true;
       this.setCount(applyDOM(this.state));
-      this.timeoutId = setTimeout(this.update, delayInMs);
-      this.updateCallCount += 1;
-    }
-
-    watch() {
-      this.updateCallCount = 1; // Reset whenever scrolling occurs.
-      if (this.enabled && !this.timeoutId) {
-        this.update();
-      }
+      setTimeout(() => {
+        this.pending = false;
+      }, 300);
     }
   }
 

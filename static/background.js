@@ -107,7 +107,6 @@ const updateTab = async ({ forceHighlight = false, pattern = '', websitesList = 
     command: 'enable',
     data: {
       filterMode,
-      isFirstRun,
       pattern,
       selectors,
       tabId: tab.id,
@@ -170,8 +169,7 @@ const initBackground = async () => {
 
   chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
     // `status === "loading"` may occur several times for a single page load, whereas "complete" occurs only once,
-    // but we respond to "loading" to apply filtering as soon as possible. We do not dedupe per tab+url,
-    // because triggering the content-script on these extra events helps it to filter content as it is rendered.
+    // but we respond to "loading" to apply filtering as soon as possible.
     if ((status === 'complete' || status === 'loading') && tab.url) {
       updateTab(state, tab);
     }
