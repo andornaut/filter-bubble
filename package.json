@@ -1,6 +1,6 @@
 {
   "name": "filter-bubble",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A browser extension for Chrome and Firefox that helps you to filter-out content from the web",
   "author": "",
   "repository": {
