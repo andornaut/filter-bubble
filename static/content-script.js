@@ -4,7 +4,6 @@
     return { isFirstRun: false };
   }
 
-
   const CSS_HIDE_CLASS = 'filter-bubble--hide';
   const CSS_REMOVE_CLASS = 'filter-bubble--remove';
   const CSS_HIGHLIGHT_CLASS = 'filter-bubble--highlight';
@@ -90,7 +89,7 @@
         resetDOM();
         this.count = applyDOM(this.state);
         this.observer.observe(document.body, { subtree: true, childList: true, attributes: true });
-      }
+      };
 
       if (!document.body) {
         // Try again in a bit.

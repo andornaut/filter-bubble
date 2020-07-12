@@ -7,7 +7,8 @@ import { textField } from './fields';
 
 const fields = (topic = { text: '' }) =>
   textField({
-    hint: 'A list of case-insensitive topics - groups of words or phrases - that you do not wish to see on the web. '
+    hint:
+      'A list of case-insensitive topics - groups of words or phrases - that you do not wish to see on the web. '
       + 'eg. "cupcakes, apples and oranges"',
     label: 'Text',
     name: 'text',

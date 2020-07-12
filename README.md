@@ -7,7 +7,7 @@ that helps you to filter-out content from the web.
 
 Create a list of topics - groups of words or phrases - that you do not wish to see on the web.
 
-Then configure website-specific 
+Then configure website-specific
 [CSS Selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors)
 to target HTML elements on a webpage.
 
