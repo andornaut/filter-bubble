@@ -1,6 +1,6 @@
 {
   "name": "filter-bubble",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A browser extension for Chrome and Firefox that helps you to filter-out content from the web",
   "author": "",
   "repository": {
@@ -20,7 +20,7 @@
     "package": "npm run build-production && web-ext build",
     "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
     "web-ext": "npm run build && web-ext run",
-    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.firefox --verbose",
+    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose",
     "web-ext-android-firefox-preview-nightly": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.fenix.nightly --verbose"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Filter Bubble",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "default_locale": "en",
   "description": "Take control of the content that you see on the web",
   "homepage_url": "https://github.com/andornaut/filter-bubble",
@@ -26,6 +26,9 @@
   },
   "background": {
     "scripts": ["background.js"]
+  },
+  "options_ui": {
+    "page": "popup.html"
   },
   "browser_specific_settings": {
     "gecko": {
