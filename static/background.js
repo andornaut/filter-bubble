@@ -43,8 +43,7 @@ const toPattern = (topicsList) =>
     if (accumulator) {
       accumulator += '|';
     }
-    accumulator += `([^\\w]${phrase}[^\\w])|(^${phrase}[^\\w])|([^\\w]${phrase}$)|(^${phrase}$)`;
-    return accumulator;
+    return `${accumulator}(\\b${phrase}\\b)`;
   }, '');
 
 const matchedWebsite = (websitesList, url) => {
