@@ -32,6 +32,7 @@ If a "topic" is mentioned anywhere within one of these HTML elements, then it'll
 Follow the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/):
 
 - [Enable Android "Developer Options"](https://developer.android.com/studio/debug/dev-options)
+- [Remote Debugging via USB](https://developer.mozilla.org/en-US/docs/Tools/about:debugging#Setup_tab) in Firefox for Android
 - Connect your device to your computer via USB
 - Install [Android Platform Tools](https://developer.android.com/studio/releases/platform-tools.html)
 
