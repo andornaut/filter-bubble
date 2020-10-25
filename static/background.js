@@ -91,7 +91,7 @@ const updateTab = async ({ forceHighlight = false, pattern = '', websitesList = 
     console.warn(`filter-bubble: Content script response is undefined on tab ${tab.url}`);
     return;
   }
-  const [{ isFirstRun }] = response;
+  const [{ isFirstRun = true } = {}] = response; // Is sometimes `[undefined]`
   if (isFirstRun) {
     // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so by CSP rules:
     // > Cannot insert the CSS Content Security Policy: The page’s settings blocked the loading of a resource at
@@ -161,7 +161,7 @@ const initBackground = async () => {
 
   chrome.runtime.onMessage.addListener(({ command, data }) => {
     if (command !== 'count') {
-      throw new Error(`filter-bubble: Unknown command: ${command} `);
+      throw new Error(`filter-bubble: Unknown command: ${command}`);
     }
     setBadge(data.tabId, data.count);
   });

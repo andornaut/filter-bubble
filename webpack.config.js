@@ -2,6 +2,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
 
+const distPath = path.join(__dirname, 'dist');
 const srcPath = path.join(__dirname, 'src');
 
 module.exports = (env, argv = {}) => {
@@ -13,6 +14,7 @@ module.exports = (env, argv = {}) => {
     },
     output: {
       filename: '[name].js',
+      path: distPath,
     },
     plugins: [
       new CopyWebpackPlugin({
