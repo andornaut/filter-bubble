@@ -40,7 +40,7 @@ sudo apt install adb
 
 # You may need to restart the adb server if you have a previous manual installation
 sudo adb kill-server
-sudo adb start=server
+sudo adb start-server
 
 adb devices
 ```
