@@ -1,17 +1,16 @@
 {
   "list": [
     {
-      "addresses": ["twitter.com"],
-      "hideInsteadOfRemove": true,
+      "addresses": ["arstechnica.com"],
+      "selectors": [".article", "li > article"]
+    },
+    {
+      "addresses": ["digg.com"],
       "selectors": ["article"]
     },
     {
-      "addresses": ["tildes.net"],
-      "selectors": ["ol.topic-listing > li"]
-    },
-    {
-      "addresses": ["news.ycombinator.com"],
-      "selectors": ["tr.athing"]
+      "addresses": ["facebook.com", "m.facebook.com", "www.facebook.com"],
+      "selectors": ["[role=article]", "article"]
     },
     {
       "addresses": ["instagram.com", "www.instagram.com"],
@@ -19,20 +18,26 @@
       "selectors": ["article"]
     },
     {
+      "addresses": ["news.ycombinator.com"],
+      "selectors": ["tr.athing"]
+    },
+    {
       "addresses": ["old.reddit.com", "reddit.com", "www.reddit.com"],
-      "selectors": ["[class*=scrollerItem]", ".listing-page [data-url]", "[href^=\\/search]", "article"]
+      "selectors": [
+        "[class*=scrollerItem]",
+        "[href^=\\/search]",
+        "body.listing-page div[data-url]",
+        "body:not(.comments-page) article"
+      ]
     },
     {
-      "addresses": ["facebook.com", "m.facebook.com", "www.facebook.com"],
-      "selectors": ["[role=article]", "article"]
+      "addresses": ["tildes.net"],
+      "selectors": ["ol.topic-listing > li"]
     },
     {
-      "addresses": ["digg.com"],
+      "addresses": ["twitter.com"],
+      "hideInsteadOfRemove": true,
       "selectors": ["article"]
-    },
-    {
-      "addresses": ["arstechnica.com"],
-      "selectors": [".article", "li > article"]
     }
   ]
 }
