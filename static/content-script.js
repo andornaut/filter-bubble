@@ -18,23 +18,28 @@
         console.warn(`filter-bubble: Error applying selector "${selector}"`, containerError);
         continue;
       }
-      containers.forEach((container) => {
-        // For the regex to work, we must match against each HTML element separately.
-        for (const el of container.querySelectorAll('*')) {
-          let matched = false;
-          try {
-            matched = regex.test(el.textContent);
-          } catch (regexError) {
-            console.warn(`filter-bubble: Error applying regular expression "${regex}"`, regexError);
-            return;
+      count += Array.prototype.reduce.call(
+        containers,
+        (accumulator, container) => {
+          // For the regex to work, we must match against each HTML element separately.
+          for (const el of container.querySelectorAll('*')) {
+            let matched = false;
+            try {
+              matched = regex.test(el.textContent);
+            } catch (regexError) {
+              console.warn(`filter-bubble: Error applying regular expression "${regex}"`, regexError);
+              break;
+            }
+            if (matched) {
+              fn(container);
+              accumulator += 1;
+              break;
+            }
           }
-          if (matched) {
-            fn(container);
-            count += 1;
-            return;
-          }
-        }
-      });
+          return accumulator;
+        },
+        0,
+      );
     }
     return count;
   };
@@ -88,7 +93,7 @@
         this.observer.disconnect();
         resetDOM();
         this.count = applyDOM(this.state);
-        this.observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+        this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
       };
 
       if (!document.body) {

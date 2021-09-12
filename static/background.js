@@ -93,7 +93,8 @@ const updateTab = async ({ forceHighlight = false, pattern = '', websitesList = 
   }
   const [{ isFirstRun = true } = {}] = response; // Is sometimes `[undefined]`
   if (isFirstRun) {
-    // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so by CSP rules:
+    // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so
+    // by CSP rules:
     // > Cannot insert the CSS Content Security Policy: The page’s settings blocked the loading of a resource at
     // > inline (“style-src”).
     insertCSS(tab.id, { file: STYLESHEET, runAt: 'document_start' });
