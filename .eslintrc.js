@@ -37,7 +37,7 @@ module.exports = {
     // Prefix symbols with underscore to denote private visibility
     'no-underscore-dangle': 0,
     'no-unused-expressions': ['error', { allowTaggedTemplates: true }],
-    'sort-keys': ['error'],
     'sort-destructure-keys/sort-destructure-keys': ['error'],
+    'sort-keys': ['error'],
   },
 };
