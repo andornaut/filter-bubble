@@ -20,6 +20,9 @@ const getStorage = withPromise(chrome.storage.sync.get.bind(chrome.storage.sync)
 const insertCSS = withPromise(chrome.tabs.insertCSS.bind(chrome.tabs));
 const query = withPromise(chrome.tabs.query.bind(chrome.tabs));
 const sendMessage = withPromise(chrome.tabs.sendMessage.bind(chrome.tabs));
+const setBadge = (tabId, count) => {
+  chrome.browserAction.setBadgeText({ tabId, text: (count || '').toString() });
+};
 
 /*
  * Return a regular expression that matches all topics using the following approaches:
@@ -59,12 +62,12 @@ const matchedWebsite = (websitesList, url) => {
   return null;
 };
 
-const setBadge = (tabId, count) => {
-  chrome.browserAction.setBadgeText({ tabId, text: (count || '').toString() });
-};
-
-const updateTab = async ({ forceHighlight = false, pattern = '', websitesList = [] }, tab, alwaysDisable = false) => {
-  const website = matchedWebsite(websitesList, tab.url);
+const updateTab = async (
+  { forceHighlight = false, pattern = '', websitesList = [] },
+  { id: tabId, url: tabUrl },
+  alwaysDisable = false,
+) => {
+  const website = matchedWebsite(websitesList, tabUrl);
 
   // `pattern` is empty string when the extension is first installed or if all topics are disabled.
   // exit early to avoid matching against empty string regex, which matches every string.
@@ -73,53 +76,46 @@ const updateTab = async ({ forceHighlight = false, pattern = '', websitesList = 
       // Always disable when resetting the current tab to handle the case where the website that matches the current
       // tab was deleted, or the selectors on the current tab have changed.
       try {
-        await sendMessage(tab.id, { command: 'disable' });
+        await sendMessage(tabId, { command: 'disable' });
       } catch (error) {
         // This error is thrown when the tab is a protected page:
         // "Could not establish connection. Receiving end does not exist"
-        console.warn(`filter-bubble: Error sending "disable" message to tab ${tab.url}`, error);
+        console.warn(`filter-bubble: Error sending "disable" message to tab ${tabUrl}`, error);
       }
     }
-    setBadge(tab.id, 0);
     return;
   }
 
-  const { hideInsteadOfRemove, selectors } = website;
-  const response = await executeScript(tab.id, { file: CONTENT_SCRIPT, runAt: 'document_start' });
-  if (response === undefined) {
-    // response can be undefined when executeScript() attempts to execute on a protected page.
-    console.warn(`filter-bubble: Content script response is undefined on tab ${tab.url}`);
-    return;
-  }
-  const [{ isFirstRun = true } = {}] = response; // Is sometimes `[undefined]`
+  const response = await executeScript(tabId, { file: CONTENT_SCRIPT, runAt: 'document_start' });
+  const [{ isFirstRun = true } = {}] = response || []; // Response is sometimes `undefined || [undefined]`
   if (isFirstRun) {
     // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so
     // by CSP rules:
     // > Cannot insert the CSS Content Security Policy: The page’s settings blocked the loading of a resource at
     // > inline (“style-src”).
-    insertCSS(tab.id, { file: STYLESHEET, runAt: 'document_start' });
+    insertCSS(tabId, { file: STYLESHEET, runAt: 'document_start' });
   }
+
+  const { hideInsteadOfRemove, selectors } = website;
   let filterMode = hideInsteadOfRemove ? 'hide' : 'remove';
   if (forceHighlight) {
     filterMode = 'highlight';
   }
-  const { count } = await sendMessage(tab.id, {
+  sendMessage(tabId, {
     command: 'enable',
     data: {
       filterMode,
       pattern,
       selectors,
-      tabId: tab.id,
+      tabId,
     },
   });
-  setBadge(tab.id, count);
 };
 
 const resetCurrentTab = async (state) => {
-  const result = await query({ active: true, currentWindow: true });
-  const [currentTab] = result;
+  const [currentTab] = await query({ active: true, currentWindow: true });
   if (!currentTab) {
-    // CurrentTab can be undefined if focused on a separate window to inspect the extension background page.
+    // CurrentTab can be undefined when we're focused on a separate window to eg. inspect the extension background page.
     console.warn('filter-bubble: The current tab is undefined');
     return;
   }
