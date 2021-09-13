@@ -16,7 +16,7 @@
   "scripts": {
     "build": "webpack --mode=development",
     "build-production": "webpack --mode=production",
-    "format": "prettier-eslint --write  \"${PWD}/**/.*.{css,js,json,jsx,md}\"",
+    "format": "prettier-eslint --write  \"**/*.{css,js,json,jsx,md}\"",
     "package": "npm run build-production && web-ext build",
     "prepare": "husky install",
     "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
