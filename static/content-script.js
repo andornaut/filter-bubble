@@ -75,6 +75,7 @@
 
   class FilterBubble {
     constructor() {
+      this.count = 0;
       this.observer = new MutationObserver(this.update.bind(this));
     }
 
@@ -85,34 +86,23 @@
     }
 
     enable(state) {
+      if (!document.body) {
+        // document.body can be null on the first onUpdated.status===loading event.
+        // Try again in a bit.
+        setTimeout(this.enable.bind(this, state), 100);
+        return;
+      }
+
       // Handle being triggered several times for a single page load.
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
-        return this.count;
+        return;
       }
       this.state = state; // { filterMode, pattern, selectors, tabId }
-      // document.body can be null on the first onUpdated.status===loading event.
 
-      const inner = () => {
-        this.observer.disconnect();
-        resetDOM();
-        this.count = applyDOM(this.state);
-        this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
-      };
-
-      if (!document.body) {
-        // Try again in a bit.
-        setTimeout(inner, 100);
-      } else {
-        inner();
-      }
-      return this.count;
-    }
-
-    setCount(newCount) {
-      if (this.count !== newCount) {
-        this.count = newCount;
-        chrome.runtime.sendMessage({ command: 'count', data: { count: this.count, tabId: this.state.tabId } });
-      }
+      this.observer.disconnect();
+      resetDOM();
+      this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+      this.update();
     }
 
     update() {
@@ -121,25 +111,29 @@
         return;
       }
       this.pending = true;
-      this.setCount(applyDOM(this.state));
+      this.updateCount(applyDOM(this.state));
       setTimeout(() => {
         this.pending = false;
       }, 300);
+    }
+
+    updateCount(newCount) {
+      if (this.count !== newCount) {
+        this.count = newCount;
+        chrome.runtime.sendMessage({ command: 'count', data: { count: this.count, tabId: this.state.tabId } });
+      }
     }
   }
 
   window.filterBubble = new FilterBubble();
 
-  chrome.runtime.onMessage.addListener(({ command, data }, _, sendResponse) => {
+  chrome.runtime.onMessage.addListener(({ command, data }) => {
     switch (command) {
       case 'enable':
-        sendResponse({ count: window.filterBubble.enable(data) });
+        window.filterBubble.enable(data);
         break;
       case 'disable':
         window.filterBubble.disable();
-        // Since background.js always provides a response callback, we must send a response in order to
-        // avoid warnings in Chrome.
-        sendResponse({ count: 0 });
         break;
       default:
         throw new Error(`filter-bubble: Unknown command: ${command} `);
