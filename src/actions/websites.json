@@ -25,7 +25,7 @@
       "addresses": ["old.reddit.com", "reddit.com", "www.reddit.com"],
       "selectors": [
         "[class*=scrollerItem]",
-        "[href^=\\/search]",
+        "[href*=\"/search\"]",
         "body.listing-page div[data-url]",
         "body:not(.comments-page) article"
       ]
