@@ -85,7 +85,10 @@
     }
 
     enable(state) {
-      // May be triggered several times for a single page load.
+      // Handle being triggered several times for a single page load.
+      if (JSON.stringify(this.state) === JSON.stringify(state)) {
+        return this.count;
+      }
       this.state = state; // { filterMode, pattern, selectors, tabId }
       // document.body can be null on the first onUpdated.status===loading event.
 
@@ -98,7 +101,7 @@
 
       if (!document.body) {
         // Try again in a bit.
-        setTimeout(inner, 250);
+        setTimeout(inner, 100);
       } else {
         inner();
       }
