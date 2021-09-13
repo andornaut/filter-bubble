@@ -21,7 +21,8 @@ const insertCSS = withPromise(chrome.tabs.insertCSS.bind(chrome.tabs));
 const query = withPromise(chrome.tabs.query.bind(chrome.tabs));
 const sendMessage = withPromise(chrome.tabs.sendMessage.bind(chrome.tabs));
 const setBadge = (tabId, count) => {
-  chrome.browserAction.setBadgeText({ tabId, text: (count || '').toString() });
+  count = (count || '').toString(); // Display 0 as empty string
+  chrome.browserAction.setBadgeText({ tabId, text: count });
 };
 
 /*
