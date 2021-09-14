@@ -19,7 +19,7 @@ const executeScript = withPromise(chrome.tabs.executeScript.bind(chrome.tabs));
 const getStorage = withPromise(chrome.storage.sync.get.bind(chrome.storage.sync));
 const insertCSS = withPromise(chrome.tabs.insertCSS.bind(chrome.tabs));
 const query = withPromise(chrome.tabs.query.bind(chrome.tabs));
-const sendMessage = withPromise(chrome.tabs.sendMessage.bind(chrome.tabs));
+const sendMessage = chrome.tabs.sendMessage.bind(chrome.tabs);
 const setBadge = (tabId, count) => {
   count = (count || '').toString(); // Display 0 as empty string
   chrome.browserAction.setBadgeText({ tabId, text: count });
@@ -76,13 +76,9 @@ const updateTab = async (
     if (alwaysDisable) {
       // Always disable when resetting the current tab to handle the case where the website that matches the current
       // tab was deleted, or the selectors on the current tab have changed.
-      try {
-        await sendMessage(tabId, { command: 'disable' });
-      } catch (error) {
-        // This error is thrown when the tab is a protected page:
-        // "Could not establish connection. Receiving end does not exist"
-        console.warn(`filter-bubble: Error sending "disable" message to tab ${tabUrl}`, error);
-      }
+      // This may throw this error error when the tab is a protected page:
+      // > Could not establish connection. Receiving end does not exist
+      sendMessage(tabId, { command: 'disable' });
     }
     return;
   }
@@ -102,6 +98,7 @@ const updateTab = async (
   if (forceHighlight) {
     filterMode = 'highlight';
   }
+
   sendMessage(tabId, {
     command: 'enable',
     data: {
