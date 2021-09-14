@@ -83,8 +83,11 @@ const updateTab = async (
     return;
   }
 
-  const response = await executeScript(tabId, { file: CONTENT_SCRIPT, runAt: 'document_start' });
-  const [{ isFirstRun = true } = {}] = response || []; // Response is sometimes `undefined || [undefined]`
+  let response = await executeScript(tabId, { file: CONTENT_SCRIPT, runAt: 'document_start' });
+  // Response is sometimes `undefined || [undefined] || [null]`
+  response = response || [];
+  response = [response] || {};
+  const { isFirstRun = true } = response;
   if (isFirstRun) {
     // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so
     // by CSP rules:
