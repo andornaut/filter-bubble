@@ -2,7 +2,7 @@ const STORAGE_KEY = 'state';
 
 // Firefox supports a promises-based API, but Chrome does not.
 const withPromise = (fn) => (...args) =>
-  new Promise((resolve, reject) =>
+  new Promise((resolve, reject) => {
     fn(...args, (result) => {
       const { lastError } = chrome.runtime;
       if (lastError) {
@@ -11,7 +11,8 @@ const withPromise = (fn) => (...args) =>
       } else {
         resolve(result);
       }
-    }));
+    });
+  });
 
 // window.chrome works on Firefox too.
 const storage = chrome.storage.sync;
