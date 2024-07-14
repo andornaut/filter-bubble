@@ -2,27 +2,9 @@ const CONTENT_SCRIPT = '/content-script.js';
 const STYLESHEET = '/css/content-script.css';
 const SCHEME_REGEX = /^(https?)?:\/\//;
 
-// Firefox supports a promises-based API, but Chrome does not.
-const withPromise = (fn) => (...args) =>
-  new Promise((resolve, reject) =>
-    fn(...args, (result) => {
-      const { lastError } = chrome.runtime;
-      if (lastError) {
-        // .message is an optional property
-        reject(lastError.message || lastError);
-      } else {
-        resolve(result);
-      }
-    }));
-
-const executeScript = withPromise(chrome.tabs.executeScript.bind(chrome.tabs));
-const getStorage = withPromise(chrome.storage.sync.get.bind(chrome.storage.sync));
-const insertCSS = withPromise(chrome.tabs.insertCSS.bind(chrome.tabs));
-const query = withPromise(chrome.tabs.query.bind(chrome.tabs));
-const sendMessage = chrome.tabs.sendMessage.bind(chrome.tabs);
 const setBadge = (tabId, count) => {
   count = (count || '').toString(); // Display 0 as empty string
-  chrome.browserAction.setBadgeText({ tabId, text: count });
+  chrome.action.setBadgeText({ tabId, text: count });
 };
 
 /*
@@ -78,22 +60,26 @@ const updateTab = async (
       // tab was deleted, or the selectors on the current tab have changed.
       // This may throw this error error when the tab is a protected page:
       // > Could not establish connection. Receiving end does not exist
-      sendMessage(tabId, { command: 'disable' });
+      chrome.tabs.sendMessage(tabId, { command: 'disable' });
     }
     return;
   }
 
-  let response = await executeScript(tabId, { file: CONTENT_SCRIPT, runAt: 'document_start' });
+  let response = await chrome.scripting.executeScript({
+    files: [CONTENT_SCRIPT],
+    injectImmediately: true,
+    target: { tabId },
+  });
   // Response is sometimes `undefined || [undefined] || [null]`
   response = response || [];
   response = [response] || {};
   const { isFirstRun = true } = response;
   if (isFirstRun) {
-    // Use the chrome.tabs API to add the stylesheet, because the content-script may be prevented from doing so
+    // Use the chrome.scripting API to add the stylesheet, because the content-script may be prevented from doing so
     // by CSP rules:
     // > Cannot insert the CSS Content Security Policy: The page’s settings blocked the loading of a resource at
     // > inline (“style-src”).
-    insertCSS(tabId, { file: STYLESHEET, runAt: 'document_start' });
+    chrome.scripting.insertCSS({ files: [STYLESHEET], target: { tabId } });
   }
 
   const { hideInsteadOfRemove, selectors } = website;
@@ -102,7 +88,7 @@ const updateTab = async (
     filterMode = 'highlight';
   }
 
-  sendMessage(tabId, {
+  chrome.tabs.sendMessage(tabId, {
     command: 'enable',
     data: {
       filterMode,
@@ -114,7 +100,7 @@ const updateTab = async (
 };
 
 const resetCurrentTab = async (state) => {
-  const [currentTab] = await query({ active: true, currentWindow: true });
+  const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!currentTab) {
     // CurrentTab can be undefined when we're focused on a separate window to eg. inspect the extension background page.
     console.warn('filter-bubble: The current tab is undefined');
@@ -137,7 +123,9 @@ const initBackground = async () => {
     updateState(newValue);
   });
 
-  const { state: initialState } = (await getStorage('state')) || {};
+  // n.b. `storage.sync` doens't actually synchronize on Firefox for Android:
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
+  const { state: initialState } = (await chrome.storage.sync.get('state')) || {};
   if (initialState) {
     updateState(initialState);
   }
