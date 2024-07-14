@@ -66,7 +66,10 @@ You can also use these npm run-scripts:
 - `npm run web-ext-android-firefox`
 - `npm run web-ext-android-firefox-preview-nightly`
 
-## Packaging for distribution
+## Publishing
+
+* [Chrome](https://chrome.google.com/webstore/devconsole/)
+* [Firefox](https://addons.mozilla.org/en-US/developers/addons)
 
 ```bash
 npm run package
