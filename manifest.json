@@ -11,7 +11,8 @@
     "default_title": "Filter Bubble"
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "service_worker": "background.js"
   },
   "browser_specific_settings": {
     "gecko": {
@@ -26,7 +27,7 @@
   "default_locale": "en",
   "description": "Take control of the content that you see on the web",
   "homepage_url": "https://github.com/andornaut/filter-bubble",
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",
@@ -40,5 +41,5 @@
     "page": "popup.html"
   },
   "permissions": ["scripting", "storage", "tabs"],
-  "version": "0.4.6"
+  "version": "0.6.0"
 }

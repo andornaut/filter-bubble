@@ -9,6 +9,7 @@
   const CSS_HIDE_MODIFIER = 'filter-bubble--hide';
   const CSS_HIGHLIGHT_MODIFIER = 'filter-bubble--highlight';
   const CSS_REMOVE_MODIFIER = 'filter-bubble--remove';
+
   const hide = (el) => {
     el.classList.add(CSS_BLOCK, CSS_HIDE_MODIFIER);
   };
@@ -75,9 +76,10 @@
 
   class FilterBubble {
     constructor(dom) {
-      this.observer = new MutationObserver(this._update.bind(this));
-      this.dom = dom;
       this.count = 0;
+      this.dom = dom;
+      this.observer = new MutationObserver(this._changed.bind(this));
+      this.pending = false;
       this.state = {};
     }
 
@@ -85,7 +87,7 @@
       this.observer.disconnect();
       this.dom.reset();
 
-      this._updateCount(0);
+      this._setCount(0);
       this.state = {};
     }
 
@@ -97,7 +99,7 @@
         return;
       }
 
-      // Handle being triggered several times for a single page load.
+      // Ignore duplicate calls for a single page load, where the state hasn't changed
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
         return;
       }
@@ -106,22 +108,23 @@
       this.observer.disconnect();
       this.dom.reset();
       this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
-      this._update();
+      this._changed();
     }
 
-    _update() {
+    _changed() {
       // Don't update more often than once every 300ms.
       if (this.pending) {
         return;
       }
       this.pending = true;
-      this._updateCount(this.dom.apply(this.state));
+
+      this._setCount(this.dom.apply(this.state));
       setTimeout(() => {
         this.pending = false;
       }, 300);
     }
 
-    _updateCount(newCount) {
+    _setCount(newCount) {
       if (this.count !== newCount) {
         this.count = newCount;
         chrome.runtime.sendMessage({ command: 'count', data: { count: this.count, tabId: this.state.tabId } });

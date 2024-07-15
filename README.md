@@ -68,10 +68,11 @@ You can also use these npm run-scripts:
 
 ## Publishing
 
-* [Chrome](https://chrome.google.com/webstore/devconsole/)
-* [Firefox](https://addons.mozilla.org/en-US/developers/addons)
+- [Chrome](https://chrome.google.com/webstore/devconsole/)
+- [Firefox](https://addons.mozilla.org/en-US/developers/addons)
+  - Navigate to `about:debugging`
 
 ```bash
-npm run package
+npm run package-production
 ls web-ext-artifacts/
 ```
