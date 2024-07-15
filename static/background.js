@@ -1,6 +1,19 @@
-const CONTENT_SCRIPT = '/content-script.js';
-const STYLESHEET = '/css/content-script.css';
+const CONTENT_SCRIPT_PATH = '/content-script.js';
+const STYLESHEET_PATH = '/css/content-script.css';
 const SCHEME_REGEX = /^(https?)?:\/\//;
+
+const matchedWebsite = (websitesList, url) => {
+  url = url.toLowerCase().replace(SCHEME_REGEX, '');
+
+  for (const { addresses, ...website } of websitesList) {
+    for (const address of addresses) {
+      if (url.startsWith(address.replace(SCHEME_REGEX, ''))) {
+        return website;
+      }
+    }
+  }
+  return null;
+};
 
 const setBadge = (tabId, count) => {
   count = (count || '').toString(); // Display 0 as empty string
@@ -32,19 +45,6 @@ const toPattern = (topicsList) =>
     return `${accumulator}(\\b${phrase}\\b)`;
   }, '');
 
-const matchedWebsite = (websitesList, url) => {
-  url = url.toLowerCase().replace(SCHEME_REGEX, '');
-
-  for (const { addresses, ...website } of websitesList) {
-    for (const address of addresses) {
-      if (url.startsWith(address.replace(SCHEME_REGEX, ''))) {
-        return website;
-      }
-    }
-  }
-  return null;
-};
-
 const updateTab = async (
   { forceHighlight = false, pattern = '', websitesList = [] },
   { id: tabId, url: tabUrl },
@@ -55,21 +55,34 @@ const updateTab = async (
   // `pattern` is empty string when the extension is first installed or if all topics are disabled.
   // exit early to avoid matching against empty string regex, which matches every string.
   if (!website || !pattern) {
-    if (alwaysDisable) {
-      // Always disable when resetting the current tab to handle the case where the website that matches the current
-      // tab was deleted, or the selectors on the current tab have changed.
-      // This may throw this error error when the tab is a protected page:
+    if (tabUrl.match(SCHEME_REGEX) && alwaysDisable) {
+      // Always `disable` when resetting the current tab to handle the case where the website that matches the current
+      // tab was deleted from `state.websiteList`, or if the selectors on the current tab have changed.
+      //
+      // Catch the following error, which usually occurs if `content-script.js` is not installed
+      // on the tab, but we attempt to send a message to it anyway in case the script /was/
+      // previously installed before the tab.url was removed from `state.websiteList`.
       // > Could not establish connection. Receiving end does not exist
-      chrome.tabs.sendMessage(tabId, { command: 'disable' });
+      chrome.tabs.sendMessage(tabId, { command: 'disable' }).catch(() => {});
     }
     return;
   }
 
-  let response = await chrome.scripting.executeScript({
-    files: [CONTENT_SCRIPT],
-    injectImmediately: true,
-    target: { tabId },
-  });
+  let response;
+  try {
+    response = await chrome.scripting.executeScript({
+      files: [CONTENT_SCRIPT_PATH],
+      injectImmediately: true,
+      target: { tabId },
+    });
+  } catch (err) {
+    // This can occur if host permissions are not granted:
+    // https://support.mozilla.org/en-US/kb/manage-optional-permissions-extensions
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions
+    console.warn(`updateTab() executeScript() failed for ${tabUrl}:`, err);
+    return;
+  }
+
   // Response is sometimes `undefined || [undefined] || [null]`
   response = response || [];
   response = [response] || {};
@@ -79,7 +92,7 @@ const updateTab = async (
     // by CSP rules:
     // > Cannot insert the CSS Content Security Policy: The page’s settings blocked the loading of a resource at
     // > inline (“style-src”).
-    chrome.scripting.insertCSS({ files: [STYLESHEET], target: { tabId } });
+    chrome.scripting.insertCSS({ files: [STYLESHEET_PATH], target: { tabId } });
   }
 
   const { hideInsteadOfRemove, selectors } = website;
@@ -100,65 +113,74 @@ const updateTab = async (
 };
 
 const resetCurrentTab = async (state) => {
-  const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!currentTab) {
-    // CurrentTab can be undefined when we're focused on a separate window to eg. inspect the extension background page.
-    console.warn('filter-bubble: The current tab is undefined');
-    return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // `tab` can be undefined when focused on a separate window to eg. inspect the extension background page.
+  if (tab && tab.url) {
+    updateTab(state, tab, true);
   }
-  updateTab(state, currentTab, true);
 };
 
-const initBackground = async () => {
-  const state = {};
+// Initialization
+const state = {};
 
-  const updateState = (newState) => {
-    const { topics: { list: topicsList = [] } = {}, websites: { list: websitesList = [] } = {} } = newState;
-    state.pattern = toPattern(topicsList);
-    state.websitesList = websitesList.filter(({ enabled }) => enabled);
+const updateState = (newState) => {
+  const { topics: { list: topicsList = [] } = {}, websites: { list: websitesList = [] } = {} } = newState;
+  state.pattern = toPattern(topicsList);
+  state.websitesList = websitesList.filter(({ enabled }) => enabled);
+  resetCurrentTab(state);
+};
+
+chrome.storage.onChanged.addListener(({ state: { newValue } }) => {
+  updateState(newValue);
+});
+
+// Hide content when the popup is closed; and highlight content when the popup is open.
+// See corresponding call to chrome.runtime.connect() in /src/index.js
+chrome.runtime.onConnect.addListener((port) => {
+  port.onDisconnect.addListener(() => {
+    state.forceHighlight = false;
     resetCurrentTab(state);
-  };
-
-  chrome.storage.onChanged.addListener(({ state: { newValue } }) => {
-    updateState(newValue);
   });
 
-  // n.b. `storage.sync` doens't actually synchronize on Firefox for Android:
-  // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
-  const { state: initialState } = (await chrome.storage.sync.get('state')) || {};
+  state.forceHighlight = true;
+  resetCurrentTab(state);
+});
+
+// Receive messages from `content-script.js`.
+chrome.runtime.onMessage.addListener(({ command, data }) => {
+  if (command === 'count') {
+    setBadge(data.tabId, data.count);
+  } else {
+    throw new Error(`filter-bubble: Unknown command: ${command}`);
+  }
+});
+
+// Called when a tab metadata, such as its loading state or URL, changes.
+chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
+  if (status === 'loading' && tab.url) {
+    // This may be invoked multiple times for a given page load.
+    // n.b. this was observed in Firefox, but not Chrome
+    // `content-script.js` deduples these calls, anyway, though
+    // (it ignores them if the `state` hasn't changed).
+    updateTab(state, tab);
+  }
+});
+
+// Called when a tab is focussed.
+// When loading the extension on an existing tab, it's possible that onUpdated
+// isn't called, but that onActivated will be.
+chrome.tabs.onActivated.addListener(async ({ windowId }) => {
+  const [tab] = await chrome.tabs.query({ active: true, windowId });
+  if (tab && tab.url) {
+    updateTab(state, tab);
+  }
+});
+
+// Initialize the `state`.
+// n.b. `storage.sync` doens't actually synchronize between instances of Firefox for Android:
+// https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
+chrome.storage.sync.get('state').then(({ state: initialState } = {}) => {
   if (initialState) {
     updateState(initialState);
   }
-
-  // Hide content when the popup is closed; and highlight content when the popup is open.
-  // See corresponding call to chrome.runtime.connect() in /src/index.js
-  chrome.runtime.onConnect.addListener((port) => {
-    port.onDisconnect.addListener(() => {
-      state.forceHighlight = false;
-      resetCurrentTab(state);
-    });
-
-    state.forceHighlight = true;
-    // Opening the popup triggers, causes the hydratation actions to execute, which triggers a state change,
-    // which triggers the storage.onChanged handler, which executes updateTab(), so we can skip executing
-    // resetCurrentTab() here.
-    resetCurrentTab(state);
-  });
-
-  chrome.runtime.onMessage.addListener(({ command, data }) => {
-    if (command !== 'count') {
-      throw new Error(`filter-bubble: Unknown command: ${command}`);
-    }
-    setBadge(data.tabId, data.count);
-  });
-
-  chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
-    // `status === "loading"` may occur several times for a single page load, whereas "complete" occurs only once,
-    // but we respond to "loading" to apply filtering as soon as possible.
-    if ((status === 'complete' || status === 'loading') && tab.url) {
-      updateTab(state, tab);
-    }
-  });
-};
-
-initBackground();
+});

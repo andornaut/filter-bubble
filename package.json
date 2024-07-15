@@ -1,6 +1,6 @@
 {
   "name": "filter-bubble",
-  "version": "0.4.6",
+  "version": "0.6.0",
   "description": "A browser extension for Chrome and Firefox that helps you to filter-out content from the web",
   "author": "",
   "repository": {
@@ -18,7 +18,7 @@
     "build-production": "webpack --mode=production",
     "format": "prettier-eslint --write  \"**/*.{css,js,json,jsx,md}\"",
     "package": "npm run build && web-ext build",
-    "package-production": "npm run build-production && web-ext build",
+    "package-production": "npm run build-production && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
     "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
     "web-ext": "npm run build && web-ext run",
