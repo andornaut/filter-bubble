@@ -19,30 +19,30 @@
     "format": "prettier-eslint --write  \"**/*.{css,js,json,jsx,md}\"",
     "package": "npm run build && web-ext build",
     "package-production": "npm run build-production && web-ext build",
-    "prepare": "husky install",
+    "prepare": "husky",
     "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
     "web-ext": "npm run build && web-ext run",
     "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose",
     "web-ext-android-firefox-preview-nightly": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.fenix.nightly --verbose"
   },
   "dependencies": {
-    "lit-html": "~1.4.1",
-    "statezero": "~0.7.1"
+    "lit-html": "^1.4.1",
+    "statezero": "^0.7.1"
   },
   "devDependencies": {
     "clean-webpack-plugin": "~4.0.0",
-    "copy-webpack-plugin": "~10.2.4",
+    "copy-webpack-plugin": "~12.0.2",
     "eslint": "~7.32.0",
     "eslint-config-airbnb-base": "~15.0.0",
     "eslint-loader": "~4.0.2",
-    "eslint-plugin-import": "~2.26.0",
+    "eslint-plugin-import": "~2.29.1",
     "eslint-plugin-import-order-alphabetical": "~1.0.1",
-    "eslint-plugin-sort-destructure-keys": "~1.4.0",
-    "husky": "~7.0.4",
-    "lint-staged": "~12.3.7",
-    "prettier-eslint-cli": "~5.0.0",
-    "web-ext": "~8.1.0",
-    "webpack": "~5.76.0",
-    "webpack-cli": "~4.9.2"
+    "eslint-plugin-sort-destructure-keys": "~2.0.0",
+    "husky": "~9.0.11",
+    "lint-staged": "~15.2.7",
+    "prettier-eslint-cli": "~8.0.1",
+    "web-ext": "~8.2.0",
+    "webpack": "~5.93.0",
+    "webpack-cli": "~5.1.4"
   }
 }
