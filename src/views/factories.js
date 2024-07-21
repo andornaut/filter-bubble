@@ -10,11 +10,10 @@ import {
   editSelectedFactory,
   selectFactory,
   toggleEnabledFactory,
+  toggleShowHelp,
 } from '../actions/factories';
 import { humanDate } from '../date';
 import { sortByModifiedDateDesc } from '../helpers';
-
-const compose = (first, second) => (...args) => second(first(...args));
 
 const formToJson = (form) =>
   [].reduce.call(
@@ -35,20 +34,15 @@ const formToJson = (form) =>
     {},
   );
 
-const withError = (fn) => (...args) => {
-  let result;
+const withError = (fn) => async (...args) => {
   try {
-    result = fn(...args);
+    await fn(...args);
   } catch (error) {
     console.warn(error);
     addError(error);
     return;
   }
-  // If an action annotated with this decorator succeeds, then any previously
-  // displayed errors are now outdated and can be cleared.
   clearAllErrors();
-  // eslint-disable-next-line consistent-return
-  return result;
 };
 
 const handleActOnSelectedFactory = (actOnSelected) =>
@@ -70,9 +64,13 @@ const handleSubmitFactory = (submit) =>
     form.reset();
   });
 
-export const addFactory = (toRoot, toId, transform, fields) => {
+export const addFactory = (toRoot, toId, transform, fields, beforeSubmit = async () => {}) => {
   const handleCancel = handleActOnSelectedFactory(cancelSelectedFactory(toRoot));
-  const handleSubmit = handleSubmitFactory(compose(transform, addItemFactory(toRoot, toId)));
+  const handleSubmit = handleSubmitFactory((data) => {
+    data = transform(data);
+    addItemFactory(toRoot, toId)(data);
+    beforeSubmit(data);
+  });
   return () => html`
     <form class="form" @submit=${handleSubmit}>
       ${fields()}
@@ -86,10 +84,14 @@ export const addFactory = (toRoot, toId, transform, fields) => {
   `;
 };
 
-export const editFactory = (toRoot, toId, transform, fields) => {
+export const editFactory = (toRoot, toId, transform, fields, beforeSubmit = async () => {}) => {
   const handleCancel = handleActOnSelectedFactory(cancelSelectedFactory(toRoot));
   const handleDelete = handleActOnSelectedFactory(deleteSelectedFactory(toRoot, toId));
-  const handleSubmit = handleSubmitFactory(compose(transform, editSelectedFactory(toRoot, toId)));
+  const handleSubmit = handleSubmitFactory((data) => {
+    data = transform(data);
+    editSelectedFactory(toRoot, toId)(data);
+    beforeSubmit(data);
+  });
   return (selected) => html`
     <form class="form" @submit=${handleSubmit}>
       ${fields(selected)}
@@ -141,18 +143,62 @@ const itemFactory = (toRoot, toId, details) => {
   };
 };
 
-export const listFactory = (toRoot, toId, emptyText, itemDetails) => {
+const HELP_HTML = html`
+  <div class="list__help">
+    <h2>Getting started!</h2>
+    <ol>
+      <li>
+        Create a list of <a href="#topics">topics</a> that you want to hide or remove from
+        <a href="#websites">specific websites</a>
+      </li>
+
+      <li>
+        <a href="#websites">Configure rules for these websites</a> by specifying
+        <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
+        that target the
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a>
+        of the content blocks or feed items that might contain any of the targeted topics
+      </li>
+
+      <li>
+        If a targeted topic appears in a targeted HTML element on a targeted website, then it'll be hidden or removed
+        from view
+      </li>
+    </ol>
+    <p>
+      n.b. Only a handful of <a href="#websites">websites are configured out of the box</a>, and you'll need to know how
+      to target
+      <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a> using
+      <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
+      in order to configure additional websites!
+    </p>
+  </div>
+`;
+
+const handleToggleHelp = (event) => {
+  event.preventDefault();
+  toggleShowHelp();
+};
+
+export const listFactory = (toRoot, toId, itemDetails) => {
   const item = itemFactory(toRoot, toId, itemDetails);
   return (state) => {
     const { list, selected } = toRoot(state);
     const selectedId = toId(selected || {});
     if (!list.length) {
-      return emptyText;
+      return html`
+        <div class="list">${HELP_HTML}</div>
+      `;
     }
+    const showHelpLabel = state.showHelp ? 'Hide help' : 'Show help';
     return html`
-      <ul class="list">
-        ${repeat(sortByModifiedDateDesc(list), toId, (item_) => item(item_, selectedId === toId(item_)))}
-      </ul>
+      <div class="list">
+        <ul>
+          ${repeat(sortByModifiedDateDesc(list), toId, (item_) => item(item_, selectedId === toId(item_)))}
+        </ul>
+        ${state.showHelp ? HELP_HTML : null}
+        <p class="list__show-help"><a href="#" @click=${handleToggleHelp}>${showHelpLabel}</a></p>
+      </div>
     `;
   };
 };

@@ -1,9 +1,9 @@
 # Filter Bubble
 
-A browser add-on/extension for
+Filter Bubble is a browser add-on/extension for
 [Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/) and
 [Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
-that helps you to hide content that you don't want to see from websites that you visit.
+that enables you to hide content that you don't want to see on the web.
 
 - [Install Filter Bubble for Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/)
 - [Install Filter Bubble for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
@@ -22,9 +22,9 @@ n.b. Only a handful of websites are configured out of the box, and you'll need t
 [HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element) using
 [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) in order to configure additional websites!
 
-![filter-out topics](./resources/screenshot-topics.png)
+![filter-out topics](./resources/screenshots/screenshot-topics.png)
 
-![website-specific query selectors](./resources/screenshot-websites-bottom.png)
+![website-specific query selectors](./resources/screenshots/screenshot-websites.png)
 
 ## Developing
 

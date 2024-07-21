@@ -4,7 +4,6 @@
       "16": "icons/16.png",
       "32": "icons/32.png",
       "48": "icons/48.png",
-      "96": "icons/96.png",
       "128": "icons/128.png"
     },
     "default_popup": "popup.html",
@@ -17,29 +16,28 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{8b9910a1-0b84-4a02-a72e-c41631745301}",
-      "strict_min_version": "124.0"
+      "strict_min_version": "128.0"
     },
     "gecko_android": {
-      "id": "{8b9910a1-0b84-4a02-a72e-c41631745301}",
       "strict_min_version": "128.0"
     }
   },
   "default_locale": "en",
-  "description": "Take control of the content that you see on the web",
+  "description": "Filter Bubble enables you to hide content that you don't want to see on the web",
   "homepage_url": "https://github.com/andornaut/filter-bubble",
-  "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",
     "48": "icons/48.png",
-    "96": "icons/96.png",
     "128": "icons/128.png"
   },
   "manifest_version": 3,
+  "minimum_chrome_version": "102",
   "name": "Filter Bubble",
+  "optional_host_permissions": ["<all_urls>"],
   "options_ui": {
     "page": "popup.html"
   },
   "permissions": ["scripting", "storage", "tabs"],
-  "version": "0.6.2"
+  "version": "0.7.3"
 }

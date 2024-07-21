@@ -79,7 +79,10 @@ const updateTab = async (
     // This can occur if host permissions are not granted:
     // https://support.mozilla.org/en-US/kb/manage-optional-permissions-extensions
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions
-    console.warn(`updateTab() executeScript() failed for ${tabUrl}:`, err);
+    console.warn(
+      `updateTab() executeScript() failed for ${tabUrl}. Please grant the required "host permissions".`,
+      err,
+    );
     return;
   }
 

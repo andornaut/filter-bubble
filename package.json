@@ -1,7 +1,7 @@
 {
   "name": "filter-bubble",
-  "version": "0.6.2",
-  "description": "A browser extension for Chrome and Firefox that helps you to filter-out content from the web",
+  "version": "0.7.3",
+  "description": "Filter Bubble is a browser add-on/extension for Chrome and Firefox that enables you to hide content that you don't want to see on the web",
   "author": "",
   "repository": {
     "type": "git",
