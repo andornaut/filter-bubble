@@ -8,10 +8,11 @@ import { textField } from './fields';
 const fields = (topic = { text: '' }) =>
   textField({
     hint: html`
-      A list of case-insensitive topics - words or phrases - that will be hidden or removed from the
+      A list of case-insensitive keywords (single words or groups of words), separated by commas, that will be hidden or
+      removed from the
       <a href="#websites">websites that you've configured</a>. eg. "cupcakes, apples and oranges"
     `,
-    label: 'Text',
+    label: 'Topics',
     name: 'text',
     value: unsplit(topic.text),
   });
@@ -25,17 +26,36 @@ const details = ({ text }) =>
     <span class="topics__text">${unsplit(text)}</span>
   `;
 
-const emptyText = html`
-  <p class="list__empty">
-    Start by <a href="#websites">configuring the websites</a> that you want to filter, then add "topics" above to start
-    curating your web browsing bubble!
-    <br />
-    <br />
-    n.b. Only a handful of websites are configured by default, and you'll need to know how to target
-    <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a> using
-    <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
-    in order to properly configure new websites!
-  </p>
+export const emptyText = html`
+  <div class="list__empty">
+    <h2>Getting started!</h2>
+    <ol>
+      <li>
+        Create a list of <a href="#topics">topics</a> that you want to hide or remove from
+        <a href="#websites">specific websites</a>
+      </li>
+
+      <li>
+        <a href="#websites">Configure rules for these websites</a> by specifying
+        <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
+        that target the
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a>
+        of the content blocks or feed items that might contain any of the targeted topics
+      </li>
+
+      <li>
+        If a targeted topic appears in a targeted HTML element on a targeted website, then it'll be hidden or removed
+        from view
+      </li>
+    </ol>
+    <p>
+      n.b. Only a handful of <a href="#websites">websites are configured out of the box</a>, and you'll need to know how
+      to target
+      <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a> using
+      <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
+      in order to configure additional websites!
+    </p>
+  </div>
 `;
 
 const list = listFactory(toRoot, toId, emptyText, details);
