@@ -21,7 +21,7 @@ const item = ({ message }) => html`
       data-id=${message}
       title=${clearLabelText}
     >
-      🗙
+      [x]
     </button>
   </li>
 `;

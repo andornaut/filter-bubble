@@ -1,5 +1,8 @@
 .form {
-  margin-bottom: calc(2 * var(--spacing));
+  background-color: #333;
+  border-top: 1px solid #555;
+  border-bottom: 1px solid #444;
+  padding: var(--spacing) calc(2 * var(--spacing));
 }
 
 .form__date {

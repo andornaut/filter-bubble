@@ -87,3 +87,8 @@ export const toggleEnabledFactory = (toRoot, toId) =>
     item.enabled = !item.enabled;
     commit(state);
   });
+
+export const toggleShowHelp = action(({ commit, state }) => {
+  state.showHelp = !state.showHelp;
+  commit(state);
+});

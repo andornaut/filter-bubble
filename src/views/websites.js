@@ -2,19 +2,23 @@ import { html } from 'lit-html';
 
 import { toId, toRoot, transform } from '../actions/websites';
 import { unsplit } from '../helpers';
+import { requestPermissionsFromAddresses } from '../permissions';
 import { addFactory, listFactory, editFactory } from './factories';
 import { checkboxField, textField } from './fields';
-import { emptyText } from './topics';
 
 const fields = (website = { addresses: '', hideInsteadOfRemove: false, selectors: '' }) => [
   textField({
     hint: html`
-      A list of "web addresses" (prefixes, without the
-      <a href="https://en.wikipedia.org/wiki/List_of_URI_schemes" target="_blank">URI scheme</a>) separated by commas,
-      which are used to target websites to filter for the <a href="#topics">topics that you've configured</a>. eg.
-      "example.com" above will filter content from "http://example.com" and "https://example.com/path/?query"
+      A list of
+      <a href="https://en.wikipedia.org/wiki/Domain_name" target="_blank">domain names</a>
+      (<a href="https://en.wikipedia.org/wiki/URL" target="_blank">URLs</a> without the
+      <a href="https://en.wikipedia.org/wiki/List_of_URI_schemes" target="_blank">scheme</a> or
+      <a href="https://en.wikipedia.org/wiki/URL#Syntax" target="_blank">path</a>), separated by commas, that target the
+      websites from which to hide or remove the <a href="#topics">topics that you've configured</a>.
+      <br />
+      eg. Specifying "example.com" above will target "http://example.com" and "https://example.com/path/?query", etc.
     `,
-    label: 'Web addresses',
+    label: 'Domain names',
     name: 'addresses',
     value: unsplit(website.addresses),
   }),
@@ -41,9 +45,11 @@ const fields = (website = { addresses: '', hideInsteadOfRemove: false, selectors
   }),
 ];
 
-const add = addFactory(toRoot, toId, transform, fields);
+const beforeSubmit = ({ addresses }) => requestPermissionsFromAddresses(addresses);
 
-const edit = editFactory(toRoot, toId, transform, fields);
+const add = addFactory(toRoot, toId, transform, fields, beforeSubmit);
+
+const edit = editFactory(toRoot, toId, transform, fields, beforeSubmit);
 
 const details = ({ addresses, selectors }) => html`
   <span class="websites__addresses">${unsplit(addresses)}</span>
@@ -51,7 +57,7 @@ const details = ({ addresses, selectors }) => html`
   <span class="websites__selectors">${unsplit(selectors)}</span>
 `;
 
-const list = listFactory(toRoot, toId, emptyText, details);
+const list = listFactory(toRoot, toId, details);
 
 export const websites = (state) => html`
   <section>
