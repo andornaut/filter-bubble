@@ -1,12 +1,8 @@
 {
   "list": [
     {
-      "addresses": ["arstechnica.com"],
-      "selectors": [".article", "li > article"]
-    },
-    {
-      "addresses": ["news.ycombinator.com"],
-      "selectors": ["tr.athing"]
+      "addresses": ["tildes.net"],
+      "selectors": ["ol.topic-listing > li"]
     },
     {
       "addresses": ["old.reddit.com", "reddit.com", "www.reddit.com"],
@@ -18,8 +14,12 @@
       ]
     },
     {
-      "addresses": ["tildes.net"],
-      "selectors": ["ol.topic-listing > li"]
+      "addresses": ["news.ycombinator.com"],
+      "selectors": ["tr.athing"]
+    },
+    {
+      "addresses": ["arstechnica.com"],
+      "selectors": [".article", "li > article"]
     }
   ]
 }

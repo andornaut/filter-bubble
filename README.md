@@ -1,33 +1,41 @@
 # Filter Bubble
 
-A browser extension for
+A browser add-on/extension for
 [Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/) and
 [Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
-that helps you to filter-out content from the web.
-
-Create a list of topics - groups of words or phrases - that you do not wish to see on the web.
-
-Then configure website-specific
-[CSS Selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors)
-to target HTML elements on a webpage.
-
-If a "topic" is mentioned anywhere within one of these HTML elements, then it'll be hidden from view.
+that helps you to hide content that you don't want to see from websites that you visit.
 
 - [Install Filter Bubble for Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/)
 - [Install Filter Bubble for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
 
-## Getting Started
+## How it works
+
+1. Create a list of "topics" that you want to hide or remove from specific websites
+1. Configure rules for these websites by specifying
+   [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors)
+   that target the
+   [HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element)
+   of the content blocks or feed items that might contain any of the targeted topics
+1. If a targeted topic appears in a targeted HTML element on a targeted website, then it'll be hidden or removed from view
+
+n.b. Only a handful of websites are configured out of the box, and you'll need to know how to target
+[HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element) using
+[CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) in order to configure additional websites!
+
+![filter-out topics](./resources/screenshot-topics.png)
+
+![website-specific query selectors](./resources/screenshot-websites-bottom.png)
+
+## Developing
+
+### Getting Started
 
 1. Install [node](https://nodejs.org/en/) > v10.19.0
 1. Install [npm](https://www.npmjs.com/) > v6.14.4
 1. `npm install`
 1. `npm run web-ext`
 
-![filter-out topics](./resources/screenshot-topics.png)
-
-![website-specific query selectors](./resources/screenshot-websites-bottom.png)
-
-## Developing for Android
+### Developing for Android
 
 Follow the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/):
 
@@ -66,7 +74,7 @@ You can also use these npm run-scripts:
 - `npm run web-ext-android-firefox`
 - `npm run web-ext-android-firefox-preview-nightly`
 
-## Publishing
+### Publishing
 
 - [Chrome](https://chrome.google.com/webstore/devconsole/)
 - [Firefox](https://addons.mozilla.org/en-US/developers/addons)
