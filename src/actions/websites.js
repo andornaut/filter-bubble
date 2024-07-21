@@ -36,7 +36,7 @@ export const transform = (data) => {
     throw new Error('Please fill in the "Web addresses" field');
   }
   if (!data.selectors.length) {
-    throw new Error('Please fill in the "Selectors" field');
+    throw new Error('Please fill in the "CSS Selectors" field');
   }
   return data;
 };

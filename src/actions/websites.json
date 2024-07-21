@@ -5,19 +5,6 @@
       "selectors": [".article", "li > article"]
     },
     {
-      "addresses": ["digg.com"],
-      "selectors": ["article"]
-    },
-    {
-      "addresses": ["facebook.com", "m.facebook.com", "www.facebook.com"],
-      "selectors": ["[role=article]", "article"]
-    },
-    {
-      "addresses": ["instagram.com", "www.instagram.com"],
-      "hideInsteadOfRemove": true,
-      "selectors": ["article"]
-    },
-    {
       "addresses": ["news.ycombinator.com"],
       "selectors": ["tr.athing"]
     },
@@ -33,11 +20,6 @@
     {
       "addresses": ["tildes.net"],
       "selectors": ["ol.topic-listing > li"]
-    },
-    {
-      "addresses": ["twitter.com"],
-      "hideInsteadOfRemove": true,
-      "selectors": ["article"]
     }
   ]
 }
