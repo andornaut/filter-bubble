@@ -7,9 +7,10 @@ import { textField } from './fields';
 
 const fields = (topic = { text: '' }) =>
   textField({
-    hint:
-      'A list of case-insensitive topics - groups of words or phrases - that you do not wish to see on the web. '
-      + 'eg. "cupcakes, apples and oranges"',
+    hint: html`
+      A list of case-insensitive topics - words or phrases - that will be hidden or removed from the
+      <a href="#websites">websites that you've configured</a>. eg. "cupcakes, apples and oranges"
+    `,
     label: 'Text',
     name: 'text',
     value: unsplit(topic.text),
@@ -25,7 +26,16 @@ const details = ({ text }) =>
   `;
 
 const emptyText = html`
-  <p class="list__empty">Add "topics" above to start curating your web bubble!</p>
+  <p class="list__empty">
+    Start by <a href="#websites">configuring the websites</a> that you want to filter, then add "topics" above to start
+    curating your web browsing bubble!
+    <br />
+    <br />
+    n.b. Only a handful of websites are configured by default, and you'll need to know how to target
+    <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a> using
+    <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
+    in order to properly configure new websites!
+  </p>
 `;
 
 const list = listFactory(toRoot, toId, emptyText, details);
