@@ -1,55 +1,68 @@
 import { html } from 'lit-html';
 
-import { toId, toRoot, transform } from '../actions/websites';
-import { unsplit } from '../helpers';
+import { toId, toRoot } from '../actions/websites';
+import { toCanonicalArray, unsplit } from '../helpers';
 import { requestPermissionsFromAddresses } from '../permissions';
 import { addFactory, listFactory, editFactory } from './factories';
 import { checkboxField, textField } from './fields';
+import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from './hints';
 
 const fields = (website = { addresses: '', hideInsteadOfRemove: false, selectors: '' }) => [
   textField({
-    hint: html`
-      A list of
-      <a href="https://en.wikipedia.org/wiki/Domain_name" target="_blank">domain names</a>
-      (<a href="https://en.wikipedia.org/wiki/URL" target="_blank">URLs</a> without the
-      <a href="https://en.wikipedia.org/wiki/List_of_URI_schemes" target="_blank">scheme</a> or
-      <a href="https://en.wikipedia.org/wiki/URL#Syntax" target="_blank">path</a>), separated by commas, that target the
-      websites from which to hide or remove the <a href="#topics">topics that you've configured</a>.
-      <br />
-      eg. Specifying "example.com" above will target "http://example.com" and "https://example.com/path/?query", etc.
-    `,
+    hint: DOMAIN_NAMES_HINT,
     label: 'Domain names',
     name: 'addresses',
     value: unsplit(website.addresses),
   }),
   textField({
-    hint: html`
-      A list of
-      <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">CSS selectors</a>
-      separated by commas, which are used to target
-      <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">HTML elements</a>
-      on any websites that match the "web addresses" configured above. If a targeted HTML element contains a filtered
-      topic, then that HTML element will be hidden/removed.
-    `,
+    hint: CSS_SELECTORS_HINT,
     label: 'CSS selectors',
     name: 'selectors',
     value: unsplit(website.selectors),
   }),
   checkboxField({
-    hint:
-      'If checked, targeted HTML elements that contain a filtered "topic" will be hidden instead of removed. '
-      + 'Enabling this option may result in a better experience on some websites that load content dynamically.',
+    hint: HIDE_OR_REMOVE_HINT,
     label: 'Hide instead of remove',
     name: 'hideInsteadOfRemove',
     value: website.hideInsteadOfRemove,
   }),
 ];
 
-const beforeSubmit = ({ addresses }) => requestPermissionsFromAddresses(addresses);
+const DOMAIN_NAME_REGEX = /^[a-z\d]([a-z\d-]{0,61}[a-z\d])(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
 
-const add = addFactory(toRoot, toId, transform, fields, beforeSubmit);
+const SCHEME_REGEX = /^(https?)?:\/\//;
 
-const edit = editFactory(toRoot, toId, transform, fields, beforeSubmit);
+const transform = (data) => {
+  data.addresses = toCanonicalArray(data.addresses);
+  data.selectors = toCanonicalArray(data.selectors);
+
+  data.addresses = data.addresses.map((address) => {
+    const domainName = address.toLowerCase().replace(SCHEME_REGEX, '');
+    if (!domainName.match(DOMAIN_NAME_REGEX)) {
+      throw new Error(`"${address}" isn't a valid domain name`);
+    }
+    return domainName;
+  });
+
+  // Removing the URL scheme above can cause there to be new duplicates
+  data.addresses = Array.from(new Set(data.addresses));
+
+  // The following can be true if a user submits eg. " " or ","
+  if (data.addresses.length === 0) {
+    throw new Error('Please fill in the "Domain names" field');
+  }
+  if (data.selectors.length === 0) {
+    throw new Error('Please fill in the "CSS Selectors" field');
+  }
+
+  return data;
+};
+
+const callback = ({ addresses }) => requestPermissionsFromAddresses(addresses);
+
+const add = addFactory(toRoot, toId, transform, fields, callback);
+
+const edit = editFactory(toRoot, toId, transform, fields, callback);
 
 const details = ({ addresses, selectors }) => html`
   <span class="websites__addresses">${unsplit(addresses)}</span>

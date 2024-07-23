@@ -3,6 +3,7 @@ import { classMap } from 'lit-html/directives/class-map';
 
 import { requestPermissionsFromState } from '../permissions';
 import { errors } from './errors';
+import { PERMISSIONS_HINT } from './hints';
 import { topics } from './topics';
 import { websites } from './websites';
 
@@ -22,14 +23,7 @@ export const app = (state, hash) => {
     : html`
         <div class="app__permissions">
           <button @click=${handleRequestPermissionFactory(state)}>Click to request required permissions!</button>
-          <p>
-            <b>Click above to grant access</b> to all of the <a href="#websites">configured websites</a>, which is
-            needed in order to hide or remove content from those websites.
-          </p>
-          <p>
-            If you don't want to grant access to any of those websites, then delete them on the
-            <a href="#websites">"Websites" tab</a> in order to hide this prompt.
-          </p>
+          ${PERMISSIONS_HINT}
         </div>
       `;
   return html`
