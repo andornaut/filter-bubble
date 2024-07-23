@@ -1,6 +1,6 @@
 const STORAGE_KEY = 'state';
 
-// window.chrome works on Firefox too.
+// `window.chrome` works on both Chrome and Firefox
 export const fromStorage = async () => {
   const result = (await chrome.storage.sync.get([STORAGE_KEY])) || {};
   return result[STORAGE_KEY] || {};

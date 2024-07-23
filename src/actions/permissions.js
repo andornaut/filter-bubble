@@ -6,3 +6,6 @@ export const setHasPermissions = action(({ commit, state }, hasPermissions) => {
     commit(state);
   }
 });
+
+// Avoid initial flash of request-permission button, this will be updated later.
+export const hydratePermissions = () => setHasPermissions(true);

@@ -78,7 +78,6 @@ You can also use these npm run-scripts:
 
 - [Chrome](https://chrome.google.com/webstore/devconsole/)
 - [Firefox](https://addons.mozilla.org/en-US/developers/addons)
-  - Navigate to `about:debugging`
 
 ```bash
 npm run package-production

@@ -8,11 +8,7 @@ export const checkboxField = ({
       <input class="form__input" name=${name} type="checkbox" ?checked=${value} />
       ${label}
     </label>
-    ${!hint
-    ? null
-    : html`
-          <aside class="form__hint">${hint}</aside>
-        `}
+    ${!hint ? null : html` <aside class="form__hint">${hint}</aside> `}
   </div>
 `;
 
@@ -22,10 +18,6 @@ export const textField = ({
   <div class="form__field">
     <label class="form__label">${label}</label>
     <input autocomplete="off" class="form__input" name=${name} type="text" .value=${value || ''} />
-    ${!hint
-    ? null
-    : html`
-          <aside class="form__hint">${hint}</aside>
-        `}
+    ${!hint ? null : html` <aside class="form__hint">${hint}</aside> `}
   </div>
 `;
