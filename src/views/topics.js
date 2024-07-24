@@ -34,7 +34,7 @@ const list = listFactory(toRoot, toId, details);
 
 export const topics = (state) => html`
   <section>
-    <div class="selected">${state.topics.selected ? edit(state.topics.selected) : add()}</div>
+    <div class="form">${state.topics.selected ? edit(state.topics.selected) : add()}</div>
     ${list(state)}
   </section>
 `;

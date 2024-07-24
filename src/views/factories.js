@@ -71,7 +71,7 @@ export const addFactory = (toRoot, toId, transform, fields, callback = () => {})
   const addItem = addItemFactory(toRoot, toId);
   const handleSubmit = handleSubmitFactory(transform, addItem, callback);
   return () => html`
-    <form class="form" @submit=${handleSubmit}>
+    <form @submit=${handleSubmit}>
       ${fields()}
       <div class="form__actions-container">
         <div class="form__actions-primary">
@@ -89,7 +89,7 @@ export const editFactory = (toRoot, toId, transform, fields, callback = () => {}
   const editSelected = editSelectedFactory(toRoot, toId);
   const handleSubmit = handleSubmitFactory(transform, editSelected, callback);
   return (selected) => html`
-    <form class="form" @submit=${handleSubmit}>
+    <form @submit=${handleSubmit}>
       ${fields(selected)}
       <time class="form__date" datetime=${selected.modifiedDate}>
         <span class="form__date-label">Last updated:</span>

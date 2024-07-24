@@ -74,7 +74,7 @@ const list = listFactory(toRoot, toId, details);
 
 export const websites = (state) => html`
   <section>
-    <div class="selected">${state.websites.selected ? edit(state.websites.selected) : add()}</div>
+    <div class="form">${state.websites.selected ? edit(state.websites.selected) : add()}</div>
     ${list(state)}
   </section>
 `;
