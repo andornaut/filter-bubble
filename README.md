@@ -43,9 +43,21 @@ Follow the [Extension Workshop guide](https://extensionworkshop.com/documentatio
 - [Remote Debugging via USB](https://developer.mozilla.org/en-US/docs/Tools/about:debugging#Setup_tab) in Firefox for Android
 - Connect your device to your computer via USB
 - Install [Android Platform Tools](https://developer.android.com/studio/releases/platform-tools.html)
+- Enable "Remote Debugging via USB" from Firefox Android -> Settings -> Developer Tools
+- Create `/etc/udev/rules.d/50-android-usb.rules` with the following content:
+
+  ```bash
+  SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"
+  ```
+
+  Replace the value for `idVendor` with the one from `dmesg`, eg:
+
+  ```bash
+  New USB device found, idVendor=18d1, idProduct=4ee7, bcdDevice= 5.15
+  ```
 
 ```bash
-sudo apt install adb
+sudo apt install adb android-sdk-platform-tools-common
 
 # You may need to restart the adb server if you have a previous manual installation
 sudo adb kill-server
@@ -72,7 +84,6 @@ echo Device \"${device}\"
 You can also use these npm run-scripts:
 
 - `npm run web-ext-android-firefox`
-- `npm run web-ext-android-firefox-preview-nightly`
 
 ### Publishing
 

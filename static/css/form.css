@@ -2,7 +2,10 @@
   background-color: #333;
   border-top: 1px solid #555;
   border-bottom: 1px solid #444;
-  padding: var(--spacing) calc(2 * var(--spacing));
+}
+
+.form form {
+  margin: calc(2 * var(--spacing));
 }
 
 .form__date {
@@ -16,7 +19,7 @@
 }
 
 .form__field {
-  margin: var(--spacing) 0;
+  margin-bottom: var(--spacing);
 }
 
 .form__field input[type='text'],

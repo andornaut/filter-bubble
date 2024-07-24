@@ -1,6 +1,6 @@
 {
   "name": "filter-bubble",
-  "version": "0.7.5",
+  "version": "0.7.8",
   "description": "Filter Bubble is a browser add-on/extension for Chrome and Firefox that enables you to hide content that you don't want to see on the web",
   "author": "",
   "repository": {
@@ -22,8 +22,7 @@
     "prepare": "husky",
     "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
     "web-ext": "npm run build && web-ext run",
-    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose",
-    "web-ext-android-firefox-preview-nightly": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --firefox-apk=org.mozilla.fenix.nightly --verbose"
+    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose"
   },
   "dependencies": {
     "lit-html": "^1.4.1",
