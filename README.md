@@ -81,9 +81,7 @@ echo Device \"${device}\"
     --firefox-apk=org.mozilla.firefox
 ```
 
-You can also use these npm run-scripts:
-
-- `npm run web-ext-android-firefox`
+Alternatively, you can run: `npm run web-ext-android-firefox`
 
 ### Publishing
 
