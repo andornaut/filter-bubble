@@ -99,12 +99,13 @@
         return;
       }
 
-      // Ignore duplicate calls for a single page load, where the state hasn't changed
+      // Don't reset on duplicate calls for a single page load, where the state hasn't changed
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
+        this._changed();
         return;
       }
-      this.state = state; // { filterMode, pattern, selectors, tabId }
 
+      this.state = state; // { filterMode, pattern, selectors, tabId }
       this.observer.disconnect();
       this.dom.reset();
       this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
