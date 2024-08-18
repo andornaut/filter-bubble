@@ -80,6 +80,7 @@
       this.dom = dom;
       this.observer = new MutationObserver(this._changed.bind(this));
       this.pending = false;
+      this.queued = false;
       this.state = {};
     }
 
@@ -99,7 +100,9 @@
         return;
       }
 
-      // Don't reset on duplicate calls for a single page load, where the state hasn't changed
+      // Don't reset on duplicate calls for a single page load, where the state hasn't changed,
+      // because we're only concerned with nodes being added/changed, not removed and so
+      // a reset isn't necessary.
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
         this._changed();
         return;
@@ -108,20 +111,41 @@
       this.state = state; // { filterMode, pattern, selectors, tabId }
       this.observer.disconnect();
       this.dom.reset();
-      this.observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+      this.observer.observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
       this._changed();
     }
 
-    _changed() {
+    _changed(mutations) {
+      // Ignore mutations that we caused.
+      // n.b. mutations is null when queued or when called from this.enabled()
+      if (
+        mutations
+        && mutations.filter(
+          ({ attributeName, target, type }) =>
+            !(type === 'attributes' && attributeName === 'class' && target.classList.contains(CSS_BLOCK)),
+        ).length === 0
+      ) {
+        return;
+      }
+
       // Don't update more often than once every 300ms.
       if (this.pending) {
+        this.queued = true;
         return;
       }
       this.pending = true;
+      this.queued = false;
 
       this._setCount(this.dom.apply(this.state));
       setTimeout(() => {
         this.pending = false;
+        if (this.queued) {
+          this._changed();
+        }
       }, 300);
     }
 
