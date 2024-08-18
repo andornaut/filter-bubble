@@ -158,6 +158,26 @@ chrome.runtime.onMessage.addListener(({ command, data }) => {
   }
 });
 
+// Called when the active tab in a window changes.
+// When loading the extension on an existing tab, it's possible that onUpdated
+// isn't called, but that onActivated will be.
+chrome.tabs.onActivated.addListener(async ({ windowId }) => {
+  const [tab] = await chrome.tabs.query({ active: true, windowId });
+  if (tab && tab.url) {
+    updateTab(state, tab);
+  }
+});
+
+// Called when the set of highlighted tabs in a window changes.
+// chrome.tabs.onHighlighted.addListener((highlightInfo) => {
+//   const { tabIds } = highlightInfo;
+//   tabIds.forEach(async (tabId) => {
+//     const tab = await chrome.tabs.get(tabId);
+//     console.log('onHighlited', tab);
+//     updateTab(state, tab);
+//   });
+// });
+
 // Called when a tab metadata, such as its loading state or URL, changes.
 chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
   if (status === 'loading' && tab.url) {
@@ -165,16 +185,6 @@ chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
     // n.b. this was observed in Firefox, but not Chrome
     // `content-script.js` deduples these calls, anyway, though
     // (it ignores them if the `state` hasn't changed).
-    updateTab(state, tab);
-  }
-});
-
-// Called when a tab is focussed.
-// When loading the extension on an existing tab, it's possible that onUpdated
-// isn't called, but that onActivated will be.
-chrome.tabs.onActivated.addListener(async ({ windowId }) => {
-  const [tab] = await chrome.tabs.query({ active: true, windowId });
-  if (tab && tab.url) {
     updateTab(state, tab);
   }
 });
