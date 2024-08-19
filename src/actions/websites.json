@@ -5,7 +5,7 @@
       "selectors": ["ol.topic-listing > li"]
     },
     {
-      "addresses": ["old.reddit.com", "reddit.com", "www.reddit.com"],
+      "addresses": ["new.reddit.com", "old.reddit.com", "reddit.com", "www.reddit.com"],
       "selectors": [
         "[class*=scrollerItem]",
         "[href*=\"/search\"]",
