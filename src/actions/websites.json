@@ -19,7 +19,7 @@
     },
     {
       "addresses": ["arstechnica.com"],
-      "selectors": [".article", "li > article"]
+      "selectors": [".home article"]
     }
   ]
 }
