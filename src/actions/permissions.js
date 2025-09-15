@@ -1,11 +1,2 @@
-import { action } from 'statezero';
-
-export const setHasPermissions = action(({ commit, state }, hasPermissions) => {
-  if (state.hasPermissions !== hasPermissions) {
-    state.hasPermissions = hasPermissions;
-    commit(state);
-  }
-});
-
-// Avoid initial flash of request-permission button, this will be updated later.
-export const hydratePermissions = () => setHasPermissions(true);
+// This file is no longer needed with React state management
+// The functionality has been moved to src/state/actions.js

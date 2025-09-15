@@ -10,11 +10,22 @@ module.exports = (env, argv = {}) => {
   const config = {
     devtool: 'cheap-module-source-map',
     entry: {
-      popup: './src/index.js',
+      popup: './src/index.jsx',
     },
     output: {
       filename: '[name].js',
       path: distPath,
+    },
+    module: {
+      rules: [
+        {
+          test: /\.(js|jsx)$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+          },
+        },
+      ],
     },
     plugins: [
       new CopyWebpackPlugin({
@@ -22,21 +33,18 @@ module.exports = (env, argv = {}) => {
       }),
     ],
     resolve: {
+      extensions: ['.js', '.jsx'],
       mainFields: ['module', 'jsnext:main', 'browser', 'main'],
     },
   };
 
   if (mode === 'production') {
-    config.module = {
-      rules: [
-        {
-          enforce: 'pre',
-          include: [srcPath],
-          loader: 'eslint-loader',
-          test: /\.(js|jsx)$/,
-        },
-      ],
-    };
+    config.module.rules.unshift({
+      enforce: 'pre',
+      include: [srcPath],
+      loader: 'eslint-loader',
+      test: /\.(js|jsx)$/,
+    });
     config.plugins.push(new CleanWebpackPlugin());
   }
   return config;
