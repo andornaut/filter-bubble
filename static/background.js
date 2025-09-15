@@ -36,8 +36,8 @@ const toPattern = (topicsList) =>
         .flat()
         // Escape special characters (edited to avoid an unnecessary "\" escape character):
         // https://stackoverflow.com/a/17886301
-        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')),
-    ),
+        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'))
+    )
   ).reduce((accumulator, phrase) => {
     if (accumulator) {
       accumulator += '|';
@@ -48,7 +48,7 @@ const toPattern = (topicsList) =>
 const updateTab = async (
   { forceHighlight = false, pattern = '', websitesList = [] },
   { id: tabId, url: tabUrl },
-  alwaysDisable = false,
+  alwaysDisable = false
 ) => {
   const website = matchedWebsite(websitesList, tabUrl);
 
@@ -81,15 +81,15 @@ const updateTab = async (
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions
     console.warn(
       `updateTab() executeScript() failed for ${tabUrl}. Please grant the required "host permissions".`,
-      err,
+      err
     );
     return;
   }
 
   // Response is sometimes `undefined || [undefined] || [null]`
   response = response || [];
-  response = [response] || {};
-  const { isFirstRun = true } = response;
+  const firstResult = response[0] || {};
+  const { isFirstRun = true } = firstResult;
   if (isFirstRun) {
     // Use the chrome.scripting API to add the stylesheet, because the content-script may be prevented from doing so
     // by CSP rules:

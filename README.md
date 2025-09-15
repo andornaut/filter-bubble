@@ -30,10 +30,18 @@ n.b. Only a handful of websites are configured out of the box, and you'll need t
 
 ### Getting Started
 
-1. Install [node](https://nodejs.org/en/) > v10.19.0
-1. Install [npm](https://www.npmjs.com/) > v6.14.4
+1. Install [node](https://nodejs.org/en/) > v20.15.0
+1. Install [npm](https://www.npmjs.com/) > v10.0.0
 1. `npm install`
 1. `npm run web-ext`
+
+### Available Commands
+
+- `npm run build` - Build extension for development
+- `npm run build-production` - Build extension for production
+- `npm run test` - Run test suite
+- `npm run static-analysis` - Run ESLint code quality checks
+- `npm run format` - Format code with Prettier
 
 ### Developing for Android
 

@@ -1,4 +1,3 @@
-/* eslint-disable max-classes-per-file */
 (() => {
   if (window.filterBubble) {
     // Return a non-undefined value, so that the caller can detect successful execution.
@@ -67,7 +66,7 @@
             }
             return accumulator;
           },
-          0,
+          0
         );
       }
       return count;
@@ -123,10 +122,10 @@
       // Ignore mutations that we caused.
       // n.b. mutations is null when queued or when called from this.enabled()
       if (
-        mutations
-        && mutations.filter(
+        mutations &&
+        mutations.filter(
           ({ attributeName, target, type }) =>
-            !(type === 'attributes' && attributeName === 'class' && target.classList.contains(CSS_BLOCK)),
+            !(type === 'attributes' && attributeName === 'class' && target.classList.contains(CSS_BLOCK))
         ).length === 0
       ) {
         return;
