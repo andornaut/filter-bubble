@@ -1,29 +1,27 @@
-import { html } from 'lit-html';
+import { toId, toRoot } from "../actions/websites";
+import { toCanonicalArray, unsplit } from "../helpers";
+import { requestPermissionsFromAddresses } from "../permissions";
+import { addFactory, editFactory, listFactory } from "./factories";
+import { checkboxField, textField } from "./fields";
+import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from "./hints";
 
-import { toId, toRoot } from '../actions/websites';
-import { toCanonicalArray, unsplit } from '../helpers';
-import { requestPermissionsFromAddresses } from '../permissions';
-import { addFactory, editFactory, listFactory } from './factories';
-import { checkboxField, textField } from './fields';
-import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from './hints';
-
-const fields = (website = { addresses: '', hideInsteadOfRemove: false, selectors: '' }) => [
+const fields = (website = { addresses: "", hideInsteadOfRemove: false, selectors: "" }) => [
   textField({
     hint: DOMAIN_NAMES_HINT,
-    label: 'Domain names',
-    name: 'addresses',
+    label: "Domain names",
+    name: "addresses",
     value: unsplit(website.addresses),
   }),
   textField({
     hint: CSS_SELECTORS_HINT,
-    label: 'CSS selectors',
-    name: 'selectors',
+    label: "CSS selectors",
+    name: "selectors",
     value: unsplit(website.selectors),
   }),
   checkboxField({
     hint: HIDE_OR_REMOVE_HINT,
-    label: 'Hide instead of remove',
-    name: 'hideInsteadOfRemove',
+    label: "Hide instead of remove",
+    name: "hideInsteadOfRemove",
     value: website.hideInsteadOfRemove,
   }),
 ];
@@ -37,7 +35,7 @@ const transform = (data) => {
   data.selectors = toCanonicalArray(data.selectors);
 
   data.addresses = data.addresses.map((address) => {
-    const domainName = address.toLowerCase().replace(SCHEME_REGEX, '');
+    const domainName = address.toLowerCase().replace(SCHEME_REGEX, "");
     if (!domainName.match(DOMAIN_NAME_REGEX)) {
       throw new Error(`"${address}" isn't a valid domain name`);
     }
@@ -64,17 +62,19 @@ const add = addFactory(toRoot, toId, transform, fields, callback);
 
 const edit = editFactory(toRoot, toId, transform, fields, callback);
 
-const details = ({ addresses, selectors }) => html`
-  <span class="websites__addresses">${unsplit(addresses)}</span>
-  <span class="websites__selectors-label">Selectors:</span>
-  <span class="websites__selectors">${unsplit(selectors)}</span>
-`;
+const details = ({ addresses, selectors }) => (
+  <>
+    <span className="websites__addresses">{unsplit(addresses)}</span>
+    <span className="websites__selectors-label">Selectors:</span>
+    <span className="websites__selectors">{unsplit(selectors)}</span>
+  </>
+);
 
 const list = listFactory(toRoot, toId, details);
 
-export const websites = (state) => html`
+export const Websites = ({ state }) => (
   <section>
-    <div class="form">${state.websites.selected ? edit(state.websites.selected) : add()}</div>
-    ${list(state)}
+    <div className="form">{state.websites.selected ? edit(state.websites.selected) : add()}</div>
+    {list(state)}
   </section>
-`;
+);

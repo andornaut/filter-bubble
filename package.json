@@ -25,15 +25,21 @@
     "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose"
   },
   "dependencies": {
-    "lit-html": "^1.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "statezero": "^0.7.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
     "@eslint/js": "~8.57.0",
+    "babel-loader": "^9.2.1",
     "clean-webpack-plugin": "~4.0.0",
     "copy-webpack-plugin": "~13.0.1",
     "eslint": "~8.57.0",
     "eslint-plugin-import": "~2.29.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-sort-destructure-keys": "~2.0.0",
     "eslint-webpack-plugin": "~4.2.0",
