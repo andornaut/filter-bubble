@@ -3,7 +3,7 @@ import { html } from 'lit-html';
 import { toId, toRoot } from '../actions/websites';
 import { toCanonicalArray, unsplit } from '../helpers';
 import { requestPermissionsFromAddresses } from '../permissions';
-import { addFactory, listFactory, editFactory } from './factories';
+import { addFactory, editFactory, listFactory } from './factories';
 import { checkboxField, textField } from './fields';
 import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from './hints';
 

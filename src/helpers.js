@@ -1,14 +1,8 @@
 const formatTime = (dt) => {
   let minutes = dt.getMinutes();
   let hours = dt.getHours();
-  let suffix = 'am';
-  if (hours > 12) {
-    hours -= 12;
-    suffix = 'pm';
-  }
-  if (hours === 0) {
-    hours = '00';
-  }
+  const suffix = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12 || 12;
   if (minutes < 10) {
     minutes = `0${minutes}`;
   }
@@ -27,11 +21,8 @@ export const humanDate = (dateStr) => {
   return isToday(dt) ? formatTime(dt) : dt.toDateString();
 };
 
-export const sortByModifiedDateDesc = (arr) => {
-  arr = Array.from(arr);
-  arr.sort((a, b) => new Date(a.modifiedDate) - new Date(b.modifiedDate)).reverse();
-  return arr;
-};
+export const sortByModifiedDateDesc = (arr) =>
+  Array.from(arr).sort((a, b) => b.modifiedDate.localeCompare(a.modifiedDate));
 
 // Used to canonicalize identifiers, so it must return a sorted array.
 export const toCanonicalArray = (str) =>

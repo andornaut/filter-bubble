@@ -6,12 +6,7 @@
     },
     {
       "addresses": ["new.reddit.com", "old.reddit.com", "reddit.com", "www.reddit.com"],
-      "selectors": [
-        "[class*=scrollerItem]",
-        "[href*=\"/search\"]",
-        "body.listing-page div[data-url]",
-        "body:not(.comments-page) article"
-      ]
+      "selectors": ["[href*=\"/search\"]", "body.listing-page div[data-url]", "body:not(.comments-page) article"]
     },
     {
       "addresses": ["news.ycombinator.com"],

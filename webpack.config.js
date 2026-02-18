@@ -8,7 +8,7 @@ const distPath = path.join(__dirname, 'dist');
 module.exports = (env, argv = {}) => {
   const mode = argv.mode || 'production';
   const config = {
-    devtool: 'cheap-module-source-map',
+    devtool: mode === 'production' ? false : 'cheap-module-source-map',
     entry: {
       popup: './src/index.js',
     },
