@@ -21,19 +21,19 @@
   };
 
   class DOM {
-    apply({ filterMode, pattern, selectors }) {
+    apply({ filterMode, regex, selectors }) {
       let fn = highlight;
       if (filterMode === 'hide') {
         fn = hide;
       } else if (filterMode === 'remove') {
         fn = remove;
       }
-      return this._find(new RegExp(pattern, 'i'), selectors, fn);
+      return this._find(regex, selectors, fn);
     }
 
     reset() {
       for (const el of document.querySelectorAll(`.${CSS_BLOCK}`)) {
-        el.classList.remove(CSS_HIDE_MODIFIER, CSS_HIGHLIGHT_MODIFIER, CSS_REMOVE_MODIFIER);
+        el.classList.remove(CSS_BLOCK, CSS_HIDE_MODIFIER, CSS_HIGHLIGHT_MODIFIER, CSS_REMOVE_MODIFIER);
       }
     }
 
@@ -92,11 +92,13 @@
       this.state = {};
     }
 
-    enable(state) {
+    enable(state, retries = 0) {
       if (!document.body) {
         // document.body can be null on the first onUpdated.status===loading event.
-        // Try again in a bit.
-        setTimeout(this.enable.bind(this, state), 100);
+        // Try again in a bit, but give up after 100 attempts (10 seconds).
+        if (retries < 100) {
+          setTimeout(this.enable.bind(this, state, retries + 1), 100);
+        }
         return;
       }
 
@@ -108,7 +110,7 @@
         return;
       }
 
-      this.state = state; // { filterMode, pattern, selectors, tabId }
+      this.state = { ...state, regex: new RegExp(state.pattern, 'i') };
       this.observer.disconnect();
       this.dom.reset();
       this.observer.observe(document.body, {

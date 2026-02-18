@@ -124,9 +124,8 @@ const itemFactory = (toRoot, toId, details) => {
           <div class="list__details">${details(item)}</div>
         </div>
         <button
-          class="list__toggle"
+          class="list__toggle list__toggle-btn"
           @click=${handleToggle}
-          class="list__toggle-btn"
           title="Toggle enabled / disabled"
           type="button"
         >

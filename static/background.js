@@ -88,7 +88,8 @@ const updateTab = async (
 
   // Response is sometimes `undefined || [undefined] || [null]`
   response = response || [];
-  response = [response] || {};
+  response = response[0] || {};
+  response = response.result || {};
   const { isFirstRun = true } = response;
   if (isFirstRun) {
     // Use the chrome.scripting API to add the stylesheet, because the content-script may be prevented from doing so

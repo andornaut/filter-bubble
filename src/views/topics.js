@@ -1,7 +1,7 @@
 import { html } from 'lit-html';
 
 import { toId, toRoot } from '../actions/topics';
-import { unsplit, toCanonicalArray } from '../helpers';
+import { toCanonicalArray, unsplit } from '../helpers';
 import { addFactory, editFactory, listFactory } from './factories';
 import { textField } from './fields';
 import { TOPICS_HINT } from './hints';
