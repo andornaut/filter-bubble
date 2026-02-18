@@ -1,11 +1,11 @@
 # Filter Bubble
 
 Filter Bubble is a browser add-on/extension for
-[Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/) and
+[Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo) and
 [Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
 that enables you to hide content that you don't want to see on the web.
 
-- [Install Filter Bubble for Chrome](https://chrome.google.com/webstore/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo/)
+- [Install Filter Bubble for Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo)
 - [Install Filter Bubble for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
 
 ## How it works
@@ -39,7 +39,7 @@ n.b. Only a handful of websites are configured out of the box, and you'll need t
 Follow the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/):
 
 - [Enable Android "Developer Options"](https://developer.android.com/studio/debug/dev-options)
-- [Remote Debugging via USB](https://developer.mozilla.org/en-US/docs/Tools/about:debugging#Setup_tab) in Firefox for Android
+- [Remote Debugging via USB](https://developer.mozilla.org/en-US/docs/Tools/about:debugging) in Firefox for Android
 - Connect your device to your computer via USB
 - Install [Android Platform Tools](https://developer.android.com/studio/releases/platform-tools.html)
 - Enable "Remote Debugging via USB" from Firefox Android -> Settings -> Developer Tools
@@ -71,10 +71,10 @@ Your device will now prompt you to authorize the computer. Once authorized, cont
 device="$(adb devices  2>&1| awk '/./{device=$1} END{print device}')"
 echo Device \"${device}\"
 
-./node_modules/.bin/web-ext run --target=firefox-android --android-device=${device}
+npx web-ext run --target=firefox-android --android-device=${device}
 
 # If you have multiple Firefox versions installed, then you can disambiguate using the `--firefox-apk` flag.
-./node_modules/.bin/web-ext run \
+npx web-ext run \
     --target=firefox-android \
     --android-device=${device} \
     --firefox-apk=org.mozilla.firefox
@@ -84,10 +84,22 @@ Alternatively, you can run: `npm run web-ext-android-firefox`
 
 ### Publishing
 
-- [Chrome](https://chrome.google.com/webstore/devconsole/)
-- [Firefox](https://addons.mozilla.org/en-US/developers/addons)
+Tagged releases (`v*`) automatically produce a packaged extension via
+[GitHub Actions](.github/workflows/ci.yml). To create a release:
+
+```bash
+git tag v0.x.x
+git push --tags
+```
+
+To build a package locally:
 
 ```bash
 npm run package-production
 ls web-ext-artifacts/
 ```
+
+Store dashboards:
+
+- [Chrome](https://chromewebstore.google.com/devconsole/)
+- [Firefox](https://addons.mozilla.org/en-US/developers/addons)
