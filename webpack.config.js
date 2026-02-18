@@ -1,9 +1,9 @@
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const ESLintPlugin = require('eslint-webpack-plugin');
 const path = require('path');
 
 const distPath = path.join(__dirname, 'dist');
-const srcPath = path.join(__dirname, 'src');
 
 module.exports = (env, argv = {}) => {
   const mode = argv.mode || 'production';
@@ -27,17 +27,7 @@ module.exports = (env, argv = {}) => {
   };
 
   if (mode === 'production') {
-    config.module = {
-      rules: [
-        {
-          enforce: 'pre',
-          include: [srcPath],
-          loader: 'eslint-loader',
-          test: /\.(js|jsx)$/,
-        },
-      ],
-    };
-    config.plugins.push(new CleanWebpackPlugin());
+    config.plugins.push(new ESLintPlugin({ extensions: ['js', 'jsx'] }), new CleanWebpackPlugin());
   }
   return config;
 };

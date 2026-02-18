@@ -30,8 +30,7 @@ n.b. Only a handful of websites are configured out of the box, and you'll need t
 
 ### Getting Started
 
-1. Install [node](https://nodejs.org/en/) > v10.19.0
-1. Install [npm](https://www.npmjs.com/) > v6.14.4
+1. Install [node](https://nodejs.org/en/) (see [`.nvmrc`](.nvmrc) for the recommended version)
 1. `npm install`
 1. `npm run web-ext`
 

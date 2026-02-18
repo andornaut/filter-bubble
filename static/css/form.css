@@ -34,10 +34,10 @@
   resize: none;
 }
 
-.form_field input:focus,
-.form_field textarea:focus,
-.form_field input:invalid,
-.form_field textarea:invalid {
+.form__field input:focus,
+.form__field textarea:focus,
+.form__field input:invalid,
+.form__field textarea:invalid {
   outline: none;
 }
 
