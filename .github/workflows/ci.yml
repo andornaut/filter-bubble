@@ -26,9 +26,6 @@ jobs:
       - name: Run linting
         run: npm run static-analysis
 
-      - name: Build extension
-        run: npm run build-production
-
       - name: Package extension
         run: npm run package-production
 
