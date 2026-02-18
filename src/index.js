@@ -1,14 +1,15 @@
-import { render } from 'lit-html';
-import { getState, subscribe } from 'statezero';
+import { createRoot } from "react-dom/client";
+import { getState, subscribe } from "statezero";
 
-import { clearAllErrors } from './actions/errors';
-import { initState } from './actions/init';
-import { cancelSelectedTopic } from './actions/topics';
-import { cancelSelectedWebsite } from './actions/websites';
-import { checkPermissions } from './permissions';
-import { app } from './views/app';
+import { clearAllErrors } from "./actions/errors";
+import { initState } from "./actions/init";
+import { cancelSelectedTopic } from "./actions/topics";
+import { cancelSelectedWebsite } from "./actions/websites";
+import { checkPermissions } from "./permissions";
+import { App } from "./views/app";
 
-const renderApp = (state) => render(app(state, window.location.hash), document.body);
+const root = createRoot(document.body);
+const renderApp = (state) => root.render(<App hash={window.location.hash} state={state} />);
 
 const resetForms = () => {
   // Always reset `.selected`, because the form is cleared on adding (the form data is not saved in the state),
@@ -24,7 +25,7 @@ const init = async () => {
   await initState();
   subscribe(renderApp);
 
-  window.addEventListener('hashchange', () => {
+  window.addEventListener("hashchange", () => {
     resetForms();
     renderApp(getState());
   });

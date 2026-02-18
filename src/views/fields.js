@@ -1,23 +1,17 @@
-import { html } from 'lit-html';
-
-export const checkboxField = ({
-  hint, label, name, value,
-}) => html`
-  <div class="form__field">
-    <label class="form__label">
-      <input class="form__input" name=${name} type="checkbox" ?checked=${value} />
-      ${label}
+export const checkboxField = ({ hint, label, name, value }) => (
+  <div className="form__field">
+    <label className="form__label">
+      <input checked={value} className="form__input" name={name} type="checkbox" />
+      {label}
     </label>
-    ${!hint ? null : html` <aside class="form__hint">${hint}</aside> `}
+    {hint && <aside className="form__hint">{hint}</aside>}
   </div>
-`;
+);
 
-export const textField = ({
-  hint, label, name, value,
-}) => html`
-  <div class="form__field">
-    <label class="form__label">${label}</label>
-    <input autocomplete="off" class="form__input" name=${name} type="text" .value=${value || ''} />
-    ${!hint ? null : html` <aside class="form__hint">${hint}</aside> `}
+export const textField = ({ hint, label, name, value }) => (
+  <div className="form__field">
+    <label className="form__label">{label}</label>
+    <input autoComplete="off" className="form__input" name={name} type="text" value={value || ""} />
+    {hint && <aside className="form__hint">{hint}</aside>}
   </div>
-`;
+);
