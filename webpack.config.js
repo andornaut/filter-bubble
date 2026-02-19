@@ -1,13 +1,10 @@
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const ESLintPlugin = require("eslint-webpack-plugin");
 const path = require("path");
 
-const distPath = path.join(__dirname, "dist");
-
 module.exports = (env, argv = {}) => {
   const mode = argv.mode || "production";
-  const config = {
+  return {
     devtool: mode === "production" ? false : "cheap-module-source-map",
     entry: {
       popup: "./src/index.js",
@@ -27,8 +24,9 @@ module.exports = (env, argv = {}) => {
       ],
     },
     output: {
+      clean: true,
       filename: "[name].js",
-      path: distPath,
+      path: path.join(__dirname, "dist"),
     },
     plugins: [
       new CopyWebpackPlugin({
@@ -42,12 +40,6 @@ module.exports = (env, argv = {}) => {
     ],
     resolve: {
       extensions: [".js", ".jsx"],
-      mainFields: ["module", "jsnext:main", "browser", "main"],
     },
   };
-
-  if (mode === "production") {
-    config.plugins.push(new CleanWebpackPlugin());
-  }
-  return config;
 };
