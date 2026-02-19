@@ -5,10 +5,10 @@
     return { isFirstRun: false };
   }
 
-  const CSS_BLOCK = 'filter-bubble';
-  const CSS_HIDE_MODIFIER = 'filter-bubble--hide';
-  const CSS_HIGHLIGHT_MODIFIER = 'filter-bubble--highlight';
-  const CSS_REMOVE_MODIFIER = 'filter-bubble--remove';
+  const CSS_BLOCK = "filter-bubble";
+  const CSS_HIDE_MODIFIER = "filter-bubble--hide";
+  const CSS_HIGHLIGHT_MODIFIER = "filter-bubble--highlight";
+  const CSS_REMOVE_MODIFIER = "filter-bubble--remove";
 
   const hide = (el) => {
     el.classList.add(CSS_BLOCK, CSS_HIDE_MODIFIER);
@@ -23,9 +23,9 @@
   class DOM {
     apply({ filterMode, regex, selectors }) {
       let fn = highlight;
-      if (filterMode === 'hide') {
+      if (filterMode === "hide") {
         fn = hide;
-      } else if (filterMode === 'remove') {
+      } else if (filterMode === "remove") {
         fn = remove;
       }
       return this._find(regex, selectors, fn);
@@ -51,7 +51,7 @@
           containers,
           (accumulator, container) => {
             // For the regex to work, we must match against each HTML element separately.
-            for (const el of container.querySelectorAll('*')) {
+            for (const el of container.querySelectorAll("*")) {
               let matched = false;
               try {
                 matched = regex.test(el.textContent);
@@ -78,18 +78,42 @@
     constructor(dom) {
       this.count = 0;
       this.dom = dom;
-      this.observer = new MutationObserver(this._changed.bind(this));
+      this.observer = new MutationObserver(this._safeChanged.bind(this));
       this.pending = false;
       this.queued = false;
       this.state = {};
+      this._unloadHandler = null;
     }
 
     disable() {
       this.observer.disconnect();
       this.dom.reset();
+      this._removeUnloadHandler();
 
       this._setCount(0);
       this.state = {};
+    }
+
+    _addUnloadHandler() {
+      if (!this._unloadHandler) {
+        this._unloadHandler = () => this.disable();
+        window.addEventListener("unload", this._unloadHandler);
+      }
+    }
+
+    _removeUnloadHandler() {
+      if (this._unloadHandler) {
+        window.removeEventListener("unload", this._unloadHandler);
+        this._unloadHandler = null;
+      }
+    }
+
+    _safeChanged(mutations) {
+      try {
+        this._changed(mutations);
+      } catch (error) {
+        console.error("filter-bubble: MutationObserver error", error);
+      }
     }
 
     enable(state, retries = 0) {
@@ -110,9 +134,10 @@
         return;
       }
 
-      this.state = { ...state, regex: new RegExp(state.pattern, 'i') };
+      this.state = { ...state, regex: new RegExp(state.pattern, "i") };
       this.observer.disconnect();
       this.dom.reset();
+      this._addUnloadHandler();
       this.observer.observe(document.body, {
         attributes: true,
         childList: true,
@@ -125,10 +150,10 @@
       // Ignore mutations that we caused.
       // n.b. mutations is null when queued or when called from this.enabled()
       if (
-        mutations
-        && mutations.filter(
+        mutations &&
+        mutations.filter(
           ({ attributeName, target, type }) =>
-            !(type === 'attributes' && attributeName === 'class' && target.classList.contains(CSS_BLOCK)),
+            !(type === "attributes" && attributeName === "class" && target.classList.contains(CSS_BLOCK)),
         ).length === 0
       ) {
         return;
@@ -154,7 +179,7 @@
     _setCount(newCount) {
       if (this.count !== newCount) {
         this.count = newCount;
-        chrome.runtime.sendMessage({ command: 'count', data: { count: this.count, tabId: this.state.tabId } });
+        chrome.runtime.sendMessage({ command: "count", data: { count: this.count, tabId: this.state.tabId } });
       }
     }
   }
@@ -163,10 +188,10 @@
 
   chrome.runtime.onMessage.addListener(({ command, data }) => {
     switch (command) {
-      case 'enable':
+      case "enable":
         window.filterBubble.enable(data);
         break;
-      case 'disable':
+      case "disable":
         window.filterBubble.disable();
         break;
       default:
