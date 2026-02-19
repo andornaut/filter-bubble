@@ -134,7 +134,20 @@
         return;
       }
 
-      this.state = { ...state, regex: new RegExp(state.pattern, "i") };
+      // Empty pattern would match everything - skip filtering
+      if (!state.pattern) {
+        return;
+      }
+
+      let regex;
+      try {
+        regex = new RegExp(state.pattern, "i");
+      } catch (e) {
+        console.error("filter-bubble: Invalid regex pattern", state.pattern, e);
+        return;
+      }
+
+      this.state = { ...state, regex };
       this.observer.disconnect();
       this.dom.reset();
       this._addUnloadHandler();

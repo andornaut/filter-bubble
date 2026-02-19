@@ -87,9 +87,13 @@ Alternatively, you can run: `npm run web-ext-android-firefox`
 Tagged releases (`v*`) automatically produce a packaged extension via
 [GitHub Actions](.github/workflows/ci.yml). To create a release:
 
+1. Update the version in both `package.json` and `manifest.json`
+2. Commit the version bump
+3. Tag and push:
+
 ```bash
 git tag v0.x.x
-git push --tags
+git push && git push --tags
 ```
 
 To build a package locally:
