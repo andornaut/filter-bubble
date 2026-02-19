@@ -6,6 +6,14 @@ module.exports = {
     webextensions: true,
   },
   extends: ["eslint:recommended", "plugin:react/recommended", "plugin:react/jsx-runtime"],
+  overrides: [
+    {
+      env: {
+        jest: true,
+      },
+      files: ["**/*.test.js"],
+    },
+  ],
   parserOptions: {
     ecmaFeatures: {
       jsx: true,
