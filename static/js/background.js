@@ -1,13 +1,13 @@
-const CONTENT_SCRIPT_PATH = '/content-script.js';
-const STYLESHEET_PATH = '/css/content-script.css';
+const CONTENT_SCRIPT_PATH = "/js/content-script.js";
+const STYLESHEET_PATH = "/css/content-script.css";
 const SCHEME_REGEX = /^(https?)?:\/\//;
 
 const matchedWebsite = (websitesList, url) => {
-  url = url.toLowerCase().replace(SCHEME_REGEX, '');
+  url = url.toLowerCase().replace(SCHEME_REGEX, "");
 
   for (const { addresses, ...website } of websitesList) {
     for (const address of addresses) {
-      if (url.startsWith(address.replace(SCHEME_REGEX, ''))) {
+      if (url.startsWith(address.replace(SCHEME_REGEX, ""))) {
         return website;
       }
     }
@@ -16,7 +16,7 @@ const matchedWebsite = (websitesList, url) => {
 };
 
 const setBadge = (tabId, count) => {
-  count = (count || '').toString(); // Display 0 as empty string
+  count = (count || "").toString(); // Display 0 as empty string
   chrome.action.setBadgeText({ tabId, text: count });
 };
 
@@ -36,17 +36,17 @@ const toPattern = (topicsList) =>
         .flat()
         // Escape special characters (edited to avoid an unnecessary "\" escape character):
         // https://stackoverflow.com/a/17886301
-        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')),
+        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
     ),
   ).reduce((accumulator, phrase) => {
     if (accumulator) {
-      accumulator += '|';
+      accumulator += "|";
     }
     return `${accumulator}(\\b${phrase}\\b)`;
-  }, '');
+  }, "");
 
 const updateTab = async (
-  { forceHighlight = false, pattern = '', websitesList = [] },
+  { forceHighlight = false, pattern = "", websitesList = [] },
   { id: tabId, url: tabUrl },
   alwaysDisable = false,
 ) => {
@@ -63,7 +63,7 @@ const updateTab = async (
       // on the tab, but we attempt to send a message to it anyway in case the script /was/
       // previously installed before the tab.url was removed from `state.websiteList`.
       // > Could not establish connection. Receiving end does not exist
-      chrome.tabs.sendMessage(tabId, { command: 'disable' }).catch(() => {});
+      chrome.tabs.sendMessage(tabId, { command: "disable" }).catch(() => {});
     }
     return;
   }
@@ -100,13 +100,13 @@ const updateTab = async (
   }
 
   const { hideInsteadOfRemove, selectors } = website;
-  let filterMode = hideInsteadOfRemove ? 'hide' : 'remove';
+  let filterMode = hideInsteadOfRemove ? "hide" : "remove";
   if (forceHighlight) {
-    filterMode = 'highlight';
+    filterMode = "highlight";
   }
 
   chrome.tabs.sendMessage(tabId, {
-    command: 'enable',
+    command: "enable",
     data: {
       filterMode,
       pattern,
@@ -152,7 +152,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Receive messages from `content-script.js`.
 chrome.runtime.onMessage.addListener(({ command, data }) => {
-  if (command === 'count') {
+  if (command === "count") {
     setBadge(data.tabId, data.count);
   } else {
     throw new Error(`filter-bubble: Unknown command: ${command}`);
@@ -181,7 +181,7 @@ chrome.tabs.onActivated.addListener(async ({ windowId }) => {
 
 // Called when a tab metadata, such as its loading state or URL, changes.
 chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
-  if (status === 'loading' && tab.url) {
+  if (status === "loading" && tab.url) {
     // This may be invoked multiple times for a given page load.
     // n.b. this was observed in Firefox, but not Chrome
     // `content-script.js` deduples these calls, anyway, though
@@ -193,7 +193,7 @@ chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
 // Initialize the `state`.
 // n.b. `storage.sync` doens't actually synchronize between instances of Firefox for Android:
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
-chrome.storage.sync.get('state').then(({ state: initialState } = {}) => {
+chrome.storage.sync.get("state").then(({ state: initialState } = {}) => {
   if (initialState) {
     updateState(initialState);
   }
