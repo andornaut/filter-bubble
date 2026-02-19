@@ -34,6 +34,11 @@ module.exports = (env, argv = {}) => {
       new CopyWebpackPlugin({
         patterns: [{ from: "manifest.json" }, { from: "_locales", to: "_locales" }, { from: "static" }],
       }),
+      new ESLintPlugin({
+        emitWarning: mode !== "production",
+        extensions: ["js", "jsx"],
+        failOnError: mode === "production",
+      }),
     ],
     resolve: {
       extensions: [".js", ".jsx"],
@@ -42,7 +47,7 @@ module.exports = (env, argv = {}) => {
   };
 
   if (mode === "production") {
-    config.plugins.push(new ESLintPlugin({ extensions: ["js", "jsx"] }), new CleanWebpackPlugin());
+    config.plugins.push(new CleanWebpackPlugin());
   }
   return config;
 };

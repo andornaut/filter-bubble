@@ -8,13 +8,13 @@ const handleDelete = (event) => {
   clearError(id);
 };
 
-const itemTemplate = ({ message }) => (
+const itemTemplate = ({ id, message }) => (
   <li className="errors__item">
     {message}
     <button
       aria-label={CLEAR_LABEL}
       className="btn errors__delete"
-      data-id={message}
+      data-id={id}
       onClick={handleDelete}
       title={CLEAR_LABEL}
     >
