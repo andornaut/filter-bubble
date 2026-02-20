@@ -99,7 +99,7 @@ git push && git push --tags
 To build a package locally:
 
 ```bash
-npm run pack
+npm run package
 ls web-ext-artifacts/
 ```
 

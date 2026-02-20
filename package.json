@@ -17,7 +17,7 @@
     "build:prod": "node build.mjs --production",
     "format": "prettier-eslint --write \"**/*.{css,js,json,jsx,md}\"",
     "lint": "eslint --ext .js,.jsx --max-warnings 0 .",
-    "pack": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
+    "package": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
     "start": "npm run build && web-ext run",
     "start:android": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices 2>&1| awk '/./{device=$1} END{print device}') --verbose",
