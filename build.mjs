@@ -16,6 +16,14 @@ await esbuild.build({
   minify: isProduction,
   outfile: "dist/popup.js",
   sourcemap: !isProduction,
+  alias: {
+    "lodash": "lodash-es",
+    "lodash/get": "lodash-es/get.js",
+    "lodash/set": "lodash-es/set.js",
+    "lodash/isPlainObject": "lodash-es/isPlainObject.js",
+    "lodash/cloneDeepWith": "lodash-es/cloneDeepWith.js",
+    "lodash/isEqualWith": "lodash-es/isEqualWith.js",
+  },
 });
 
 cpSync("static", "dist", { recursive: true });

@@ -1,4 +1,4 @@
-import { action } from 'statezero';
+import { action } from "statezero/src";
 
 const find = (toId, list, id) => list.find((item) => toId(item) === id);
 

@@ -1,7 +1,7 @@
-import { action } from 'statezero';
+import { action } from "statezero/src";
 
-import { toCanonicalArray } from '../helpers';
-import { cancelSelectedFactory } from './factories';
+import { toCanonicalArray } from "../helpers";
+import { cancelSelectedFactory } from "./factories";
 
 export const hydrateTopics = action(({ commit, state }, { topics = {} }) => {
   state.topics = topics;
@@ -12,7 +12,7 @@ export const hydrateTopics = action(({ commit, state }, { topics = {} }) => {
   commit(state);
 });
 
-export const toId = ({ text }) => (Array.isArray(text) ? text : toCanonicalArray(text || '')).toString();
+export const toId = ({ text }) => (Array.isArray(text) ? text : toCanonicalArray(text || "")).toString();
 
 export const toRoot = (state) => state.topics;
 

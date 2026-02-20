@@ -1,4 +1,4 @@
-import { action } from 'statezero';
+import { action } from "statezero/src";
 
 export const setHasPermissions = action(({ commit, state }, hasPermissions) => {
   if (state.hasPermissions !== hasPermissions) {

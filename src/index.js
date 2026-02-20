@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { getState, subscribe } from "statezero";
+import { getState, subscribe } from "statezero/src";
 
 import { clearAllErrors } from "./actions/errors";
 import { initState } from "./actions/init";

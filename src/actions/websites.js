@@ -1,8 +1,8 @@
-import { action } from 'statezero';
+import { action } from "statezero/src";
 
-import { toCanonicalArray } from '../helpers';
-import { cancelSelectedFactory } from './factories';
-import defaultWebsites from './websites.json';
+import { toCanonicalArray } from "../helpers";
+import { cancelSelectedFactory } from "./factories";
+import defaultWebsites from "./websites.json";
 
 export const hydrateWebsites = action(({ commit, state }, { websites }) => {
   const now = new Date().toJSON();
@@ -25,7 +25,7 @@ export const hydrateWebsites = action(({ commit, state }, { websites }) => {
 });
 
 export const toId = ({ addresses }) =>
-  (Array.isArray(addresses) ? addresses : toCanonicalArray(addresses || '')).toString();
+  (Array.isArray(addresses) ? addresses : toCanonicalArray(addresses || "")).toString();
 
 export const toRoot = (state) => state.websites;
 
