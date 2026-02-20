@@ -2,7 +2,6 @@
   "name": "filter-bubble",
   "version": "0.8.0",
   "description": "Filter Bubble is a browser add-on/extension for Chrome and Firefox that enables you to hide content that you don't want to see on the web",
-  "author": "",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/andornaut/filter-bubble.git"
@@ -15,16 +14,15 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "build-production": "node build.mjs --production",
+    "build:prod": "node build.mjs --production",
     "format": "prettier-eslint --write \"**/*.{css,js,json,jsx,md}\"",
-    "package": "npm run build && web-ext build",
-    "package-production": "npm run build-production && rm -rf web-ext-artifacts/* && web-ext build",
+    "lint": "eslint --ext .js,.jsx --max-warnings 0 .",
+    "pack": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
-    "static-analysis": "eslint --ext .js,.jsx --max-warnings 0 .",
+    "start": "npm run build && web-ext run",
+    "start:android": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices 2>&1| awk '/./{device=$1} END{print device}') --verbose",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "web-ext": "npm run build && web-ext run",
-    "web-ext-android-firefox": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices  2>&1| awk '/./{device=$1} END{print device}') --verbose"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -35,22 +33,20 @@
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
-    "@eslint/js": "~8.57.0",
-    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "esbuild": "^0.27.3",
-    "eslint": "~8.57.0",
-    "eslint-plugin-import": "~2.29.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-simple-import-sort": "^12.1.1",
-    "eslint-plugin-sort-destructure-keys": "~2.0.0",
-    "husky": "~9.1.7",
+    "eslint-plugin-sort-destructure-keys": "^2.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
-    "lint-staged": "~16.2.7",
-    "prettier-eslint-cli": "~8.0.1",
-    "web-ext": "~9.3.0"
+    "lint-staged": "^16.2.7",
+    "prettier-eslint-cli": "^8.0.1",
+    "web-ext": "^9.3.0"
   }
 }

@@ -24,9 +24,9 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run static-analysis
+      - run: npm run lint
 
-      - run: npm run package-production
+      - run: npm run pack
 
       - uses: actions/upload-artifact@v4
         with:
