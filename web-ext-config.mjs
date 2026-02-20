@@ -2,6 +2,6 @@ export default {
   build: {
     overwriteDest: true,
   },
-  sourceDir: 'dist/',
+  sourceDir: "dist/",
   verbose: true,
 };

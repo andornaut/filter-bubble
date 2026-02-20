@@ -14,8 +14,8 @@
   "homepage": "https://github.com/andornaut/filter-bubble#readme",
   "private": true,
   "scripts": {
-    "build": "webpack --mode=development",
-    "build-production": "webpack --mode=production",
+    "build": "node build.mjs",
+    "build-production": "node build.mjs --production",
     "format": "prettier-eslint --write \"**/*.{css,js,json,jsx,md}\"",
     "package": "npm run build && web-ext build",
     "package-production": "npm run build-production && rm -rf web-ext-artifacts/* && web-ext build",
@@ -39,22 +39,18 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "babel-loader": "^9.2.1",
-    "copy-webpack-plugin": "~13.0.1",
+    "esbuild": "^0.27.3",
     "eslint": "~8.57.0",
     "eslint-plugin-import": "~2.29.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-sort-destructure-keys": "~2.0.0",
-    "eslint-webpack-plugin": "~4.2.0",
     "husky": "~9.1.7",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "lint-staged": "~16.2.7",
     "prettier-eslint-cli": "~8.0.1",
-    "web-ext": "~9.3.0",
-    "webpack": "~5.105.2",
-    "webpack-cli": "~6.0.1"
+    "web-ext": "~9.3.0"
   }
 }
