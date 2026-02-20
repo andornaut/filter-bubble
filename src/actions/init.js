@@ -1,9 +1,9 @@
-import { subscribe } from 'statezero';
+import { subscribe } from "statezero/src";
 
-import { fromStorage, toStorage } from '../storage';
-import { hydratePermissions } from './permissions';
-import { hydrateTopics } from './topics';
-import { hydrateWebsites } from './websites';
+import { fromStorage, toStorage } from "../storage";
+import { hydratePermissions } from "./permissions";
+import { hydrateTopics } from "./topics";
+import { hydrateWebsites } from "./websites";
 
 const hydrators = [hydratePermissions, hydrateTopics, hydrateWebsites];
 

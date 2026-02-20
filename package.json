@@ -25,9 +25,10 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "lodash-es": "^4.17.23",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "statezero": "^0.7.2"
+    "statezero": "^0.8.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

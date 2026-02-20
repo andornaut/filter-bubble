@@ -1,4 +1,4 @@
-import { action } from "statezero";
+import { action } from "statezero/src";
 
 let errorIdCounter = 0;
 
