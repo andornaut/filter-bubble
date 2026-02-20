@@ -8,6 +8,7 @@
     "default_title": "Filter Bubble"
   },
   "background": {
+    "scripts": ["js/background.js"],
     "service_worker": "js/background.js"
   },
   "browser_specific_settings": {
