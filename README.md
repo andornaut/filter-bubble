@@ -32,7 +32,7 @@ n.b. Only a handful of websites are configured out of the box, and you'll need t
 
 1. Install [node](https://nodejs.org/en/) (see [`.nvmrc`](.nvmrc) for the recommended version)
 1. `npm install`
-1. `npm run web-ext`
+1. `npm start`
 
 ### Developing for Android
 
@@ -80,7 +80,7 @@ npx web-ext run \
     --firefox-apk=org.mozilla.firefox
 ```
 
-Alternatively, you can run: `npm run web-ext-android-firefox`
+Alternatively, you can run: `npm run start:android`
 
 ### Publishing
 
@@ -99,7 +99,7 @@ git push && git push --tags
 To build a package locally:
 
 ```bash
-npm run package-production
+npm run pack
 ls web-ext-artifacts/
 ```
 

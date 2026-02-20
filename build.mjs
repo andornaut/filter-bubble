@@ -18,9 +18,8 @@ await esbuild.build({
   sourcemap: !isProduction,
 });
 
-// Copy static files
+cpSync("static", "dist", { recursive: true });
 cpSync("manifest.json", "dist/manifest.json");
 cpSync("_locales", "dist/_locales", { recursive: true });
-cpSync("static", "dist", { recursive: true });
 
 console.log(`Build complete (${isProduction ? "production" : "development"})`);
