@@ -1,6 +1,7 @@
 :root {
   --danger-color: #f36666;
   --danger-bg-color: #5f0000;
+  --disabled-color: #3a3a3a;
   --divider-color: #999;
   --primary-color: #ff77cc;
   --secondary-color: #77aaff;

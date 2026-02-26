@@ -46,13 +46,14 @@
 }
 
 .list__item--disabled .list__content {
-  border-color: var(--subtle-bg-color);
+  border-color: var(--disabled-color);
   color: var(--subtle-text-color);
   text-decoration: line-through;
 }
 
 .list__item--disabled .list__toggle {
-  border-color: var(--subtle-bg-color);
+  background-color: var(--disabled-color);
+  border-color: var(--disabled-color);
   color: var(--subtle-text-color);
 }
 
