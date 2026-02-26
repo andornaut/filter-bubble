@@ -1,4 +1,3 @@
-/* eslint-disable max-classes-per-file */
 (() => {
   if (window.filterBubble) {
     // Return a non-undefined value, so that the caller can detect successful execution.
@@ -33,7 +32,12 @@
 
     reset() {
       for (const el of document.querySelectorAll(`.${CSS_BLOCK}`)) {
-        el.classList.remove(CSS_BLOCK, CSS_HIDE_MODIFIER, CSS_HIGHLIGHT_MODIFIER, CSS_REMOVE_MODIFIER);
+        el.classList.remove(
+          CSS_BLOCK,
+          CSS_HIDE_MODIFIER,
+          CSS_HIGHLIGHT_MODIFIER,
+          CSS_REMOVE_MODIFIER,
+        );
       }
     }
 
@@ -44,7 +48,10 @@
         try {
           containers = document.querySelectorAll(selector);
         } catch (containerError) {
-          console.warn(`filter-bubble: Error applying selector "${selector}"`, containerError);
+          console.warn(
+            `filter-bubble: Error applying selector "${selector}"`,
+            containerError,
+          );
           continue;
         }
         count += Array.prototype.reduce.call(
@@ -56,7 +63,10 @@
               try {
                 matched = regex.test(el.textContent);
               } catch (regexError) {
-                console.warn(`filter-bubble: Error applying regular expression "${regex}"`, regexError);
+                console.warn(
+                  `filter-bubble: Error applying regular expression "${regex}"`,
+                  regexError,
+                );
                 break;
               }
               if (matched) {
@@ -166,7 +176,11 @@
         mutations &&
         mutations.filter(
           ({ attributeName, target, type }) =>
-            !(type === "attributes" && attributeName === "class" && target.classList.contains(CSS_BLOCK)),
+            !(
+              type === "attributes" &&
+              attributeName === "class" &&
+              target.classList.contains(CSS_BLOCK)
+            ),
         ).length === 0
       ) {
         return;
@@ -192,7 +206,10 @@
     _setCount(newCount) {
       if (this.count !== newCount) {
         this.count = newCount;
-        chrome.runtime.sendMessage({ command: "count", data: { count: this.count, tabId: this.state.tabId } });
+        chrome.runtime.sendMessage({
+          command: "count",
+          data: { count: this.count, tabId: this.state.tabId },
+        });
       }
     }
   }
