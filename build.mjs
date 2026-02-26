@@ -56,5 +56,6 @@ if (isWatch) {
   console.log("Watching for changes...");
 } else {
   await ctx.rebuild();
+  await ctx.dispose();
   console.log(`Build complete (${isProduction ? "production" : "development"})`);
 }
