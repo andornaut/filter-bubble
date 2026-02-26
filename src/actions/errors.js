@@ -1,19 +1,16 @@
 import { action } from "statezero/src";
 
-let errorIdCounter = 0;
-
-export const toId = ({ id }) => id;
+export const toId = ({ message }) => message;
 
 export const addError = action(({ commit, state }, message) => {
   message = message.toString();
   state.errors = state.errors || [];
   const now = new Date().toJSON();
-  const error = state.errors.find((error_) => error_.message === message);
+  const error = state.errors.find((error_) => toId(error_) === message);
   if (error) {
     error.modifiedDate = now;
   } else {
-    errorIdCounter += 1;
-    state.errors.push({ id: `error-${errorIdCounter}`, message, modifiedDate: now });
+    state.errors.push({ message, modifiedDate: now });
   }
   commit(state);
 });
