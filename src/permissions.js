@@ -1,4 +1,4 @@
-import { setHasPermissions } from './actions/permissions';
+import { setHasPermissions } from "./actions/permissions";
 
 const toPermissions = (addresses) => ({ origins: addresses.map((address) => `*://${address}/*`) });
 

@@ -1,9 +1,19 @@
-import { toId, toRoot } from "../actions/websites";
+import {
+  addWebsite,
+  cancelSelectedWebsite,
+  deleteSelectedWebsite,
+  editSelectedWebsite,
+  selectWebsite,
+  toggleWebsiteEnabled,
+  toId,
+} from "../actions/websites";
 import { toCanonicalArray, unsplit } from "../helpers";
 import { requestPermissionsFromAddresses } from "../permissions";
-import { addFactory, editFactory, listFactory } from "./factories";
+import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "../validation";
 import { checkboxField, textField } from "./fields";
+import { AddForm, EditForm } from "./form";
 import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from "./hints";
+import { List } from "./list";
 
 const fields = (website = { addresses: "", hideInsteadOfRemove: false, selectors: "" }) => [
   textField({
@@ -25,10 +35,6 @@ const fields = (website = { addresses: "", hideInsteadOfRemove: false, selectors
     value: website.hideInsteadOfRemove,
   }),
 ];
-
-const DOMAIN_NAME_REGEX = /^[a-z\d]([a-z\d-]{0,61}[a-z\d])(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
-
-const SCHEME_REGEX = /^(https?)?:\/\//;
 
 const transform = (data) => {
   data.addresses = toCanonicalArray(data.addresses);
@@ -58,11 +64,7 @@ const transform = (data) => {
 
 const callback = ({ addresses }) => requestPermissionsFromAddresses(addresses);
 
-const add = addFactory(toRoot, toId, transform, fields, callback);
-
-const edit = editFactory(toRoot, toId, transform, fields, callback);
-
-const details = ({ addresses, selectors }) => (
+const itemDetails = ({ addresses, selectors }) => (
   <>
     <span className="websites__addresses">{unsplit(addresses)}</span>
     <span className="websites__selectors-label">Selectors:</span>
@@ -70,11 +72,36 @@ const details = ({ addresses, selectors }) => (
   </>
 );
 
-const list = listFactory(toRoot, toId, details);
-
 export const Websites = ({ state }) => (
   <section>
-    <div className="form">{state.websites.selected ? edit(state.websites.selected) : add()}</div>
-    {list(state)}
+    <div className="form">
+      {state.websites.selected ? (
+        <EditForm
+          callback={callback}
+          cancelSelected={cancelSelectedWebsite}
+          deleteSelected={deleteSelectedWebsite}
+          editSelected={editSelectedWebsite}
+          fields={fields}
+          selected={state.websites.selected}
+          transform={transform}
+        />
+      ) : (
+        <AddForm
+          addItem={addWebsite}
+          callback={callback}
+          cancelSelected={cancelSelectedWebsite}
+          fields={fields}
+          transform={transform}
+        />
+      )}
+    </div>
+    <List
+      itemDetails={itemDetails}
+      list={state.websites.list}
+      select={selectWebsite}
+      selectedId={toId(state.websites.selected || {})}
+      toId={toId}
+      toggleEnabled={toggleWebsiteEnabled}
+    />
   </section>
 );

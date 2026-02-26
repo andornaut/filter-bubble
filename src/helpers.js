@@ -1,7 +1,7 @@
 const formatTime = (dt) => {
   let minutes = dt.getMinutes();
   let hours = dt.getHours();
-  const suffix = hours >= 12 ? 'pm' : 'am';
+  const suffix = hours >= 12 ? "pm" : "am";
   hours = hours % 12 || 12;
   if (minutes < 10) {
     minutes = `0${minutes}`;
@@ -28,13 +28,13 @@ export const sortByModifiedDateDesc = (arr) =>
 export const toCanonicalArray = (str) =>
   Array.from(
     new Set(
-      (str || '')
-        .split('\n')
-        .map((line) => line.split(','))
+      (str || "")
+        .split("\n")
+        .map((line) => line.split(","))
         .flat()
         .map((s) => s.trim())
         .filter((s) => s),
     ),
   ).sort();
 
-export const unsplit = (arr) => (arr || []).join(', ');
+export const unsplit = (arr) => (arr || []).join(", ");

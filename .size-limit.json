@@ -1,0 +1,12 @@
+[
+  {
+    "name": "JS (minified)",
+    "path": "dist/popup.js",
+    "limit": "100 KB"
+  },
+  {
+    "name": "CSS (minified)",
+    "path": "dist/popup.css",
+    "limit": "5 KB"
+  }
+]

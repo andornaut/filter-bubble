@@ -17,23 +17,27 @@
     "build:prod": "node build.mjs --production",
     "format": "prettier-eslint --write \"**/*.{css,js,json,jsx,md}\"",
     "lint": "eslint --ext .js,.jsx --max-warnings 0 .",
+    "lint:fix": "eslint --ext .js,.jsx --fix .",
     "package": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
     "start": "npm run build && web-ext run",
     "start:android": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices 2>&1| awk '/./{device=$1} END{print device}') --verbose",
+    "size": "npm run build:prod && size-limit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "watch": "node build.mjs --watch"
   },
   "dependencies": {
     "lodash-es": "^4.17.23",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "statezero": "^0.8.0"
+    "statezero": "^0.9.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
+    "@size-limit/preset-small-lib": "^12.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "esbuild": "^0.27.3",
@@ -48,6 +52,7 @@
     "jest-environment-jsdom": "^30.2.0",
     "lint-staged": "^16.2.7",
     "prettier-eslint-cli": "^8.0.1",
+    "size-limit": "^12.0.0",
     "web-ext": "^9.3.0"
   }
 }

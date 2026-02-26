@@ -3,25 +3,18 @@ import { sortByModifiedDateDesc } from "../helpers";
 
 const CLEAR_LABEL = "Clear message";
 
-const handleDelete = (event) => {
-  const { id } = event.target.dataset;
-  clearError(id);
+const Error = ({ item }) => {
+  const id = toId(item);
+  const handleDelete = () => clearError(id);
+  return (
+    <li className="errors__item">
+      {item.message}
+      <button aria-label={CLEAR_LABEL} className="btn errors__delete" onClick={handleDelete} title={CLEAR_LABEL}>
+        [x]
+      </button>
+    </li>
+  );
 };
-
-const itemTemplate = ({ id, message }) => (
-  <li className="errors__item">
-    {message}
-    <button
-      aria-label={CLEAR_LABEL}
-      className="btn errors__delete"
-      data-id={id}
-      onClick={handleDelete}
-      title={CLEAR_LABEL}
-    >
-      [x]
-    </button>
-  </li>
-);
 
 export const Errors = ({ state }) => {
   const list = state.errors || [];
@@ -30,10 +23,9 @@ export const Errors = ({ state }) => {
   }
   return (
     <ul className="errors">
-      {sortByModifiedDateDesc(list).map((item) => {
-        const key = toId(item);
-        return <li key={key}>{itemTemplate(item)}</li>;
-      })}
+      {sortByModifiedDateDesc(list).map((item) => (
+        <Error item={item} key={toId(item)} />
+      ))}
     </ul>
   );
 };

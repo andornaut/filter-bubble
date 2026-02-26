@@ -22,7 +22,7 @@
   margin-bottom: var(--spacing);
 }
 
-.form__field input[type='text'],
+.form__field input[type="text"],
 .form__field textarea {
   box-sizing: border-box;
   font-size: 1.1em;
@@ -32,6 +32,10 @@
 
 .form__field textarea {
   resize: none;
+}
+
+.form__field input[type="checkbox"] {
+  margin-right: var(--spacing);
 }
 
 .form__field input:focus,

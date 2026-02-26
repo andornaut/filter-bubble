@@ -1,8 +1,17 @@
-import { toId, toRoot } from "../actions/topics";
+import {
+  addTopic,
+  cancelSelectedTopic,
+  deleteSelectedTopic,
+  editSelectedTopic,
+  selectTopic,
+  toggleTopicEnabled,
+  toId,
+} from "../actions/topics";
 import { toCanonicalArray, unsplit } from "../helpers";
-import { addFactory, editFactory, listFactory } from "./factories";
 import { textField } from "./fields";
+import { AddForm, EditForm } from "./form";
 import { TOPICS_HINT } from "./hints";
+import { List } from "./list";
 
 const fields = (topic = { text: "" }) =>
   textField({
@@ -22,17 +31,31 @@ const transform = (data) => {
   return data;
 };
 
-const add = addFactory(toRoot, toId, transform, fields);
-
-const edit = editFactory(toRoot, toId, transform, fields);
-
-const details = ({ text }) => <span className="topics__text">{unsplit(text)}</span>;
-
-const list = listFactory(toRoot, toId, details);
+const itemDetails = ({ text }) => <span className="topics__text">{unsplit(text)}</span>;
 
 export const Topics = ({ state }) => (
   <section>
-    <div className="form">{state.topics.selected ? edit(state.topics.selected) : add()}</div>
-    {list(state)}
+    <div className="form">
+      {state.topics.selected ? (
+        <EditForm
+          cancelSelected={cancelSelectedTopic}
+          deleteSelected={deleteSelectedTopic}
+          editSelected={editSelectedTopic}
+          fields={fields}
+          selected={state.topics.selected}
+          transform={transform}
+        />
+      ) : (
+        <AddForm addItem={addTopic} cancelSelected={cancelSelectedTopic} fields={fields} transform={transform} />
+      )}
+    </div>
+    <List
+      itemDetails={itemDetails}
+      list={state.topics.list}
+      select={selectTopic}
+      selectedId={toId(state.topics.selected || {})}
+      toId={toId}
+      toggleEnabled={toggleTopicEnabled}
+    />
   </section>
 );
