@@ -1,9 +1,9 @@
+import { useState } from "react";
+
 import {
   addWebsite,
-  cancelSelectedWebsite,
-  deleteSelectedWebsite,
-  editSelectedWebsite,
-  selectWebsite,
+  deleteWebsite,
+  editWebsite,
   toggleWebsiteEnabled,
   toId,
 } from "../actions/websites";
@@ -12,10 +12,16 @@ import { requestPermissionsFromAddresses } from "../permissions";
 import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "../validation";
 import { checkboxField, textField } from "./fields";
 import { AddForm, EditForm } from "./form";
-import { CSS_SELECTORS_HINT, DOMAIN_NAMES_HINT, HIDE_OR_REMOVE_HINT } from "./hints";
+import {
+  CSS_SELECTORS_HINT,
+  DOMAIN_NAMES_HINT,
+  HIDE_OR_REMOVE_HINT,
+} from "./hints";
 import { List } from "./list";
 
-const fields = (website = { addresses: "", hideInsteadOfRemove: false, selectors: "" }) => [
+const fields = (
+  website = { addresses: "", hideInsteadOfRemove: false, selectors: "" },
+) => [
   textField({
     hint: DOMAIN_NAMES_HINT,
     label: "Domain names",
@@ -72,36 +78,55 @@ const itemDetails = ({ addresses, selectors }) => (
   </>
 );
 
-export const Websites = ({ state }) => (
-  <section>
-    <div className="form">
-      {state.websites.selected ? (
-        <EditForm
-          callback={callback}
-          cancelSelected={cancelSelectedWebsite}
-          deleteSelected={deleteSelectedWebsite}
-          editSelected={editSelectedWebsite}
-          fields={fields}
-          selected={state.websites.selected}
-          transform={transform}
-        />
-      ) : (
-        <AddForm
-          addItem={addWebsite}
-          callback={callback}
-          cancelSelected={cancelSelectedWebsite}
-          fields={fields}
-          transform={transform}
-        />
-      )}
-    </div>
-    <List
-      itemDetails={itemDetails}
-      list={state.websites.list}
-      select={selectWebsite}
-      selectedId={toId(state.websites.selected || {})}
-      toId={toId}
-      toggleEnabled={toggleWebsiteEnabled}
-    />
-  </section>
-);
+export const Websites = ({ state }) => {
+  const [selected, setSelected] = useState(null);
+  const selectedId = selected ? toId(selected) : "";
+
+  const handleSelect = (id) => {
+    const item = state.websites.list.find((item) => toId(item) === id);
+    setSelected(item);
+  };
+  const clearSelected = () => setSelected(null);
+  const handleDelete = () => {
+    deleteWebsite(selectedId);
+    clearSelected();
+  };
+  const handleEdit = (data) => {
+    editWebsite(selectedId, data);
+    clearSelected();
+  };
+
+  return (
+    <section>
+      <div className="form">
+        {selected ? (
+          <EditForm
+            callback={callback}
+            cancelSelected={clearSelected}
+            deleteSelected={handleDelete}
+            editSelected={handleEdit}
+            fields={fields}
+            selected={selected}
+            transform={transform}
+          />
+        ) : (
+          <AddForm
+            addItem={addWebsite}
+            callback={callback}
+            cancelSelected={clearSelected}
+            fields={fields}
+            transform={transform}
+          />
+        )}
+      </div>
+      <List
+        itemDetails={itemDetails}
+        list={state.websites.list}
+        select={handleSelect}
+        selectedId={selectedId}
+        toId={toId}
+        toggleEnabled={toggleWebsiteEnabled}
+      />
+    </section>
+  );
+};

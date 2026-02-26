@@ -11,8 +11,6 @@ import "./views/topics.css";
 import "./views/websites.css";
 import { clearAllErrors } from "./actions/errors";
 import { initState } from "./actions/init";
-import { cancelSelectedTopic } from "./actions/topics";
-import { cancelSelectedWebsite } from "./actions/websites";
 import { checkPermissions } from "./permissions";
 import { App } from "./views/app";
 import { ErrorBoundary } from "./views/error-boundary";
@@ -25,22 +23,12 @@ const renderApp = (state) =>
     </ErrorBoundary>,
   );
 
-const resetForms = () => {
-  // Always reset `.selected`, because the form is cleared on adding (the form data is not saved in the state),
-  // and therefore should also be cleared when editing (the form data is initialized to  state...selected).
-  cancelSelectedTopic();
-  cancelSelectedWebsite();
-
-  // If the forms are cleared, as above, then so should any form errors be.
-  clearAllErrors();
-};
-
 const init = async () => {
   await initState();
   subscribe(renderApp);
 
   window.addEventListener("hashchange", () => {
-    resetForms();
+    clearAllErrors();
     renderApp(getState());
   });
 

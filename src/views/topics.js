@@ -1,9 +1,9 @@
+import { useState } from "react";
+
 import {
   addTopic,
-  cancelSelectedTopic,
-  deleteSelectedTopic,
-  editSelectedTopic,
-  selectTopic,
+  deleteTopic,
+  editTopic,
   toggleTopicEnabled,
   toId,
 } from "../actions/topics";
@@ -31,31 +31,57 @@ const transform = (data) => {
   return data;
 };
 
-const itemDetails = ({ text }) => <span className="topics__text">{unsplit(text)}</span>;
-
-export const Topics = ({ state }) => (
-  <section>
-    <div className="form">
-      {state.topics.selected ? (
-        <EditForm
-          cancelSelected={cancelSelectedTopic}
-          deleteSelected={deleteSelectedTopic}
-          editSelected={editSelectedTopic}
-          fields={fields}
-          selected={state.topics.selected}
-          transform={transform}
-        />
-      ) : (
-        <AddForm addItem={addTopic} cancelSelected={cancelSelectedTopic} fields={fields} transform={transform} />
-      )}
-    </div>
-    <List
-      itemDetails={itemDetails}
-      list={state.topics.list}
-      select={selectTopic}
-      selectedId={toId(state.topics.selected || {})}
-      toId={toId}
-      toggleEnabled={toggleTopicEnabled}
-    />
-  </section>
+const itemDetails = ({ text }) => (
+  <span className="topics__text">{unsplit(text)}</span>
 );
+
+export const Topics = ({ state }) => {
+  const [selected, setSelected] = useState(null);
+  const selectedId = selected ? toId(selected) : "";
+
+  const handleSelect = (id) => {
+    const item = state.topics.list.find((item) => toId(item) === id);
+    setSelected(item);
+  };
+  const clearSelected = () => setSelected(null);
+  const handleDelete = () => {
+    deleteTopic(selectedId);
+    clearSelected();
+  };
+  const handleEdit = (data) => {
+    editTopic(selectedId, data);
+    clearSelected();
+  };
+
+  return (
+    <section>
+      <div className="form">
+        {selected ? (
+          <EditForm
+            cancelSelected={clearSelected}
+            deleteSelected={handleDelete}
+            editSelected={handleEdit}
+            fields={fields}
+            selected={selected}
+            transform={transform}
+          />
+        ) : (
+          <AddForm
+            addItem={addTopic}
+            cancelSelected={clearSelected}
+            fields={fields}
+            transform={transform}
+          />
+        )}
+      </div>
+      <List
+        itemDetails={itemDetails}
+        list={state.topics.list}
+        select={handleSelect}
+        selectedId={selectedId}
+        toId={toId}
+        toggleEnabled={toggleTopicEnabled}
+      />
+    </section>
+  );
+};
