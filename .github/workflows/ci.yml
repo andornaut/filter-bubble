@@ -36,7 +36,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: extension-package
-          path: web-ext-artifacts/*.zip
+          path: web-ext-artifacts/filter_bubble-*.zip
 
   release:
     needs: build
@@ -65,4 +65,4 @@ jobs:
           tag_name: ${{ github.ref == 'refs/heads/main' && 'main' || github.ref_name }}
           name: ${{ github.ref == 'refs/heads/main' && 'main' || github.ref_name }}
           body: ${{ github.ref == 'refs/heads/main' && 'Latest build from main branch' || '' }}
-          files: artifacts/extension-package/*.zip
+          files: artifacts/extension-package/filter_bubble-*.zip
