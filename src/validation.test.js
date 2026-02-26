@@ -1,5 +1,4 @@
-// Domain validation regex - must match the one in src/views/websites.js
-const DOMAIN_NAME_REGEX = /^[a-z\d]([a-z\d-]{0,61}[a-z\d])(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
+import { DOMAIN_NAME_REGEX } from "./validation";
 
 describe("domain name validation", () => {
   const isValidDomain = (domain) => DOMAIN_NAME_REGEX.test(domain);

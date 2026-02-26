@@ -1,5 +1,6 @@
 import { requestPermissionsFromState } from "../permissions";
 import { Errors } from "./errors";
+import { Help } from "./help";
 import { PERMISSIONS_HINT } from "./hints";
 import { Topics } from "./topics";
 import { Websites } from "./websites";
@@ -35,6 +36,7 @@ export const App = ({ hash, state }) => {
       <Errors state={state} />
       {showTopics && <Topics state={state} />}
       {showWebsites && <Websites state={state} />}
+      <Help showHelp={state.showHelp} />
     </div>
   );
 };

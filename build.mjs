@@ -1,13 +1,38 @@
 import * as esbuild from "esbuild";
-import { cpSync, rmSync } from "fs";
+import { cpSync, rmSync, watch } from "fs";
 
 const isProduction = process.argv.includes("--production");
+const isWatch = process.argv.includes("--watch");
 
-// Clean dist directory
-rmSync("dist", { force: true, recursive: true });
+const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-// Bundle popup.js
-await esbuild.build({
+const copyStatic = () => {
+  cpSync("static", "dist", { recursive: true });
+  cpSync("manifest.json", "dist/manifest.json");
+  cpSync("_locales", "dist/_locales", { recursive: true });
+};
+
+const watchStatic = () => {
+  const watchers = [
+    { path: "static", toDest: (f) => `dist/${f}` },
+    { path: "_locales", toDest: (f) => `dist/_locales/${f}` },
+    { path: "manifest.json", toDest: () => "dist/manifest.json" },
+  ];
+  watchers.forEach(({ path, toDest }) => {
+    watch(path, { recursive: true }, (_, filename) => {
+      const dest = toDest(filename || "");
+      if (!dest) return;
+      try {
+        cpSync(`${path}/${filename || ""}`.replace(/\/$/, ""), dest);
+        log(`Copied ${path}/${filename || ""}`);
+      } catch {
+        // File may have been deleted
+      }
+    });
+  });
+};
+
+const buildOptions = {
   bundle: true,
   entryPoints: ["src/index.js"],
   format: "iife",
@@ -15,19 +40,21 @@ await esbuild.build({
   loader: { ".js": "jsx" },
   minify: isProduction,
   outfile: "dist/popup.js",
+  plugins: isWatch
+    ? [{ name: "log", setup: (b) => b.onEnd((r) => log(r.errors.length ? "Build failed" : "Build complete")) }]
+    : [],
   sourcemap: !isProduction,
-  alias: {
-    "lodash": "lodash-es",
-    "lodash/get": "lodash-es/get.js",
-    "lodash/set": "lodash-es/set.js",
-    "lodash/isPlainObject": "lodash-es/isPlainObject.js",
-    "lodash/cloneDeepWith": "lodash-es/cloneDeepWith.js",
-    "lodash/isEqualWith": "lodash-es/isEqualWith.js",
-  },
-});
+};
 
-cpSync("static", "dist", { recursive: true });
-cpSync("manifest.json", "dist/manifest.json");
-cpSync("_locales", "dist/_locales", { recursive: true });
+rmSync("dist", { force: true, recursive: true });
+copyStatic();
 
-console.log(`Build complete (${isProduction ? "production" : "development"})`);
+const ctx = await esbuild.context(buildOptions);
+if (isWatch) {
+  await ctx.watch();
+  watchStatic();
+  console.log("Watching for changes...");
+} else {
+  await ctx.rebuild();
+  console.log(`Build complete (${isProduction ? "production" : "development"})`);
+}

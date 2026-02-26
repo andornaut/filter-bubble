@@ -1,5 +1,7 @@
 const CONTENT_SCRIPT_PATH = "/js/content-script.js";
 const STYLESHEET_PATH = "/css/content-script.css";
+// Note: This regex is duplicated from src/validation.js because this file
+// cannot import ES modules (it runs as a service worker without bundling).
 const SCHEME_REGEX = /^(https?)?:\/\//;
 
 const matchedWebsite = (websitesList, url) => {

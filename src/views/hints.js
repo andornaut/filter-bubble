@@ -1,23 +1,23 @@
 // App
 
 export const HELP_HTML = (
-  <div className="list__help">
+  <div className="help__content">
     <h2>Getting started!</h2>
     <ol>
       <li>
-        Create a list of <a href="#topics">topics</a> that you want to hide or remove from
+        Create a list of <a href="#topics">topics</a> that you want to hide or remove from{" "}
         <a href="#websites">specific websites</a>
       </li>
 
       <li>
-        <a href="#websites">Configure rules for these websites</a> by specifying
+        <a href="#websites">Configure rules for these websites</a> by specifying{" "}
         <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">
           CSS selectors
-        </a>
-        that target the
+        </a>{" "}
+        that target the{" "}
         <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">
           HTML elements
-        </a>
+        </a>{" "}
         of the content blocks or feed items that might contain any of the targeted topics
       </li>
 
@@ -28,14 +28,14 @@ export const HELP_HTML = (
     </ol>
     <p>
       n.b. Only a handful of <a href="#websites">websites are configured out of the box</a>, and you'll need to know how
-      to target
+      to target{" "}
       <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">
         HTML elements
       </a>{" "}
-      using
+      using{" "}
       <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">
         CSS selectors
-      </a>
+      </a>{" "}
       in order to configure additional websites!
     </p>
   </div>
@@ -48,7 +48,7 @@ export const PERMISSIONS_HINT = (
       order to hide or remove content from those websites.
     </p>
     <p>
-      If you don't want to grant access to any of those websites, then delete them on the
+      If you don't want to grant access to any of those websites, then delete them on the{" "}
       <a href="#websites">"Websites" tab</a> in order to hide this prompt.
     </p>
   </>
@@ -59,8 +59,7 @@ export const PERMISSIONS_HINT = (
 export const TOPICS_HINT = (
   <>
     A list of case-insensitive keywords (single words or groups of words), separated by commas, that will be hidden or
-    removed from the
-    <a href="#websites">websites that you've configured</a>.
+    removed from the <a href="#websites">websites that you've configured</a>.
     <br />
     eg. "cupcakes, apples and oranges"
   </>
@@ -70,19 +69,19 @@ export const TOPICS_HINT = (
 
 export const DOMAIN_NAMES_HINT = (
   <>
-    A list of
+    A list of{" "}
     <a href="https://en.wikipedia.org/wiki/Domain_name" target="_blank">
       domain names
-    </a>
+    </a>{" "}
     (
     <a href="https://en.wikipedia.org/wiki/URL" target="_blank">
       URLs
     </a>{" "}
-    without the
+    without the{" "}
     <a href="https://en.wikipedia.org/wiki/List_of_URI_schemes" target="_blank">
       scheme
     </a>{" "}
-    or
+    or{" "}
     <a href="https://en.wikipedia.org/wiki/URL#Syntax" target="_blank">
       path
     </a>
@@ -95,14 +94,14 @@ export const DOMAIN_NAMES_HINT = (
 
 export const CSS_SELECTORS_HINT = (
   <>
-    A list of
+    A list of{" "}
     <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors" target="_blank">
       CSS selectors
-    </a>
-    separated by commas, which are used to target
+    </a>{" "}
+    separated by commas, which are used to target{" "}
     <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element" target="_blank">
       HTML elements
-    </a>
+    </a>{" "}
     on any websites that match the "web addresses" configured above. If a targeted HTML element contains a filtered
     topic, then that HTML element will be hidden/removed.
   </>

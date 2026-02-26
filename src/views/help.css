@@ -1,0 +1,33 @@
+.help {
+  margin: calc(2 * var(--spacing));
+}
+.help__content {
+  background-color: #145541;
+  border: 2px solid var(--divider-color);
+  border-radius: var(--spacing);
+  margin-bottom: calc(2 * var(--spacing));
+}
+
+.help__content h2 {
+  text-align: center;
+}
+
+.help__content ol {
+  font-size: 1.2em;
+  margin: 0;
+  padding: 0 2em;
+}
+
+.help__content li:not(:last-of-type) {
+  margin-bottom: 1em;
+}
+
+.help__content p {
+  margin-left: 1em;
+  margin-right: 1em;
+}
+
+.help__show {
+  margin: calc(2 * var(--spacing)) 0;
+  text-align: right;
+}
