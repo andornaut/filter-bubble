@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   addTopic,
   deleteTopic,
@@ -8,6 +6,7 @@ import {
   toId,
 } from "../actions/topics";
 import { toCanonicalArray, unsplit } from "../helpers";
+import { useSelection } from "../hooks/useSelection";
 import { textField } from "./fields";
 import { AddForm, EditForm } from "./form";
 import { TOPICS_HINT } from "./hints";
@@ -36,14 +35,10 @@ const itemDetails = ({ text }) => (
 );
 
 export const Topics = ({ list }) => {
-  const [selected, setSelected] = useState(null);
-  const selectedId = selected ? toId(selected) : "";
-
-  const handleSelect = (id) => {
-    const item = list.find((item) => toId(item) === id);
-    setSelected(item);
-  };
-  const clearSelected = () => setSelected(null);
+  const { clearSelected, handleSelect, selected, selectedId } = useSelection(
+    list,
+    toId,
+  );
   const handleDelete = () => {
     deleteTopic(selectedId);
     clearSelected();
