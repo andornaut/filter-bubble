@@ -1,7 +1,14 @@
 import { sortByModifiedDateDesc } from "../helpers";
 import { Item } from "./item";
 
-export const List = ({ itemDetails, list, select, selectedId, toId, toggleEnabled }) => {
+export const List = ({
+  itemDetails,
+  list,
+  select,
+  selectedId,
+  toId,
+  toggleEnabled,
+}) => {
   if (!list.length) {
     return null;
   }

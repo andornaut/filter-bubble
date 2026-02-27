@@ -130,7 +130,10 @@ const resetCurrentTab = async (state) => {
 const state = {};
 
 const updateState = (newState) => {
-  const { topics: { list: topicsList = [] } = {}, websites: { list: websitesList = [] } = {} } = newState;
+  const {
+    topics: { list: topicsList = [] } = {},
+    websites: { list: websitesList = [] } = {},
+  } = newState;
   state.pattern = toPattern(topicsList);
   state.websitesList = websitesList.filter(({ enabled }) => enabled);
   resetCurrentTab(state);

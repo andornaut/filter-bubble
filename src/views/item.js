@@ -1,4 +1,11 @@
-export const Item = ({ details, id, isSelected, item, select, toggleEnabled }) => {
+export const Item = ({
+  details,
+  id,
+  isSelected,
+  item,
+  select,
+  toggleEnabled,
+}) => {
   const { enabled } = item;
   const handleSelect = () => select(id);
   const handleToggle = () => toggleEnabled(id);

@@ -11,11 +11,9 @@ const handleRequestPermissionFactory = (state) => (event) => {
 };
 
 export const App = ({ hash, state }) => {
-  hash = hash || "#topics";
-  const showTopics = hash === "#topics";
-  const showWebsites = hash === "#websites";
-  const topicsClassName = `app__tab ${showTopics ? "app__tab--active" : ""}`;
-  const websitesClassName = `app__tab ${showWebsites ? "app__tab--active" : ""}`;
+  const activeTab = hash === "#websites" ? "websites" : "topics";
+  const topicsClassName = `app__tab ${activeTab === "topics" ? "app__tab--active" : ""}`;
+  const websitesClassName = `app__tab ${activeTab === "websites" ? "app__tab--active" : ""}`;
 
   return (
     <div className="app">
@@ -36,8 +34,8 @@ export const App = ({ hash, state }) => {
         </a>
       </nav>
       <Errors errors={state.errors} />
-      {showTopics && <Topics list={state.topics.list} />}
-      {showWebsites && <Websites list={state.websites.list} />}
+      {activeTab === "topics" && <Topics list={state.topics.list} />}
+      {activeTab === "websites" && <Websites list={state.websites.list} />}
       <Help />
     </div>
   );

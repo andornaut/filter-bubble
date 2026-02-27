@@ -5,8 +5,17 @@
       "selectors": ["ol.topic-listing > li"]
     },
     {
-      "addresses": ["new.reddit.com", "old.reddit.com", "reddit.com", "www.reddit.com"],
-      "selectors": ["[href*=\"/search\"]", "body.listing-page div[data-url]", "body:not(.comments-page) article"]
+      "addresses": [
+        "new.reddit.com",
+        "old.reddit.com",
+        "reddit.com",
+        "www.reddit.com"
+      ],
+      "selectors": [
+        "[href*=\"/search\"]",
+        "body.listing-page div[data-url]",
+        "body:not(.comments-page) article"
+      ]
     },
     {
       "addresses": ["news.ycombinator.com"],

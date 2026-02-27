@@ -24,7 +24,13 @@ const withError =
     clearAllErrors();
   };
 
-export const AddForm = ({ addItem, callback = () => {}, cancelSelected, fields, transform }) => {
+export const AddForm = ({
+  addItem,
+  callback = () => {},
+  cancelSelected,
+  fields,
+  transform,
+}) => {
   const formRef = useRef(null);
   const handleCancel = withError(() => {
     cancelSelected();
@@ -83,7 +89,7 @@ export const EditForm = ({
     <form ref={formRef} onSubmit={handleSubmit}>
       {fields(selected)}
       <time className="form__date" dateTime={selected.modifiedDate}>
-        <span className="form__date-label">Last updated:</span>
+        <span className="form__date-label">Last updated:</span>{" "}
         {humanDate(selected.modifiedDate)}
       </time>
       <div className="form__actions-container">
@@ -95,7 +101,11 @@ export const EditForm = ({
             Cancel
           </button>
         </div>
-        <button className="btn btn--danger" onClick={handleDelete} type="button">
+        <button
+          className="btn btn--danger"
+          onClick={handleDelete}
+          type="button"
+        >
           Delete
         </button>
       </div>

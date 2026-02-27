@@ -1,4 +1,9 @@
-import { humanDate, sortByModifiedDateDesc, toCanonicalArray, unsplit } from "./helpers";
+import {
+  humanDate,
+  sortByModifiedDateDesc,
+  toCanonicalArray,
+  unsplit,
+} from "./helpers";
 
 describe("toCanonicalArray", () => {
   it("splits comma-separated values and trims whitespace", () => {
