@@ -16,6 +16,7 @@ import { App } from "./views/app";
 import { ErrorBoundary } from "./views/error-boundary";
 
 const root = createRoot(document.body);
+
 const renderApp = (state) =>
   root.render(
     <ErrorBoundary>

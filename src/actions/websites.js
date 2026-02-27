@@ -26,10 +26,9 @@ export const hydrateWebsites = action(({ commit, state }, { websites }) => {
   commit(state);
 });
 
-export const toId = createToId("addresses");
-
 const toRoot = (state) => state.websites;
 
+export const toId = createToId("addresses");
 export const addWebsite = createAddItem(toRoot, toId);
 export const deleteWebsite = createDeleteItem(toRoot, toId);
 export const editWebsite = createEditItem(toRoot, toId);

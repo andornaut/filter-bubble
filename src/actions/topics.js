@@ -14,10 +14,8 @@ export const hydrateTopics = action(({ commit, state }, { topics = {} }) => {
   commit(state);
 });
 
-export const toId = createToId("text");
-
 const toRoot = (state) => state.topics;
-
+export const toId = createToId("text");
 export const addTopic = createAddItem(toRoot, toId);
 export const deleteTopic = createDeleteItem(toRoot, toId);
 export const editTopic = createEditItem(toRoot, toId);
