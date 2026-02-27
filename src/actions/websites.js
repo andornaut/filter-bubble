@@ -1,6 +1,6 @@
 import { action } from "statezero/src";
 
-import { toCanonicalArray } from "../helpers";
+import { arrayToId } from "../helpers";
 import {
   addItemFactory,
   deleteItemFactory,
@@ -26,11 +26,7 @@ export const hydrateWebsites = action(({ commit, state }, { websites }) => {
   commit(state);
 });
 
-export const toId = ({ addresses }) =>
-  (Array.isArray(addresses)
-    ? addresses
-    : toCanonicalArray(addresses || "")
-  ).toString();
+export const toId = ({ addresses }) => arrayToId(addresses);
 
 const toRoot = (state) => state.websites;
 

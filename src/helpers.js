@@ -40,3 +40,7 @@ export const toCanonicalArray = (str) =>
   ).sort();
 
 export const unsplit = (arr) => (arr || []).join(", ");
+
+// Converts an array or comma-separated string to a canonical ID string.
+export const arrayToId = (value) =>
+  (Array.isArray(value) ? value : toCanonicalArray(value || "")).toString();
