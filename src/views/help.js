@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { toggleShowHelp } from "../actions/help";
 import { HELP_HTML } from "./hints";
 
-export const Help = ({ showHelp }) => {
+export const Help = () => {
+  const [showHelp, setShowHelp] = useState(false);
   const sectionRef = useRef(null);
 
   useEffect(() => {
@@ -14,7 +14,7 @@ export const Help = ({ showHelp }) => {
 
   const handleToggle = (event) => {
     event.preventDefault();
-    toggleShowHelp();
+    setShowHelp(!showHelp);
   };
   const label = showHelp ? "Hide help" : "Show help";
   return (
