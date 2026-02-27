@@ -4,6 +4,15 @@
     return { isFirstRun: false };
   }
 
+  // Configuration constants
+  const MAX_BODY_RETRIES = 100; // Max attempts to wait for document.body
+  const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
+  const DEBOUNCE_DELAY_MS = 300; // Throttle DOM updates to once per this interval
+
+  // Regex cache to avoid recompiling the same pattern
+  const regexCache = new Map();
+
+  // CSS class constants
   const CSS_BLOCK = "filter-bubble";
   const CSS_HIDE_MODIFIER = "filter-bubble--hide";
   const CSS_HIGHLIGHT_MODIFIER = "filter-bubble--highlight";
@@ -129,9 +138,12 @@
     enable(state, retries = 0) {
       if (!document.body) {
         // document.body can be null on the first onUpdated.status===loading event.
-        // Try again in a bit, but give up after 100 attempts (10 seconds).
-        if (retries < 100) {
-          setTimeout(this.enable.bind(this, state, retries + 1), 100);
+        // Try again in a bit, but give up after MAX_BODY_RETRIES attempts.
+        if (retries < MAX_BODY_RETRIES) {
+          setTimeout(
+            this.enable.bind(this, state, retries + 1),
+            BODY_RETRY_DELAY_MS,
+          );
         }
         return;
       }
@@ -149,12 +161,19 @@
         return;
       }
 
-      let regex;
-      try {
-        regex = new RegExp(state.pattern, "i");
-      } catch (e) {
-        console.error("filter-bubble: Invalid regex pattern", state.pattern, e);
-        return;
+      let regex = regexCache.get(state.pattern);
+      if (!regex) {
+        try {
+          regex = new RegExp(state.pattern, "i");
+          regexCache.set(state.pattern, regex);
+        } catch (e) {
+          console.error(
+            "filter-bubble: Invalid regex pattern",
+            state.pattern,
+            e,
+          );
+          return;
+        }
       }
 
       this.state = { ...state, regex };
@@ -186,7 +205,7 @@
         return;
       }
 
-      // Don't update more often than once every 300ms.
+      // Throttle updates to once per DEBOUNCE_DELAY_MS.
       if (this.pending) {
         this.queued = true;
         return;
@@ -200,7 +219,7 @@
         if (this.queued) {
           this._changed();
         }
-      }, 300);
+      }, DEBOUNCE_DELAY_MS);
     }
 
     _setCount(newCount) {

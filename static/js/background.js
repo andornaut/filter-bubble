@@ -174,16 +174,6 @@ chrome.tabs.onActivated.addListener(async ({ windowId }) => {
   }
 });
 
-// Called when the set of highlighted tabs in a window changes.
-// chrome.tabs.onHighlighted.addListener((highlightInfo) => {
-//   const { tabIds } = highlightInfo;
-//   tabIds.forEach(async (tabId) => {
-//     const tab = await chrome.tabs.get(tabId);
-//     console.log('onHighlited', tab);
-//     updateTab(state, tab);
-//   });
-// });
-
 // Called when a tab metadata, such as its loading state or URL, changes.
 chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
   if (status === "loading" && tab.url) {
