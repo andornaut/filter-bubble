@@ -13,7 +13,7 @@ export const createToId = (field) => (item) =>
 const findIndex = (toId, list, id) =>
   list.findIndex((item) => toId(item) === id);
 
-export const addItemFactory = (toRoot, toId) =>
+export const createAddItem = (toRoot, toId) =>
   action(({ commit, state }, data) => {
     const { list } = toRoot(state);
     const dataId = toId(data);
@@ -31,7 +31,7 @@ export const addItemFactory = (toRoot, toId) =>
     commit(state);
   });
 
-export const deleteItemFactory = (toRoot, toId) =>
+export const createDeleteItem = (toRoot, toId) =>
   action(({ commit, state }, id) => {
     const { list } = toRoot(state);
     const index = findIndex(toId, list, id);
@@ -42,7 +42,7 @@ export const deleteItemFactory = (toRoot, toId) =>
     commit(state);
   });
 
-export const editItemFactory = (toRoot, toId) =>
+export const createEditItem = (toRoot, toId) =>
   action(({ commit, state }, originalId, data) => {
     const { list } = toRoot(state);
     const dataId = toId(data);
@@ -61,7 +61,7 @@ export const editItemFactory = (toRoot, toId) =>
     commit(state);
   });
 
-export const toggleEnabledFactory = (toRoot, toId) =>
+export const createToggleEnabled = (toRoot, toId) =>
   action(({ commit, state }, id) => {
     const root = toRoot(state);
     const item = find(toId, root.list, id);
