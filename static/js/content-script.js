@@ -9,8 +9,17 @@
   const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
   const DEBOUNCE_DELAY_MS = 300; // Throttle DOM updates to once per this interval
 
-  // Regex cache to avoid recompiling the same pattern
+  // Regex cache to avoid recompiling the same pattern within a tab
   const regexCache = new Map();
+
+  const getOrCompileRegex = (pattern) => {
+    let regex = regexCache.get(pattern);
+    if (!regex) {
+      regex = new RegExp(pattern, "i");
+      regexCache.set(pattern, regex);
+    }
+    return regex;
+  };
 
   // CSS class constants
   const CSS_BLOCK = "filter-bubble";
@@ -161,19 +170,12 @@
         return;
       }
 
-      let regex = regexCache.get(state.pattern);
-      if (!regex) {
-        try {
-          regex = new RegExp(state.pattern, "i");
-          regexCache.set(state.pattern, regex);
-        } catch (e) {
-          console.error(
-            "filter-bubble: Invalid regex pattern",
-            state.pattern,
-            e,
-          );
-          return;
-        }
+      let regex;
+      try {
+        regex = getOrCompileRegex(state.pattern);
+      } catch (e) {
+        console.error("filter-bubble: Invalid regex pattern", state.pattern, e);
+        return;
       }
 
       this.state = { ...state, regex };
