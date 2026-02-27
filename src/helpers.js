@@ -40,10 +40,3 @@ export const toCanonicalArray = (str) =>
   ).sort();
 
 export const unsplit = (arr) => (arr || []).join(", ");
-
-// Factory that creates a toId function for extracting a canonical ID from a field.
-export const createToId = (field) => (item) =>
-  (Array.isArray(item[field])
-    ? item[field]
-    : toCanonicalArray(item[field] || "")
-  ).toString();

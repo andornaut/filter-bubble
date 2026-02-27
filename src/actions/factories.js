@@ -1,6 +1,14 @@
 import { action } from "statezero/src";
 
+import { toCanonicalArray } from "../helpers";
+
 const find = (toId, list, id) => list.find((item) => toId(item) === id);
+
+export const createToId = (field) => (item) =>
+  (Array.isArray(item[field])
+    ? item[field]
+    : toCanonicalArray(item[field] || "")
+  ).toString();
 
 const findIndex = (toId, list, id) =>
   list.findIndex((item) => toId(item) === id);
