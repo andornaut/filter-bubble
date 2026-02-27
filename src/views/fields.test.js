@@ -17,7 +17,14 @@ describe("textField", () => {
   });
 
   it("renders hint when provided", () => {
-    render(textField({ hint: "Enter your name", label: "Name", name: "name", value: "" }));
+    render(
+      textField({
+        hint: "Enter your name",
+        label: "Name",
+        name: "name",
+        value: "",
+      }),
+    );
     expect(screen.getByText("Enter your name")).toBeInTheDocument();
   });
 
@@ -42,7 +49,14 @@ describe("checkboxField", () => {
   });
 
   it("renders hint when provided", () => {
-    render(checkboxField({ hint: "Toggle this option", label: "Option", name: "option", value: false }));
+    render(
+      checkboxField({
+        hint: "Toggle this option",
+        label: "Option",
+        name: "option",
+        value: false,
+      }),
+    );
     expect(screen.getByText("Toggle this option")).toBeInTheDocument();
   });
 });

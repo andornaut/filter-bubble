@@ -12,7 +12,9 @@ const formatTime = (dt) => {
 const isToday = (dt) => {
   const today = new Date();
   return (
-    dt.getDate() === today.getDate() && dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear()
+    dt.getDate() === today.getDate() &&
+    dt.getMonth() === today.getMonth() &&
+    dt.getFullYear() === today.getFullYear()
   );
 };
 

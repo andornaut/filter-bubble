@@ -27,15 +27,21 @@ describe("topics toId", () => {
 
 describe("websites toId", () => {
   it("generates consistent ID from addresses array", () => {
-    expect(websitesToId({ addresses: ["example.com", "test.org"] })).toBe("example.com,test.org");
+    expect(websitesToId({ addresses: ["example.com", "test.org"] })).toBe(
+      "example.com,test.org",
+    );
   });
 
   it("generates consistent ID from addresses string", () => {
-    expect(websitesToId({ addresses: "example.com, test.org" })).toBe("example.com,test.org");
+    expect(websitesToId({ addresses: "example.com, test.org" })).toBe(
+      "example.com,test.org",
+    );
   });
 
   it("normalizes and sorts addresses for consistent IDs", () => {
-    expect(websitesToId({ addresses: "test.org, example.com" })).toBe("example.com,test.org");
+    expect(websitesToId({ addresses: "test.org, example.com" })).toBe(
+      "example.com,test.org",
+    );
   });
 
   it("handles empty/null addresses", () => {
