@@ -1,6 +1,6 @@
 import { action } from "statezero/src";
 
-import { arrayToId } from "../helpers";
+import { createToId } from "../helpers";
 import {
   addItemFactory,
   deleteItemFactory,
@@ -26,7 +26,7 @@ export const hydrateWebsites = action(({ commit, state }, { websites }) => {
   commit(state);
 });
 
-export const toId = ({ addresses }) => arrayToId(addresses);
+export const toId = createToId("addresses");
 
 const toRoot = (state) => state.websites;
 
