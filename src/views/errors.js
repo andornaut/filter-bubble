@@ -9,15 +9,20 @@ const Error = ({ item }) => {
   return (
     <li className="errors__item">
       {item.message}
-      <button aria-label={CLEAR_LABEL} className="btn errors__delete" onClick={handleDelete} title={CLEAR_LABEL}>
+      <button
+        aria-label={CLEAR_LABEL}
+        className="btn errors__delete"
+        onClick={handleDelete}
+        title={CLEAR_LABEL}
+      >
         [x]
       </button>
     </li>
   );
 };
 
-export const Errors = ({ state }) => {
-  const list = state.errors || [];
+export const Errors = ({ errors }) => {
+  const list = errors || [];
   if (!list.length) {
     return null;
   }

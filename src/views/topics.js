@@ -35,12 +35,12 @@ const itemDetails = ({ text }) => (
   <span className="topics__text">{unsplit(text)}</span>
 );
 
-export const Topics = ({ state }) => {
+export const Topics = ({ list }) => {
   const [selected, setSelected] = useState(null);
   const selectedId = selected ? toId(selected) : "";
 
   const handleSelect = (id) => {
-    const item = state.topics.list.find((item) => toId(item) === id);
+    const item = list.find((item) => toId(item) === id);
     setSelected(item);
   };
   const clearSelected = () => setSelected(null);
@@ -76,7 +76,7 @@ export const Topics = ({ state }) => {
       </div>
       <List
         itemDetails={itemDetails}
-        list={state.topics.list}
+        list={list}
         select={handleSelect}
         selectedId={selectedId}
         toId={toId}

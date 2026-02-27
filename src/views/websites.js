@@ -78,12 +78,12 @@ const itemDetails = ({ addresses, selectors }) => (
   </>
 );
 
-export const Websites = ({ state }) => {
+export const Websites = ({ list }) => {
   const [selected, setSelected] = useState(null);
   const selectedId = selected ? toId(selected) : "";
 
   const handleSelect = (id) => {
-    const item = state.websites.list.find((item) => toId(item) === id);
+    const item = list.find((item) => toId(item) === id);
     setSelected(item);
   };
   const clearSelected = () => setSelected(null);
@@ -121,7 +121,7 @@ export const Websites = ({ state }) => {
       </div>
       <List
         itemDetails={itemDetails}
-        list={state.websites.list}
+        list={list}
         select={handleSelect}
         selectedId={selectedId}
         toId={toId}

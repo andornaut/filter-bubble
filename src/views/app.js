@@ -21,7 +21,9 @@ export const App = ({ hash, state }) => {
     <div className="app">
       {!state.hasPermissions && (
         <div className="app__permissions">
-          <button onClick={handleRequestPermissionFactory(state)}>Click to request required permissions!</button>
+          <button onClick={handleRequestPermissionFactory(state)}>
+            Click to request required permissions!
+          </button>
           {PERMISSIONS_HINT}
         </div>
       )}
@@ -33,10 +35,10 @@ export const App = ({ hash, state }) => {
           Websites
         </a>
       </nav>
-      <Errors state={state} />
-      {showTopics && <Topics state={state} />}
-      {showWebsites && <Websites state={state} />}
-      <Help showHelp={state.showHelp} />
+      <Errors errors={state.errors} />
+      {showTopics && <Topics list={state.topics.list} />}
+      {showWebsites && <Websites list={state.websites.list} />}
+      <Help />
     </div>
   );
 };

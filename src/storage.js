@@ -6,4 +6,9 @@ export const fromStorage = async () => {
   return result[STORAGE_KEY] || {};
 };
 
-export const toStorage = (state) => chrome.storage.sync.set({ [STORAGE_KEY]: state });
+export const toStorage = (state) => {
+  // Exclude transient state from persistence
+  // eslint-disable-next-line no-unused-vars
+  const { errors, hasPermissions, ...persistedState } = state;
+  chrome.storage.sync.set({ [STORAGE_KEY]: persistedState });
+};
