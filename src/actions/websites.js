@@ -1,11 +1,11 @@
 import { action } from "statezero/src";
 
 import {
-  addItemFactory,
+  createAddItem,
+  createDeleteItem,
+  createEditItem,
+  createToggleEnabled,
   createToId,
-  deleteItemFactory,
-  editItemFactory,
-  toggleEnabledFactory,
 } from "./factories";
 import defaultWebsites from "./websites.json";
 
@@ -30,7 +30,7 @@ export const toId = createToId("addresses");
 
 const toRoot = (state) => state.websites;
 
-export const addWebsite = addItemFactory(toRoot, toId);
-export const deleteWebsite = deleteItemFactory(toRoot, toId);
-export const editWebsite = editItemFactory(toRoot, toId);
-export const toggleWebsiteEnabled = toggleEnabledFactory(toRoot, toId);
+export const addWebsite = createAddItem(toRoot, toId);
+export const deleteWebsite = createDeleteItem(toRoot, toId);
+export const editWebsite = createEditItem(toRoot, toId);
+export const toggleWebsiteEnabled = createToggleEnabled(toRoot, toId);
