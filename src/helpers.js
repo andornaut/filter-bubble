@@ -41,6 +41,9 @@ export const toCanonicalArray = (str) =>
 
 export const unsplit = (arr) => (arr || []).join(", ");
 
-// Converts an array or comma-separated string to a canonical ID string.
-export const arrayToId = (value) =>
-  (Array.isArray(value) ? value : toCanonicalArray(value || "")).toString();
+// Factory that creates a toId function for extracting a canonical ID from a field.
+export const createToId = (field) => (item) =>
+  (Array.isArray(item[field])
+    ? item[field]
+    : toCanonicalArray(item[field] || "")
+  ).toString();
