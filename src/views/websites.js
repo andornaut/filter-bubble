@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   addWebsite,
   deleteWebsite,
@@ -8,6 +6,7 @@ import {
   toId,
 } from "../actions/websites";
 import { toCanonicalArray, unsplit } from "../helpers";
+import { useSelection } from "../hooks/useSelection";
 import { requestPermissionsFromAddresses } from "../permissions";
 import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "../validation";
 import { checkboxField, textField } from "./fields";
@@ -79,14 +78,10 @@ const itemDetails = ({ addresses, selectors }) => (
 );
 
 export const Websites = ({ list }) => {
-  const [selected, setSelected] = useState(null);
-  const selectedId = selected ? toId(selected) : "";
-
-  const handleSelect = (id) => {
-    const item = list.find((item) => toId(item) === id);
-    setSelected(item);
-  };
-  const clearSelected = () => setSelected(null);
+  const { clearSelected, handleSelect, selected, selectedId } = useSelection(
+    list,
+    toId,
+  );
   const handleDelete = () => {
     deleteWebsite(selectedId);
     clearSelected();
