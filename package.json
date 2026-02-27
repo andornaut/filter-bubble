@@ -12,6 +12,7 @@
   },
   "homepage": "https://github.com/andornaut/filter-bubble#readme",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "node build.mjs",
     "build:prod": "node build.mjs --production",
