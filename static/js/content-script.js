@@ -5,7 +5,7 @@
   }
 
   // Configuration constants
-  const MAX_BODY_RETRIES = 100; // Max attempts to wait for document.body
+  const BODY_MAX_RETRIES = 100; // Max attempts to wait for document.body
   const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
   const DEBOUNCE_DELAY_MS = 300; // Throttle DOM updates to once per this interval
 
@@ -151,7 +151,7 @@
       if (!document.body) {
         // document.body can be null on the first onUpdated.status===loading event.
         // Try again in a bit, but give up after MAX_BODY_RETRIES attempts.
-        if (retries < MAX_BODY_RETRIES) {
+        if (retries < BODY_MAX_RETRIES) {
           setTimeout(
             this.enable.bind(this, state, retries + 1),
             BODY_RETRY_DELAY_MS,
