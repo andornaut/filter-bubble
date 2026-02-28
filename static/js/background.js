@@ -175,18 +175,22 @@ chrome.tabs.onActivated.addListener(async ({ windowId }) => {
 });
 
 // Called when a tab metadata, such as its loading state or URL, changes.
-chrome.tabs.onUpdated.addListener((_, { status }, tab) => {
-  if (status === "loading" && tab.url) {
-    // This may be invoked multiple times for a given page load.
-    // n.b. this was observed in Firefox, but not Chrome
-    // `content-script.js` deduples these calls, anyway, though
-    // (it ignores them if the `state` hasn't changed).
-    updateTab(state, tab);
-  }
-});
+// The properties filter limits events to status and URL changes only.
+chrome.tabs.onUpdated.addListener(
+  (_, { status, url }, tab) => {
+    if (status === "loading" && url && tab.url) {
+      // This may be invoked multiple times for a given page load.
+      // n.b. this was observed in Firefox, but not Chrome
+      // `content-script.js` deduples these calls, anyway, though
+      // (it ignores them if the `state` hasn't changed).
+      updateTab(state, tab);
+    }
+  },
+  { properties: ["status", "url"] },
+);
 
 // Initialize the `state`.
-// n.b. `storage.sync` doens't actually synchronize between instances of Firefox for Android:
+// n.b. `storage.sync` doesn't actually synchronize between instances of Firefox for Android:
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
 chrome.storage.sync.get("state").then(({ state: initialState } = {}) => {
   if (initialState) {
