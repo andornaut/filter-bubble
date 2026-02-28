@@ -76,7 +76,10 @@
           containers,
           (accumulator, container) => {
             // For the regex to work, we must match against each HTML element separately.
-            for (const el of container.querySelectorAll("*")) {
+            // Skip script, style, and noscript elements as they don't contain visible text.
+            for (const el of container.querySelectorAll(
+              "*:not(script):not(style):not(noscript)",
+            )) {
               let matched = false;
               try {
                 matched = regex.test(el.textContent);
