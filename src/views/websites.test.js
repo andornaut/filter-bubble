@@ -1,4 +1,4 @@
-import { DOMAIN_NAME_REGEX } from "./validation";
+import { DOMAIN_NAME_REGEX } from "./websites";
 
 describe("domain name validation", () => {
   const isValidDomain = (domain) => DOMAIN_NAME_REGEX.test(domain);

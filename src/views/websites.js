@@ -8,8 +8,17 @@ import {
 import { toCanonicalArray, unsplit } from "../helpers";
 import { useSelection } from "../hooks/useSelection";
 import { requestPermissionsFromAddresses } from "../permissions";
-import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "../validation";
 import { checkboxField, textField } from "./fields";
+
+// DNS-compliant domain name validation
+// Each label: starts/ends with alphanumeric, can contain hyphens, max 63 chars
+export const DOMAIN_NAME_REGEX =
+  /^[a-z\d]([a-z\d-]{0,61}[a-z\d])(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
+
+// Matches http:// or https:// scheme prefix
+// Note: This regex is duplicated in static/js/background.js because that file
+// cannot import ES modules (it runs as a service worker without bundling).
+const SCHEME_REGEX = /^(https?)?:\/\//;
 import { AddForm, EditForm } from "./form";
 import {
   CSS_SELECTORS_HINT,
