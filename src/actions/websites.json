@@ -5,12 +5,7 @@
       "selectors": ["ol.topic-listing > li"]
     },
     {
-      "addresses": [
-        "new.reddit.com",
-        "old.reddit.com",
-        "reddit.com",
-        "www.reddit.com"
-      ],
+      "addresses": ["reddit.com", "www.reddit.com"],
       "selectors": [
         "[href*=\"/search\"]",
         "body.listing-page div[data-url]",
@@ -23,7 +18,7 @@
     },
     {
       "addresses": ["arstechnica.com"],
-      "selectors": ["main article"]
+      "selectors": ["body.home main article"]
     }
   ]
 }
