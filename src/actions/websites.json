@@ -5,7 +5,7 @@
       "selectors": ["ol.topic-listing > li"]
     },
     {
-      "addresses": ["reddit.com", "www.reddit.com"],
+      "addresses": ["reddit.com", "old.reddit.com", "www.reddit.com"],
       "selectors": ["article", ".listing-page .thing"]
     },
     {
