@@ -6,11 +6,7 @@
     },
     {
       "addresses": ["reddit.com", "www.reddit.com"],
-      "selectors": [
-        "[href*=\"/search\"]",
-        "body.listing-page div[data-url]",
-        "body:not(.comments-page) article"
-      ]
+      "selectors": ["article", ".listing-page .thing"]
     },
     {
       "addresses": ["news.ycombinator.com"],
