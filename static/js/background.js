@@ -4,19 +4,33 @@
 
 const CONTENT_SCRIPT_PATH = "/js/content-script.js";
 const STYLESHEET_PATH = "/css/content-script.css";
-// Note: This regex is duplicated in src/views/websites.js.
+// Note: This regex is duplicated in src/validation.js because this file
+// cannot import ES modules (it runs as a service worker without bundling).
 const SCHEME_REGEX = /^(https?)?:\/\//;
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
+// Match `address` against `url` as a host/path prefix, but only when the match
+// ends on a boundary. This prevents e.g. "reddit.com" from matching
+// "reddit.companyx.com" or "reddit.com.evil.example".
+const matchesAddress = (url, address) => {
+  if (!url.startsWith(address)) {
+    return false;
+  }
+  // The match is valid when it ends the url exactly or when the next character
+  // is a host/path separator. Addresses are always bare domains, so they never
+  // end on a separator themselves.
+  return url.length === address.length || "/:?#".includes(url[address.length]);
+};
+
 const matchedWebsite = (websitesList, url) => {
   url = url.toLowerCase().replace(SCHEME_REGEX, "");
 
   for (const { addresses, ...website } of websitesList) {
     for (const address of addresses) {
-      if (url.startsWith(address)) {
+      if (matchesAddress(url, address)) {
         return website;
       }
     }
