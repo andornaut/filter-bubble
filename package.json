@@ -29,8 +29,8 @@
     "watch": "node build.mjs --watch"
   },
   "dependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "statezero": "^0.9.0"
   },
   "devDependencies": {
@@ -52,7 +52,7 @@
     "husky": "^9.1.7",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.7",
     "prettier": "^3.8.1",
     "size-limit": "^12.0.0",
     "web-ext": "^10.3.0"
