@@ -1,4 +1,4 @@
-import { DOMAIN_NAME_REGEX } from "./websites";
+import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "./validation";
 
 describe("domain name validation", () => {
   const isValidDomain = (domain) => DOMAIN_NAME_REGEX.test(domain);
@@ -29,5 +29,16 @@ describe("domain name validation", () => {
     ])("rejects %s", (domain) => {
       expect(isValidDomain(domain)).toBe(false);
     });
+  });
+});
+
+describe("scheme regex", () => {
+  it.each([
+    ["http://example.com", "example.com"],
+    ["https://example.com", "example.com"],
+    ["://example.com", "example.com"],
+    ["example.com", "example.com"], // no scheme is left untouched
+  ])("strips the scheme from %s", (url, expected) => {
+    expect(url.replace(SCHEME_REGEX, "")).toBe(expected);
   });
 });

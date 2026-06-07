@@ -67,15 +67,6 @@ export default [
       },
     },
   },
-  // Test files
-  {
-    files: ["**/*.test.js"],
-    languageOptions: {
-      globals: {
-        ...globals.jest,
-      },
-    },
-  },
   // Build scripts
   {
     files: ["*.mjs", "*.js"],
@@ -106,6 +97,17 @@ export default [
       "max-len": ["error", { code: 120 }],
       "no-restricted-syntax": ["error", "WithStatement"],
       "sort-keys": "off",
+    },
+  },
+  // Test files (last, so it overrides sourceType/globals regardless of location)
+  {
+    files: ["**/*.test.js"],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+        ...globals.node,
+      },
+      sourceType: "module",
     },
   },
 ];
