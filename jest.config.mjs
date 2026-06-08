@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   moduleNameMapper: {
     "^statezero/src$": "<rootDir>/node_modules/statezero/src/index.js",
   },
