@@ -1,5 +1,6 @@
 import { action } from "statezero/src";
 
+import defaultWebsites from "../data/websites.json";
 import {
   createAddItem,
   createDeleteItem,
@@ -7,7 +8,6 @@ import {
   createToggleEnabled,
   createToId,
 } from "./factories";
-import defaultWebsites from "./websites.json";
 
 export const hydrateWebsites = action(({ commit, state }, { websites }) => {
   const now = new Date().toJSON();
