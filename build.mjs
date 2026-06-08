@@ -52,6 +52,8 @@ const buildOptions = {
   loader: { ".js": "jsx" },
   minify: isProduction,
   outfile: "dist/popup.js",
+  // esnext: bundle and transform JSX only, never downlevel modern syntax.
+  target: "esnext",
   plugins: isWatch
     ? [
         {

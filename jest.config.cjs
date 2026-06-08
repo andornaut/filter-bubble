@@ -5,7 +5,7 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   testEnvironment: "jsdom",
   transform: {
-    "^.+\\.js$": "babel-jest",
+    "^.+\\.js$": "<rootDir>/jest-esbuild.cjs",
   },
   transformIgnorePatterns: [
     "/node_modules/(?!@testing-library|lodash-es|statezero)",
