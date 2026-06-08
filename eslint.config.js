@@ -68,7 +68,7 @@ export default [
       },
     },
   },
-  // Build scripts
+  // Build scripts (ESM)
   {
     files: ["*.mjs", "*.js"],
     ignores: ["src/**"],
@@ -78,6 +78,20 @@ export default [
         ...globals.node,
       },
       sourceType: "module",
+    },
+    rules: {
+      "sort-keys": "off",
+    },
+  },
+  // Tooling configs (CommonJS)
+  {
+    files: ["*.cjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: {
+        ...globals.node,
+      },
+      sourceType: "commonjs",
     },
     rules: {
       "sort-keys": "off",
