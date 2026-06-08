@@ -6,8 +6,16 @@ const isWatch = process.argv.includes("--watch");
 
 const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
+// Vanilla scripts (background, content-script) are not bundled; they are copied
+// as-is to dist/js/. Test files live alongside them and must not ship.
+const isShippableScript = (src) => !src.endsWith(".test.js");
+
 const copyStatic = () => {
   cpSync("static", "dist", { recursive: true });
+  cpSync("src/browser", "dist/js", {
+    filter: isShippableScript,
+    recursive: true,
+  });
   cpSync("manifest.json", "dist/manifest.json");
   cpSync("_locales", "dist/_locales", { recursive: true });
 };
@@ -15,6 +23,10 @@ const copyStatic = () => {
 const watchStatic = () => {
   const watchers = [
     { path: "static", toDest: (f) => `dist/${f}` },
+    {
+      path: "src/browser",
+      toDest: (f) => (isShippableScript(f) ? `dist/js/${f}` : null),
+    },
     { path: "_locales", toDest: (f) => `dist/_locales/${f}` },
     { path: "manifest.json", toDest: () => "dist/manifest.json" },
   ];
@@ -41,7 +53,15 @@ const buildOptions = {
   minify: isProduction,
   outfile: "dist/popup.js",
   plugins: isWatch
-    ? [{ name: "log", setup: (b) => b.onEnd((r) => log(r.errors.length ? "Build failed" : "Build complete")) }]
+    ? [
+        {
+          name: "log",
+          setup: (b) =>
+            b.onEnd((r) =>
+              log(r.errors.length ? "Build failed" : "Build complete"),
+            ),
+        },
+      ]
     : [],
   sourcemap: !isProduction,
 };
@@ -57,5 +77,7 @@ if (isWatch) {
 } else {
   await ctx.rebuild();
   await ctx.dispose();
-  console.log(`Build complete (${isProduction ? "production" : "development"})`);
+  console.log(
+    `Build complete (${isProduction ? "production" : "development"})`,
+  );
 }

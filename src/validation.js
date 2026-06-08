@@ -4,6 +4,6 @@ export const DOMAIN_NAME_REGEX =
   /^[a-z\d]([a-z\d-]{0,61}[a-z\d])(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
 
 // Matches http:// or https:// scheme prefix
-// Note: This regex is duplicated in static/js/background.js because that file
+// Note: This regex is duplicated in src/browser/background.js because that file
 // cannot import ES modules (it runs as a service worker without bundling).
 export const SCHEME_REGEX = /^(https?)?:\/\//;

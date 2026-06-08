@@ -14,6 +14,7 @@ export default [
   // Source files (React)
   {
     files: ["src/**/*.js"],
+    ignores: ["src/browser/**"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: {
@@ -70,7 +71,7 @@ export default [
   // Build scripts
   {
     files: ["*.mjs", "*.js"],
-    ignores: ["src/**", "static/**"],
+    ignores: ["src/**"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: {
@@ -82,9 +83,10 @@ export default [
       "sort-keys": "off",
     },
   },
-  // Static JS (vanilla, no React)
+  // Vanilla scripts (background, content-script), no React, no bundling
   {
-    files: ["static/**/*.js"],
+    files: ["src/browser/**/*.js"],
+    ignores: ["src/browser/**/*.test.js"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: {
@@ -104,6 +106,7 @@ export default [
     files: ["**/*.test.js"],
     languageOptions: {
       globals: {
+        ...globals.browser,
         ...globals.jest,
         ...globals.node,
       },
