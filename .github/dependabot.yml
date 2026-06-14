@@ -6,6 +6,11 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+    ignore:
+      # eslint 10 is incompatible with eslint-plugin-import (peers cap at ^9)
+      # and eslint-plugin-react (peers cap at ^9.7), breaking npm ci. See 7ca454b.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
