@@ -102,6 +102,25 @@ describe("FilterBubble.enable", () => {
   });
 });
 
+describe("FilterBubble re-filtering", () => {
+  it("filters content added to the DOM after enable()", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+
+    // The MutationObserver callback fires on a microtask, but the initial
+    // enable() pass is still within its 200ms throttle window, so the
+    // re-filter is queued and runs after the debounce elapses.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(added.classList.contains("filter-bubble")).toBe(true);
+  });
+});
+
 describe("FilterBubble.disable", () => {
   it("removes all filter classes that were applied", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
