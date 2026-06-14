@@ -9,16 +9,18 @@
   const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
   const DEBOUNCE_DELAY_MS = 200; // Throttle DOM updates to once per this interval
 
-  // Regex cache to avoid recompiling the same pattern within a tab
-  const regexCache = new Map();
+  // Cache the most recently compiled pattern. The pattern rarely changes within
+  // a tab, so a single entry avoids recompiling on every enable() call without
+  // letting the cache grow unbounded.
+  let cachedPattern = null;
+  let cachedRegex = null;
 
   const getOrCompileRegex = (pattern) => {
-    let regex = regexCache.get(pattern);
-    if (!regex) {
-      regex = new RegExp(pattern, "i");
-      regexCache.set(pattern, regex);
+    if (pattern !== cachedPattern) {
+      cachedRegex = new RegExp(pattern, "i");
+      cachedPattern = pattern;
     }
-    return regex;
+    return cachedRegex;
   };
 
   // CSS class constants
@@ -46,7 +48,9 @@
       this.regex = null;
       this.state = {};
 
-      this.observer = new MutationObserver(this._onMutation.bind(this));
+      // Re-filter on any observed mutation. See the observe() config in
+      // enable() for why no observed mutation is ever self-caused.
+      this.observer = new MutationObserver(() => this._runFiltering());
     }
 
     disable() {
@@ -104,27 +108,14 @@
       // The sequence disconnect, reset, observe avoids duplicate work
       this.observer.disconnect();
       this._removeFilters();
+      // Observe node additions only. We deliberately do NOT observe
+      // `attributes`: our filtering only toggles classes, so watching
+      // attributes would make the observer re-trigger on its own changes.
       this.observer.observe(document.body, {
-        attributes: true,
         childList: true,
         subtree: true,
       });
       this._runFiltering();
-    }
-
-    _onMutation(mutations) {
-      // Ignore mutations that we caused. Use `some()` to short-circuit on first external mutation.
-      const hasExternalMutation = mutations.some(
-        ({ attributeName, target, type }) =>
-          !(
-            type === "attributes" &&
-            attributeName === "class" &&
-            target.classList.contains(CSS_BLOCK)
-          ),
-      );
-      if (hasExternalMutation) {
-        this._runFiltering();
-      }
     }
 
     _runFiltering() {
