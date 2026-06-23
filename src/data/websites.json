@@ -14,7 +14,7 @@
     },
     {
       "addresses": ["arstechnica.com"],
-      "selectors": ["body.home main article"]
+      "selectors": ["body.home main li.group, body.home main article"]
     }
   ]
 }
