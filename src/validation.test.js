@@ -11,7 +11,9 @@ describe("domain name validation", () => {
       "example.co.uk",
       "x1.com",
       "test-site.com",
-      "ab.cd", // minimum 2 chars per segment
+      "ab.cd",
+      "x.com", // single-char labels are valid DNS
+      "t.co",
     ])("accepts %s", (domain) => {
       expect(isValidDomain(domain)).toBe(true);
     });

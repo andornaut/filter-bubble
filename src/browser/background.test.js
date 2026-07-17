@@ -104,6 +104,121 @@ describe("matchedWebsite", () => {
   });
 });
 
+describe("tabs.onUpdated listener", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  let executeScript;
+  let onUpdated;
+  let sendMessage;
+
+  // Re-evaluate the source with a state-bearing storage mock and capture the
+  // registered listener, so these tests exercise the shipped event handling.
+  beforeEach(async () => {
+    executeScript = jest
+      .fn()
+      .mockResolvedValue([{ result: { isInstalled: true } }]);
+    sendMessage = jest.fn(() => Promise.resolve());
+    const mock = {
+      ...chromeMock,
+      scripting: { ...chromeMock.scripting, executeScript },
+      storage: {
+        ...chromeMock.storage,
+        sync: {
+          get: () =>
+            Promise.resolve({
+              state: {
+                topics: { list: [{ enabled: true, text: "spoilers" }] },
+                websites: {
+                  list: [
+                    {
+                      addresses: ["reddit.com"],
+                      enabled: true,
+                      selectors: [".post"],
+                    },
+                  ],
+                },
+              },
+            }),
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        onUpdated: {
+          addListener: (listener) => {
+            onUpdated = listener;
+          },
+        },
+        sendMessage,
+      },
+    };
+    new Function("chrome", source)(mock);
+    // Flush the async initialization of state from storage.
+    await flush();
+  });
+
+  const expectInjected = () =>
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+
+  it("injects the content script on a url change", async () => {
+    const url = "https://reddit.com/r/all";
+    onUpdated(1, { status: "loading", url }, { id: 1, url });
+    await flush();
+    expectInjected();
+  });
+
+  it("injects the content script on a reload (changeInfo has no url)", async () => {
+    onUpdated(1, { status: "loading" }, { id: 1, url: "https://reddit.com/" });
+    await flush();
+    expectInjected();
+  });
+
+  it("injects the content script on complete, to repair a raced injection", async () => {
+    onUpdated(1, { status: "complete" }, { id: 1, url: "https://reddit.com/" });
+    await flush();
+    expectInjected();
+  });
+
+  it("disables filtering on complete when the tab matches no website", async () => {
+    onUpdated(
+      1,
+      { status: "complete" },
+      { id: 1, url: "https://example.org/" },
+    );
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  it("does not disable on loading when the tab matches no website", async () => {
+    onUpdated(1, { status: "loading" }, { id: 1, url: "https://example.org/" });
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("ignores events without a status change", async () => {
+    onUpdated(
+      1,
+      { favIconUrl: "https://reddit.com/favicon.ico" },
+      { id: 1, url: "https://reddit.com/" },
+    );
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it("ignores pre-commit events, where pendingUrl differs from url", async () => {
+    onUpdated(
+      1,
+      { status: "loading" },
+      { id: 1, pendingUrl: "https://example.org/", url: "https://reddit.com/" },
+    );
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+});
+
 describe("toPattern", () => {
   it("returns an empty string when there are no topics", () => {
     expect(toPattern([])).toBe("");

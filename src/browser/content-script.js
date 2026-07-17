@@ -81,9 +81,11 @@
         return;
       }
 
-      // Don't reset on duplicate calls for a single page load, where the state hasn't changed,
-      // because we're only concerned with nodes being added/changed, not removed and so
-      // a reset isn't necessary.
+      // Duplicate calls, where the state hasn't changed, skip the reset and
+      // re-observe below, but still re-run filtering: the observer misses
+      // characterData and attribute mutations (e.g. the page rewriting
+      // `className` and stripping the filter classes), so these calls are the
+      // repair path for them.
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
         this._runFiltering();
         return;
@@ -108,10 +110,12 @@
       // The sequence disconnect, reset, observe avoids duplicate work
       this.observer.disconnect();
       this._removeFilters();
-      // Observe node additions only. We deliberately do NOT observe
-      // `attributes`: our filtering only toggles classes, so watching
-      // attributes would make the observer re-trigger on its own changes.
-      this.observer.observe(document.body, {
+      // Observe node additions only, on `documentElement` so that a page
+      // that replaces `document.body` wholesale stays covered. We
+      // deliberately do NOT observe `attributes`: our filtering only toggles
+      // classes, so watching attributes would make the observer re-trigger
+      // on its own changes.
+      this.observer.observe(document.documentElement, {
         childList: true,
         subtree: true,
       });

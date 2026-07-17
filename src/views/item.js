@@ -15,9 +15,14 @@ export const Item = ({
   const toggleEnabledLabel = enabled ? "Disable" : "Enable";
   return (
     <li className={cssClasses}>
-      <div className="list__content" onClick={handleSelect}>
-        <div className="list__details">{details(item)}</div>
-      </div>
+      <button
+        aria-current={isSelected ? "true" : undefined}
+        className="list__content"
+        onClick={handleSelect}
+        type="button"
+      >
+        <span className="list__details">{details(item)}</span>
+      </button>
       <button
         className="list__toggle list__toggle-btn"
         onClick={handleToggle}

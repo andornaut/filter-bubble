@@ -90,8 +90,9 @@ const updateTab = async (
       // on the tab, but we attempt to send a message to it anyway in case the script /was/
       // previously installed before the tab.url was removed from `state.websiteList`.
       // > Could not establish connection. Receiving end does not exist
+      // Log at debug level: this is the expected case for most tabs.
       chrome.tabs.sendMessage(tabId, { command: "disable" }).catch((err) => {
-        console.error("filter-bubble: sendMessage(disable) failed:", err);
+        console.debug("filter-bubble: sendMessage(disable) failed:", err);
       });
     }
     return;
@@ -165,7 +166,9 @@ const resetCurrentTab = async (state) => {
 // State
 // =============================================================================
 
-// State is populated asynchronously; handlers use default values until ready
+// State is populated asynchronously; event handlers await `stateReady` before
+// using it, because an event can wake the service worker and dispatch before
+// the read from storage below resolves.
 const state = {};
 
 const updateState = (newState) => {
@@ -181,7 +184,7 @@ const updateState = (newState) => {
 // Initialize state from storage.
 // n.b. `storage.sync` doesn't actually synchronize between instances of Firefox for Android:
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
-chrome.storage.sync
+const stateReady = chrome.storage.sync
   .get("state")
   .then(({ state: initialState } = {}) => {
     if (initialState) {
@@ -192,26 +195,40 @@ chrome.storage.sync
     console.error("filter-bubble: storage.sync.get() failed:", err);
   });
 
+// Wrap an event handler so that its body runs after `state` has been
+// initialized from storage. Wraps the body rather than delaying registration,
+// which must stay synchronous.
+const whenReady =
+  (fn) =>
+  (...args) => {
+    stateReady.then(() => fn(...args));
+  };
+
 // =============================================================================
 // Event Listeners
 // =============================================================================
 
-chrome.storage.onChanged.addListener(({ state: { newValue } = {} }) => {
-  if (newValue) {
-    updateState(newValue);
-  }
-});
+chrome.storage.onChanged.addListener(
+  whenReady(({ state: { newValue } = {} }) => {
+    if (newValue) {
+      updateState(newValue);
+    }
+  }),
+);
+
+const setForceHighlight = (forceHighlight) =>
+  stateReady.then(() => {
+    state.forceHighlight = forceHighlight;
+    resetCurrentTab(state);
+  });
 
 // Hide content when the popup is closed; and highlight content when the popup is open.
 // See corresponding call to chrome.runtime.connect() in /src/index.js
 chrome.runtime.onConnect.addListener((port) => {
-  port.onDisconnect.addListener(() => {
-    state.forceHighlight = false;
-    resetCurrentTab(state);
-  });
-
-  state.forceHighlight = true;
-  resetCurrentTab(state);
+  // Register onDisconnect synchronously, so that a popup that opens and
+  // closes before initialization completes still resets the highlight.
+  port.onDisconnect.addListener(() => setForceHighlight(false));
+  setForceHighlight(true);
 });
 
 // Receive messages from `content-script.js`.
@@ -228,25 +245,44 @@ chrome.runtime.onMessage.addListener(({ command, data }) => {
 // Called when the active tab in a window changes.
 // When loading the extension on an existing tab, it's possible that onUpdated
 // isn't called, but that onActivated will be.
-chrome.tabs.onActivated.addListener(({ windowId }) => {
-  chrome.tabs
-    .query({ active: true, windowId })
-    .then(([tab]) => {
-      if (tab && tab.url) {
-        updateTab(state, tab);
-      }
-    })
-    .catch((err) => {
-      console.error("filter-bubble: onActivated tabs.query() failed:", err);
-    });
-});
+chrome.tabs.onActivated.addListener(
+  whenReady(({ windowId }) => {
+    chrome.tabs
+      .query({ active: true, windowId })
+      .then(([tab]) => {
+        if (tab && tab.url) {
+          updateTab(state, tab);
+        }
+      })
+      .catch((err) => {
+        console.error("filter-bubble: onActivated tabs.query() failed:", err);
+      });
+  }),
+);
 
 // Called when a tab metadata, such as its loading state or URL, changes.
-chrome.tabs.onUpdated.addListener((_, changeInfo, tab) => {
-  // Only act on navigation events (status changing to "loading" with a URL change).
-  // This may be invoked multiple times for a given page load (observed in Firefox).
-  // `content-script.js` deduplicates these calls (ignores if state hasn't changed).
-  if (changeInfo.status === "loading" && changeInfo.url && tab.url) {
-    updateTab(state, tab);
-  }
-});
+chrome.tabs.onUpdated.addListener(
+  whenReady((_, changeInfo, tab) => {
+    // Act when a document starts loading and again when it completes. Use
+    // `tab.url` rather than `changeInfo.url`: browsers omit `url` from
+    // `changeInfo` when it hasn't changed, so a page reload would otherwise
+    // be missed. Repeat calls are cheap: `content-script.js` skips its reset
+    // when the state is unchanged.
+    if (changeInfo.status !== "loading" && changeInfo.status !== "complete") {
+      return;
+    }
+    // Skip pre-commit events: `tab.url` still holds the outgoing document's
+    // URL while `tab.pendingUrl` (Chrome-only) holds the in-flight one, so
+    // acting here would apply the outgoing site's rules to the new document.
+    // The commit fires another event with `tab.url` updated.
+    if (!tab.url || (tab.pendingUrl && tab.pendingUrl !== tab.url)) {
+      return;
+    }
+    // The "complete" pass repairs an injection that raced the navigation and
+    // ran in the outgoing document: it re-enables when the tab matches a
+    // website, and always disables when it doesn't (Firefox lacks
+    // `pendingUrl`, so a raced injection can have applied another site's
+    // rules to this tab).
+    updateTab(state, tab, changeInfo.status === "complete");
+  }),
+);

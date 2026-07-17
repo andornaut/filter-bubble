@@ -16,13 +16,23 @@
   margin-bottom: calc(2 * var(--spacing));
 }
 
+/* .list__content is a button; reset the browser button styles */
 .list__content {
+  background: none;
   border: 2px solid var(--subtle-bg-color);
   border-bottom-left-radius: var(--spacing);
   border-right: 0 none;
   border-top-left-radius: var(--spacing);
+  color: inherit;
+  cursor: pointer;
   flex-grow: 1;
+  line-height: inherit;
   padding: var(--spacing) calc(2 * var(--spacing));
+  text-align: left;
+}
+
+.list__details {
+  display: block;
 }
 
 .list__toggle {
