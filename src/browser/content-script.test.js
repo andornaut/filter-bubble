@@ -119,6 +119,34 @@ describe("FilterBubble re-filtering", () => {
 
     expect(added.classList.contains("filter-bubble")).toBe(true);
   });
+
+  it("filters content when the page replaces document.body", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    const newBody = document.createElement("body");
+    newBody.innerHTML = `<div class="post">more banana</div>`;
+    document.body.replaceWith(newBody);
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    const el = newBody.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
+  it("re-applies filters on a duplicate enable() after the page strips classes", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    // Attribute mutations are not observed; the duplicate enable() repairs them.
+    el.className = "post";
+    // Wait out the initial pass's throttle window first.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    enable();
+
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
 });
 
 describe("FilterBubble.disable", () => {
