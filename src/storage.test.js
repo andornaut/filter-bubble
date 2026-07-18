@@ -296,6 +296,18 @@ describe("toStorage", () => {
       id: "1",
     });
   });
+
+  it("propagates a write rejection so callers can react", async () => {
+    await seed({});
+    set.mockRejectedValueOnce(new Error("QUOTA_BYTES quota exceeded"));
+
+    await expect(
+      toStorage({
+        topics: { list: [topic("1", ["a"], "2026-01-01T00:00:00.000Z")] },
+        websites: { list: [] },
+      }),
+    ).rejects.toThrow(/quota/);
+  });
 });
 
 describe("subscribeStorageSync", () => {

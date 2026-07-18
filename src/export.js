@@ -1,6 +1,7 @@
-// Return a dated, kebab-cased filename for an exported collection.
+// Return a timestamped, kebab-cased filename for an exported collection.
+// Colons are replaced so the name is valid on every filesystem.
 export const exportFilename = (kind) =>
-  `filter-bubble-${kind}-${new Date().toISOString().slice(0, 10)}.json`;
+  `filter-bubble-${kind}-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
 
 // Trigger a browser download of `data` serialized as pretty-printed JSON.
 export const downloadJson = (filename, data) => {

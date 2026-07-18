@@ -1,0 +1,49 @@
+.import {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--spacing));
+  margin: 0 auto;
+  max-width: 30em;
+  padding: calc(6 * var(--spacing)) calc(2 * var(--spacing));
+  text-align: center;
+}
+
+.import__title {
+  font-size: 1.5em;
+  margin: 0;
+}
+
+.import__info {
+  margin: 0;
+}
+
+.import__status {
+  margin: 0;
+}
+
+.import__status--success .import__status-message {
+  color: var(--secondary-color);
+}
+
+.import__status--error .import__status-message {
+  color: var(--danger-color);
+}
+
+.import__status-message {
+  margin: 0;
+}
+
+.import__tip {
+  margin: var(--spacing) 0 0;
+}
+
+.import__permissions {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--spacing));
+}
+
+.import__permissions p {
+  margin: 0;
+}

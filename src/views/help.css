@@ -1,6 +1,3 @@
-.help {
-  margin: calc(2 * var(--spacing));
-}
 .help__content {
   background-color: #145541;
   border: 2px solid var(--divider-color);
@@ -25,9 +22,4 @@
 .help__content p {
   margin-left: 1em;
   margin-right: 1em;
-}
-
-.help__show {
-  margin: calc(2 * var(--spacing)) 0;
-  text-align: right;
 }

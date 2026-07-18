@@ -1,5 +1,5 @@
 export const checkboxField = ({ hint, label, name, value }) => (
-  <div className="form__field">
+  <div className="form__field" key={name}>
     <label className="form__label">
       <input
         defaultChecked={value}
@@ -14,7 +14,7 @@ export const checkboxField = ({ hint, label, name, value }) => (
 );
 
 export const textField = ({ hint, label, name, value }) => (
-  <div className="form__field">
+  <div className="form__field" key={name}>
     <label className="form__label">{label}</label>
     <input
       autoComplete="off"

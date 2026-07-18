@@ -1,0 +1,14 @@
+.footer {
+  margin: calc(2 * var(--spacing));
+}
+
+.footer__actions {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  margin: calc(2 * var(--spacing)) 0;
+}
+
+.footer__data a:not(:last-child) {
+  margin-right: calc(2 * var(--spacing));
+}

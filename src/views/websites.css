@@ -8,11 +8,11 @@
   font-weight: normal;
 }
 
-.websites__selectors-label {
-  color: var(--subtle-text-color);
+.websites__warning {
+  cursor: help;
+  margin-right: var(--spacing);
 }
 
-.websites__footer {
-  margin-top: var(--spacing);
-  text-align: left;
+.websites__selectors-label {
+  color: var(--subtle-text-color);
 }
