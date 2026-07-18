@@ -26,6 +26,7 @@
     "prepare": "husky",
     "start": "npm run build && web-ext run",
     "start:android": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices 2>&1| awk '/./{device=$1} END{print device}') --verbose",
+    "start:flatpak": "npm run build && web-ext run --firefox=flatpak:org.mozilla.firefox",
     "size": "npm run build:prod && size-limit",
     "test": "jest",
     "test:watch": "jest --watch",
