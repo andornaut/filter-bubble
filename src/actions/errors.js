@@ -16,6 +16,9 @@ export const addError = action(({ commit, state }, message) => {
 });
 
 export const clearAllErrors = action(({ commit, state }) => {
+  if (!state.errors || !state.errors.length) {
+    return;
+  }
   state.errors = [];
   commit(state);
 });
