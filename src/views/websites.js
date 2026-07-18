@@ -5,11 +5,10 @@ import {
   toggleWebsiteEnabled,
   toId,
 } from "../actions/websites";
-import { downloadJson, exportFilename } from "../export";
-import { toCanonicalArray, unsplit } from "../helpers";
+import { unsplit } from "../helpers";
 import { useSelection } from "../hooks/useSelection";
 import { requestPermissionsFromAddresses } from "../permissions";
-import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "../validation";
+import { canonicalizeAddresses, canonicalizeSelectors } from "../validation";
 import { checkboxField, textField } from "./fields";
 import { AddForm, EditForm } from "./form";
 import {
@@ -43,19 +42,8 @@ const fields = (
 ];
 
 const transform = (data) => {
-  data.addresses = toCanonicalArray(data.addresses);
-  data.selectors = toCanonicalArray(data.selectors);
-
-  data.addresses = data.addresses.map((address) => {
-    const domainName = address.toLowerCase().replace(SCHEME_REGEX, "");
-    if (!domainName.match(DOMAIN_NAME_REGEX)) {
-      throw new Error(`"${address}" isn't a valid domain name`);
-    }
-    return domainName;
-  });
-
-  // Removing the URL scheme above can cause there to be new duplicates
-  data.addresses = Array.from(new Set(data.addresses));
+  data.addresses = canonicalizeAddresses(data.addresses);
+  data.selectors = canonicalizeSelectors(data.selectors);
 
   // The following can be true if a user submits eg. " " or ","
   if (data.addresses.length === 0) {
@@ -70,15 +58,32 @@ const transform = (data) => {
 
 const callback = ({ addresses }) => requestPermissionsFromAddresses(addresses);
 
-const itemDetails = ({ addresses, selectors }) => (
-  <>
-    <span className="websites__addresses">{unsplit(addresses)}</span>
-    <span className="websites__selectors-label">Selectors:</span>
-    <span className="websites__selectors">{unsplit(selectors)}</span>
-  </>
-);
+const UNPERMISSIONED_WARNING =
+  "Content on this website won't be filtered until you grant Filter Bubble permission to access it";
 
-export const Websites = ({ list }) => {
+const itemDetails =
+  (unpermissionedIds) =>
+  ({ addresses, id, selectors }) => (
+    <>
+      <span className="websites__addresses">
+        {unpermissionedIds.includes(id) && (
+          <span
+            aria-label={UNPERMISSIONED_WARNING}
+            className="websites__warning"
+            role="img"
+            title={UNPERMISSIONED_WARNING}
+          >
+            ⚠️
+          </span>
+        )}
+        {unsplit(addresses)}
+      </span>
+      <span className="websites__selectors-label">Selectors:</span>
+      <span className="websites__selectors">{unsplit(selectors)}</span>
+    </>
+  );
+
+export const Websites = ({ list, unpermissionedIds = [] }) => {
   const { clearSelected, handleSelect, selected, selectedId } = useSelection(
     list,
     toId,
@@ -90,10 +95,6 @@ export const Websites = ({ list }) => {
   const handleEdit = (data) => {
     editWebsite(selectedId, data);
     clearSelected();
-  };
-  const handleExport = (event) => {
-    event.preventDefault();
-    downloadJson(exportFilename("websites"), { websites: list });
   };
 
   return (
@@ -120,18 +121,13 @@ export const Websites = ({ list }) => {
         )}
       </div>
       <List
-        itemDetails={itemDetails}
+        itemDetails={itemDetails(unpermissionedIds)}
         list={list}
         select={handleSelect}
         selectedId={selectedId}
         toId={toId}
         toggleEnabled={toggleWebsiteEnabled}
       />
-      <div className="websites__footer">
-        <a className="websites__export" href="#" onClick={handleExport}>
-          Export websites
-        </a>
-      </div>
     </section>
   );
 };

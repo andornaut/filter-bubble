@@ -228,14 +228,15 @@ export const toStorage = (state) => {
   if (!keys.length) {
     return Promise.resolve();
   }
+  // Update `store` optimistically so a concurrent `toStorage` (e.g. the async
+  // state subscriber) does not re-issue the same write.
   keys.forEach((key) => {
     store[key] = changes[key];
   });
-  // `storage.sync` rejects when over quota. Log rather than surface via
-  // `addError`, which would re-trigger this subscriber and loop.
-  return chrome.storage.sync.set(changes).catch((err) => {
-    console.error("filter-bubble: storage.sync.set() failed:", err);
-  });
+  // Propagate the rejection (`storage.sync` rejects when over quota) so a direct
+  // caller can react to it. The state subscriber wraps this to swallow+log, so
+  // it does not surface via `addError` and re-trigger itself in a loop.
+  return chrome.storage.sync.set(changes);
 };
 
 // Invoke `onLists` with the merged item lists whenever `storage.sync` changes

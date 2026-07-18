@@ -6,8 +6,3 @@
 .list__item--disabled .topics__text {
   font-weight: normal;
 }
-
-.topics__footer {
-  margin-top: var(--spacing);
-  text-align: left;
-}

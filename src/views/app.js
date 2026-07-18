@@ -1,6 +1,6 @@
 import { requestPermissionsFromState } from "../permissions";
 import { Errors } from "./errors";
-import { Help } from "./help";
+import { Footer } from "./footer";
 import { PERMISSIONS_HINT } from "./hints";
 import { Topics } from "./topics";
 import { Websites } from "./websites";
@@ -35,8 +35,13 @@ export const App = ({ hash, state }) => {
       </nav>
       <Errors errors={state.errors} />
       {activeTab === "topics" && <Topics list={state.topics.list} />}
-      {activeTab === "websites" && <Websites list={state.websites.list} />}
-      <Help />
+      {activeTab === "websites" && (
+        <Websites
+          list={state.websites.list}
+          unpermissionedIds={state.unpermissionedWebsiteIds}
+        />
+      )}
+      <Footer />
     </div>
   );
 };

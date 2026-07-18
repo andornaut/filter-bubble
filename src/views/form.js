@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
-import { addError, clearAllErrors } from "../actions/errors";
 import { humanDate } from "../helpers";
+import { withError } from "./with-error";
 
 const formToJson = (form) =>
   Array.from(form.elements).reduce((acc, input) => {
@@ -10,19 +10,6 @@ const formToJson = (form) =>
     acc[name] = type === "checkbox" ? input.checked : value.trim();
     return acc;
   }, {});
-
-const withError =
-  (fn) =>
-  async (...args) => {
-    try {
-      await fn(...args);
-    } catch (error) {
-      console.warn(error);
-      addError(error);
-      return;
-    }
-    clearAllErrors();
-  };
 
 export const AddForm = ({
   addItem,

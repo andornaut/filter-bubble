@@ -1,9 +1,9 @@
 import { downloadJson, exportFilename } from "./export";
 
 describe("exportFilename", () => {
-  it("builds a dated json filename for the given kind", () => {
+  it("builds a timestamped json filename for the given kind", () => {
     expect(exportFilename("topics")).toMatch(
-      /^filter-bubble-topics-\d{4}-\d{2}-\d{2}\.json$/,
+      /^filter-bubble-topics-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.json$/,
     );
   });
 });

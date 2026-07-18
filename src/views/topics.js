@@ -5,9 +5,9 @@ import {
   toggleTopicEnabled,
   toId,
 } from "../actions/topics";
-import { downloadJson, exportFilename } from "../export";
-import { toCanonicalArray, unsplit } from "../helpers";
+import { unsplit } from "../helpers";
 import { useSelection } from "../hooks/useSelection";
+import { canonicalizeText } from "../validation";
 import { textField } from "./fields";
 import { AddForm, EditForm } from "./form";
 import { TOPICS_HINT } from "./hints";
@@ -22,7 +22,7 @@ const fields = (topic = { text: "" }) =>
   });
 
 const transform = (data) => {
-  data.text = toCanonicalArray((data.text || "").toLowerCase());
+  data.text = canonicalizeText(data.text);
   // The form allows submission of whitespace-only values. We .trim() after submission, therefore we must
   // validate this case.
   if (!data.text.length) {
@@ -47,10 +47,6 @@ export const Topics = ({ list }) => {
   const handleEdit = (data) => {
     editTopic(selectedId, data);
     clearSelected();
-  };
-  const handleExport = (event) => {
-    event.preventDefault();
-    downloadJson(exportFilename("topics"), { topics: list });
   };
 
   return (
@@ -82,11 +78,6 @@ export const Topics = ({ list }) => {
         toId={toId}
         toggleEnabled={toggleTopicEnabled}
       />
-      <div className="topics__footer">
-        <a className="topics__export" href="#" onClick={handleExport}>
-          Export topics
-        </a>
-      </div>
     </section>
   );
 };
