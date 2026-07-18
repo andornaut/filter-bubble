@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { getState, subscribe } from "statezero/src";
+import { getState } from "statezero/src";
 
 import "./views/app.css";
 import "./views/error-boundary.css";
@@ -13,36 +13,31 @@ import "./views/topics.css";
 import "./views/websites.css";
 import { clearAllErrors } from "./actions/errors";
 import { initState } from "./actions/init";
+import { useHash } from "./hooks/useHash";
+import { useStore } from "./hooks/useStore";
 import { checkPermissions, checkWebsitePermissions } from "./permissions";
 import { App } from "./views/app";
 import { ErrorBoundary } from "./views/error-boundary";
 import { Import } from "./views/import";
 
-const root = createRoot(document.body);
+const Root = () => {
+  const state = useStore();
+  const hash = useHash();
 
-const renderApp = (state) =>
-  root.render(
-    <ErrorBoundary>
-      {window.location.hash === "#import" ? (
-        <Import />
-      ) : (
-        <App hash={window.location.hash} state={state} />
-      )}
-    </ErrorBoundary>,
-  );
+  return hash === "#import" ? <Import /> : <App hash={hash} state={state} />;
+};
 
 const init = async () => {
   await initState();
-  subscribe(renderApp);
 
-  window.addEventListener("hashchange", () => {
-    clearAllErrors();
-    renderApp(getState());
-  });
+  // Clear errors on navigation; the resulting store change re-renders `Root`.
+  window.addEventListener("hashchange", () => clearAllErrors());
 
-  const state = getState();
-
-  renderApp(state);
+  createRoot(document.body).render(
+    <ErrorBoundary>
+      <Root />
+    </ErrorBoundary>,
+  );
 
   // The import page runs in its own tab and needs neither the permission check
   // nor the highlight port. Connecting it would make the background force
@@ -50,6 +45,8 @@ const init = async () => {
   if (window.location.hash === "#import") {
     return;
   }
+
+  const state = getState();
 
   checkPermissions(state); // May update the state.
   checkWebsitePermissions(state); // May update the state.
