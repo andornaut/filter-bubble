@@ -7,6 +7,10 @@ const STYLESHEET_PATH = "/css/content-script.css";
 // Note: This regex is duplicated in src/validation.js because this file
 // cannot import ES modules (it runs as a service worker without bundling).
 const SCHEME_REGEX = /^(https?)?:\/\//;
+// Per-item storage key prefixes. Duplicated from src/storage.js, which cannot
+// be imported here (service worker, no bundling).
+const TOPIC_PREFIX = "t:";
+const WEBSITE_PREFIX = "w:";
 
 // =============================================================================
 // Helpers
@@ -171,29 +175,48 @@ const resetCurrentTab = async (state) => {
 // the read from storage below resolves.
 const state = {};
 
-const updateState = (newState) => {
-  const {
-    topics: { list: topicsList = [] } = {},
-    websites: { list: websitesList = [] } = {},
-  } = newState;
+// Build effective topic/website lists from the per-item storage layout,
+// falling back to the legacy v1 `state` blob before migration runs. Mirrors
+// `toLists` in src/storage.js, which cannot be imported here.
+const toLists = (raw) => {
+  if (raw.state && raw.schema === undefined) {
+    const { topics = { list: [] }, websites = { list: [] } } = raw.state;
+    return { topicsList: topics.list || [], websitesList: websites.list || [] };
+  }
+  const topicsList = [];
+  const websitesList = [];
+  Object.keys(raw).forEach((key) => {
+    const value = raw[key];
+    if (!value || value.deleted) {
+      return;
+    }
+    if (key.startsWith(TOPIC_PREFIX)) {
+      topicsList.push(value);
+    } else if (key.startsWith(WEBSITE_PREFIX)) {
+      websitesList.push(value);
+    }
+  });
+  return { topicsList, websitesList };
+};
+
+const updateState = ({ topicsList = [], websitesList = [] }) => {
   state.pattern = toPattern(topicsList);
   state.websitesList = websitesList.filter(({ enabled }) => enabled);
   resetCurrentTab(state);
 };
 
+const readState = () =>
+  chrome.storage.sync
+    .get(null)
+    .then((raw) => updateState(toLists(raw || {})))
+    .catch((err) => {
+      console.error("filter-bubble: storage.sync.get() failed:", err);
+    });
+
 // Initialize state from storage.
 // n.b. `storage.sync` doesn't actually synchronize between instances of Firefox for Android:
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
-const stateReady = chrome.storage.sync
-  .get("state")
-  .then(({ state: initialState } = {}) => {
-    if (initialState) {
-      updateState(initialState);
-    }
-  })
-  .catch((err) => {
-    console.error("filter-bubble: storage.sync.get() failed:", err);
-  });
+const stateReady = readState();
 
 // Wrap an event handler so that its body runs after `state` has been
 // initialized from storage. Wraps the body rather than delaying registration,
@@ -209,10 +232,11 @@ const whenReady =
 // =============================================================================
 
 chrome.storage.onChanged.addListener(
-  whenReady(({ state: { newValue } = {} }) => {
-    if (newValue) {
-      updateState(newValue);
+  whenReady((changes, area) => {
+    if (area !== "sync") {
+      return;
     }
+    readState();
   }),
 );
 

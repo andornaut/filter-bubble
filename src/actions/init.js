@@ -1,14 +1,19 @@
 import { subscribe } from "statezero/src";
 
-import { fromStorage, toStorage } from "../storage";
+import { fromStorage, subscribeStorageSync, toStorage } from "../storage";
 import { hydratePermissions } from "./permissions";
 import { hydrateTopics } from "./topics";
 import { hydrateWebsites } from "./websites";
 
-const hydrators = [hydratePermissions, hydrateTopics, hydrateWebsites];
+const dataHydrators = [hydrateTopics, hydrateWebsites];
 
 export const initState = async () => {
-  const initialState = await fromStorage();
-  hydrators.forEach((hydrate) => hydrate(initialState));
+  const lists = await fromStorage();
+  hydratePermissions();
+  dataHydrators.forEach((hydrate) => hydrate(lists));
   subscribe(toStorage);
+  // Apply data that `storage.sync` delivers while the popup is open.
+  subscribeStorageSync((updatedLists) =>
+    dataHydrators.forEach((hydrate) => hydrate(updatedLists)),
+  );
 };

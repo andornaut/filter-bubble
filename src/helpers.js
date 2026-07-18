@@ -40,3 +40,16 @@ export const toCanonicalArray = (str) =>
   ).sort();
 
 export const unsplit = (arr) => (arr || []).join(", ");
+
+// Stable per-item id derived from a JSON date (epoch milliseconds), made
+// unique against `existingIds` by bumping until free. Deterministic so two
+// devices deriving an id from the same date produce the same value.
+export const toItemId = (existingIds, jsonDate) => {
+  let n = Date.parse(jsonDate) || 0;
+  let id = String(n);
+  while (existingIds.has(id)) {
+    n += 1;
+    id = String(n);
+  }
+  return id;
+};

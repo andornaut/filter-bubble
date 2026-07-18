@@ -26,10 +26,42 @@ const chromeMock = {
   },
 };
 
-const { matchedWebsite, matchesAddress, toPattern } = new Function(
+const { matchedWebsite, matchesAddress, toLists, toPattern } = new Function(
   "chrome",
-  `${source}\nreturn { matchedWebsite, matchesAddress, toPattern };`,
+  `${source}\nreturn { matchedWebsite, matchesAddress, toLists, toPattern };`,
 )(chromeMock);
+
+describe("toLists", () => {
+  it("reads the legacy v1 state blob before migration", () => {
+    const raw = {
+      state: {
+        topics: { list: [{ enabled: true, text: "spoilers" }] },
+        websites: { list: [{ addresses: ["reddit.com"], enabled: true }] },
+      },
+    };
+    expect(toLists(raw)).toEqual({
+      topicsList: [{ enabled: true, text: "spoilers" }],
+      websitesList: [{ addresses: ["reddit.com"], enabled: true }],
+    });
+  });
+
+  it("reads the v2 per-item layout, excluding tombstones", () => {
+    const raw = {
+      schema: 2,
+      "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+      "t:2": { deleted: true, id: "2" },
+      "w:9": { addresses: ["reddit.com"], enabled: true, id: "9" },
+    };
+    expect(toLists(raw)).toEqual({
+      topicsList: [{ enabled: true, id: "1", text: ["spoilers"] }],
+      websitesList: [{ addresses: ["reddit.com"], enabled: true, id: "9" }],
+    });
+  });
+
+  it("returns empty lists for empty storage", () => {
+    expect(toLists({})).toEqual({ topicsList: [], websitesList: [] });
+  });
+});
 
 describe("matchesAddress", () => {
   // `url` is already lowercased and scheme-stripped by `matchedWebsite` before

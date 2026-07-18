@@ -2,18 +2,34 @@
   "list": [
     {
       "addresses": ["tildes.net"],
+      "createdDate": "2020-01-01T00:00:00.000Z",
+      "enabled": true,
+      "id": "default-tildes",
+      "modifiedDate": "2020-01-01T00:00:00.000Z",
       "selectors": ["ol.topic-listing > li"]
     },
     {
       "addresses": ["reddit.com", "old.reddit.com", "www.reddit.com"],
+      "createdDate": "2020-01-01T00:00:00.000Z",
+      "enabled": true,
+      "id": "default-reddit",
+      "modifiedDate": "2020-01-01T00:00:00.000Z",
       "selectors": ["article", ".listing-page .thing"]
     },
     {
       "addresses": ["news.ycombinator.com"],
+      "createdDate": "2020-01-01T00:00:00.000Z",
+      "enabled": true,
+      "id": "default-hackernews",
+      "modifiedDate": "2020-01-01T00:00:00.000Z",
       "selectors": ["tr.athing"]
     },
     {
       "addresses": ["arstechnica.com"],
+      "createdDate": "2020-01-01T00:00:00.000Z",
+      "enabled": true,
+      "id": "default-arstechnica",
+      "modifiedDate": "2020-01-01T00:00:00.000Z",
       "selectors": ["body.home main li.group, body.home main article"]
     }
   ]
