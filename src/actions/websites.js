@@ -1,35 +1,25 @@
 import { action } from "statezero/src";
 
-import defaultWebsites from "../data/websites.json";
 import {
   createAddItem,
   createDeleteItem,
   createEditItem,
+  createToContentKey,
   createToggleEnabled,
-  createToId,
 } from "./factories";
 
-export const hydrateWebsites = action(({ commit, state }, { websites }) => {
-  const now = new Date().toJSON();
-  if (websites) {
+export const hydrateWebsites = action(
+  ({ commit, state }, { websites = {} }) => {
     state.websites = websites;
-  } else {
-    state.websites = {
-      list: defaultWebsites.list.map((website) => ({
-        ...website,
-        createdDate: now,
-        enabled: true,
-        modifiedDate: now,
-      })),
-    };
-  }
-  commit(state);
-});
+    state.websites.list = state.websites.list || [];
+    commit(state);
+  },
+);
 
 const toRoot = (state) => state.websites;
-
-export const toId = createToId("addresses");
-export const addWebsite = createAddItem(toRoot, toId);
-export const deleteWebsite = createDeleteItem(toRoot, toId);
-export const editWebsite = createEditItem(toRoot, toId);
-export const toggleWebsiteEnabled = createToggleEnabled(toRoot, toId);
+export const toContentKey = createToContentKey("addresses");
+export const toId = (item) => item.id;
+export const addWebsite = createAddItem(toRoot, toContentKey);
+export const deleteWebsite = createDeleteItem(toRoot);
+export const editWebsite = createEditItem(toRoot, toContentKey);
+export const toggleWebsiteEnabled = createToggleEnabled(toRoot);

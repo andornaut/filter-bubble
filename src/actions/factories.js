@@ -1,40 +1,45 @@
 import { action } from "statezero/src";
 
-import { toCanonicalArray } from "../helpers";
+import { toCanonicalArray, toItemId } from "../helpers";
 
-const find = (toId, list, id) => list.find((item) => toId(item) === id);
-
-export const createToId = (field) => (item) =>
+// Content key used only for duplicate detection (not identity). Two items with
+// the same canonical content are considered duplicates.
+export const createToContentKey = (field) => (item) =>
   (Array.isArray(item[field])
     ? item[field]
     : toCanonicalArray(item[field] || "")
   ).toString();
 
-const findIndex = (toId, list, id) =>
-  list.findIndex((item) => toId(item) === id);
+const findIndexById = (list, id) => list.findIndex((item) => item.id === id);
 
-export const createAddItem = (toRoot, toId) =>
+const hasContentKey = (toContentKey, list, contentKey, exceptId) =>
+  list.some(
+    (item) => item.id !== exceptId && toContentKey(item) === contentKey,
+  );
+
+export const createAddItem = (toRoot, toContentKey) =>
   action(({ commit, state }, data) => {
     const { list } = toRoot(state);
-    const dataId = toId(data);
-    if (find(toId, list, dataId)) {
-      throw new Error(`Duplicate item: ${dataId}`);
+    const contentKey = toContentKey(data);
+    if (hasContentKey(toContentKey, list, contentKey)) {
+      throw new Error(`Duplicate item: ${contentKey}`);
     }
     const now = new Date().toJSON();
-    data = {
+    const id = toItemId(new Set(list.map((item) => item.id)), now);
+    list.push({
       ...data,
       createdDate: now,
       enabled: true,
+      id,
       modifiedDate: now,
-    };
-    list.push(data);
+    });
     commit(state);
   });
 
-export const createDeleteItem = (toRoot, toId) =>
+export const createDeleteItem = (toRoot) =>
   action(({ commit, state }, id) => {
     const { list } = toRoot(state);
-    const index = findIndex(toId, list, id);
+    const index = findIndexById(list, id);
     if (index < 0) {
       throw new Error(`Item not found: ${id}`);
     }
@@ -42,32 +47,35 @@ export const createDeleteItem = (toRoot, toId) =>
     commit(state);
   });
 
-export const createEditItem = (toRoot, toId) =>
-  action(({ commit, state }, originalId, data) => {
+export const createEditItem = (toRoot, toContentKey) =>
+  action(({ commit, state }, id, data) => {
     const { list } = toRoot(state);
-    const dataId = toId(data);
-    if (dataId !== originalId && findIndex(toId, list, dataId) !== -1) {
-      throw new Error(`Duplicate item: ${dataId}`);
-    }
-    const index = findIndex(toId, list, originalId);
+    const index = findIndexById(list, id);
     if (index === -1) {
-      throw new Error(`Item not found: ${originalId}`);
+      throw new Error(`Item not found: ${id}`);
+    }
+    const contentKey = toContentKey(data);
+    if (hasContentKey(toContentKey, list, contentKey, id)) {
+      throw new Error(`Duplicate item: ${contentKey}`);
     }
     list[index] = {
       ...list[index],
       ...data,
+      id,
       modifiedDate: new Date().toJSON(),
     };
     commit(state);
   });
 
-export const createToggleEnabled = (toRoot, toId) =>
+export const createToggleEnabled = (toRoot) =>
   action(({ commit, state }, id) => {
-    const root = toRoot(state);
-    const item = find(toId, root.list, id);
+    const { list } = toRoot(state);
+    const item = list.find((current) => current.id === id);
     if (!item) {
       throw new Error(`Item not found: ${id}`);
     }
     item.enabled = !item.enabled;
+    // Bump `modifiedDate` so the change wins the per-item sync merge.
+    item.modifiedDate = new Date().toJSON();
     commit(state);
   });

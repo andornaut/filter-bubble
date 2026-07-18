@@ -4,8 +4,8 @@ import {
   createAddItem,
   createDeleteItem,
   createEditItem,
+  createToContentKey,
   createToggleEnabled,
-  createToId,
 } from "./factories";
 
 export const hydrateTopics = action(({ commit, state }, { topics = {} }) => {
@@ -15,8 +15,9 @@ export const hydrateTopics = action(({ commit, state }, { topics = {} }) => {
 });
 
 const toRoot = (state) => state.topics;
-export const toId = createToId("text");
-export const addTopic = createAddItem(toRoot, toId);
-export const deleteTopic = createDeleteItem(toRoot, toId);
-export const editTopic = createEditItem(toRoot, toId);
-export const toggleTopicEnabled = createToggleEnabled(toRoot, toId);
+export const toContentKey = createToContentKey("text");
+export const toId = (item) => item.id;
+export const addTopic = createAddItem(toRoot, toContentKey);
+export const deleteTopic = createDeleteItem(toRoot);
+export const editTopic = createEditItem(toRoot, toContentKey);
+export const toggleTopicEnabled = createToggleEnabled(toRoot);

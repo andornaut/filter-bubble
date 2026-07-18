@@ -2,71 +2,73 @@ import {
   createAddItem,
   createDeleteItem,
   createEditItem,
+  createToContentKey,
   createToggleEnabled,
-  createToId,
 } from "./factories";
 
-describe("createToId", () => {
-  it("creates a function that extracts ID from specified field", () => {
-    const toId = createToId("name");
-    expect(toId({ name: ["apple", "banana"] })).toBe("apple,banana");
+describe("createToContentKey", () => {
+  it("extracts a content key from the specified field", () => {
+    const key = createToContentKey("name");
+    expect(key({ name: ["apple", "banana"] })).toBe("apple,banana");
   });
 
-  it("handles string values by converting to canonical array", () => {
-    const toId = createToId("tags");
-    expect(toId({ tags: "foo, bar, baz" })).toBe("bar,baz,foo");
+  it("canonicalizes string values", () => {
+    const key = createToContentKey("tags");
+    expect(key({ tags: "foo, bar, baz" })).toBe("bar,baz,foo");
   });
 
   it("handles empty/null field values", () => {
-    const toId = createToId("field");
-    expect(toId({ field: "" })).toBe("");
-    expect(toId({ field: null })).toBe("");
-    expect(toId({})).toBe("");
+    const key = createToContentKey("field");
+    expect(key({ field: "" })).toBe("");
+    expect(key({ field: null })).toBe("");
+    expect(key({})).toBe("");
   });
 });
 
 describe("createAddItem", () => {
   let state;
   let toRoot;
-  let toId;
+  let toContentKey;
   let addItem;
 
   beforeEach(() => {
     state = { items: { list: [] } };
     toRoot = () => state.items;
-    toId = (item) => item.id;
-    addItem = createAddItem(toRoot, toId);
+    toContentKey = (item) => item.name;
+    addItem = createAddItem(toRoot, toContentKey);
   });
 
-  it("adds item to list with metadata", () => {
-    const data = { id: "test-1", name: "Test Item" };
-
-    // Call the action directly - it internally handles state
-    addItem(data);
+  it("adds item with a generated id and metadata", () => {
+    addItem({ name: "Test Item" });
 
     expect(state.items.list).toHaveLength(1);
-    expect(state.items.list[0]).toMatchObject({
-      enabled: true,
-      id: "test-1",
-      name: "Test Item",
-    });
-    expect(state.items.list[0].createdDate).toBeDefined();
-    expect(state.items.list[0].modifiedDate).toBeDefined();
+    const [item] = state.items.list;
+    expect(item).toMatchObject({ enabled: true, name: "Test Item" });
+    expect(item.id).toEqual(expect.any(String));
+    expect(item.createdDate).toBeDefined();
+    expect(item.modifiedDate).toBeDefined();
   });
 
-  it("throws error on duplicate item", () => {
-    state.items.list = [{ id: "existing", name: "Existing" }];
+  it("throws error on duplicate content", () => {
+    state.items.list = [{ id: "1", name: "Existing" }];
 
-    expect(() => addItem({ id: "existing", name: "Duplicate" })).toThrow(
-      "Duplicate item: existing",
+    expect(() => addItem({ name: "Existing" })).toThrow(
+      "Duplicate item: Existing",
     );
+  });
+
+  it("assigns distinct ids to items created together", () => {
+    addItem({ name: "One" });
+    addItem({ name: "Two" });
+
+    const [a, b] = state.items.list;
+    expect(a.id).not.toBe(b.id);
   });
 });
 
 describe("createDeleteItem", () => {
   let state;
   let toRoot;
-  let toId;
   let deleteItem;
 
   beforeEach(() => {
@@ -79,8 +81,7 @@ describe("createDeleteItem", () => {
       },
     };
     toRoot = () => state.items;
-    toId = (item) => item.id;
-    deleteItem = createDeleteItem(toRoot, toId);
+    deleteItem = createDeleteItem(toRoot);
   });
 
   it("removes item by id", () => {
@@ -100,7 +101,7 @@ describe("createDeleteItem", () => {
 describe("createEditItem", () => {
   let state;
   let toRoot;
-  let toId;
+  let toContentKey;
   let editItem;
 
   beforeEach(() => {
@@ -117,36 +118,32 @@ describe("createEditItem", () => {
       },
     };
     toRoot = () => state.items;
-    toId = (item) => item.id;
-    editItem = createEditItem(toRoot, toId);
+    toContentKey = (item) => item.name;
+    editItem = createEditItem(toRoot, toContentKey);
   });
 
-  it("updates item and sets modifiedDate", () => {
-    const originalModifiedDate = state.items.list[0].modifiedDate;
+  it("updates content, keeps id and createdDate, bumps modifiedDate", () => {
+    const before = state.items.list[0].modifiedDate;
 
-    editItem("item-1", { id: "item-1", name: "Updated" });
+    editItem("item-1", { name: "Updated" });
 
-    expect(state.items.list[0].name).toBe("Updated");
-    expect(state.items.list[0].createdDate).toBe("2024-01-01");
-    expect(state.items.list[0].modifiedDate).not.toBe(originalModifiedDate);
+    const [item] = state.items.list;
+    expect(item.name).toBe("Updated");
+    expect(item.id).toBe("item-1");
+    expect(item.createdDate).toBe("2024-01-01");
+    expect(item.modifiedDate).not.toBe(before);
   });
 
-  it("allows changing item id if new id is unique", () => {
-    editItem("item-1", { id: "new-id", name: "Renamed" });
-
-    expect(state.items.list[0].id).toBe("new-id");
-  });
-
-  it("throws error when changing to duplicate id", () => {
+  it("throws when the edit duplicates another item's content", () => {
     state.items.list.push({ id: "item-2", name: "Second" });
 
-    expect(() =>
-      editItem("item-1", { id: "item-2", name: "Duplicate" }),
-    ).toThrow("Duplicate item: item-2");
+    expect(() => editItem("item-1", { name: "Second" })).toThrow(
+      "Duplicate item: Second",
+    );
   });
 
   it("throws error when original item not found", () => {
-    expect(() => editItem("nonexistent", { id: "new", name: "New" })).toThrow(
+    expect(() => editItem("nonexistent", { name: "New" })).toThrow(
       "Item not found: nonexistent",
     );
   });
@@ -155,24 +152,32 @@ describe("createEditItem", () => {
 describe("createToggleEnabled", () => {
   let state;
   let toRoot;
-  let toId;
   let toggleEnabled;
 
   beforeEach(() => {
     state = {
       items: {
-        list: [{ enabled: true, id: "item-1", name: "Test" }],
+        list: [
+          {
+            enabled: true,
+            id: "item-1",
+            modifiedDate: "2024-01-01",
+            name: "Test",
+          },
+        ],
       },
     };
     toRoot = () => state.items;
-    toId = (item) => item.id;
-    toggleEnabled = createToggleEnabled(toRoot, toId);
+    toggleEnabled = createToggleEnabled(toRoot);
   });
 
-  it("toggles enabled from true to false", () => {
+  it("toggles enabled from true to false and bumps modifiedDate", () => {
+    const before = state.items.list[0].modifiedDate;
+
     toggleEnabled("item-1");
 
     expect(state.items.list[0].enabled).toBe(false);
+    expect(state.items.list[0].modifiedDate).not.toBe(before);
   });
 
   it("toggles enabled from false to true", () => {
