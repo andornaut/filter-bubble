@@ -1,109 +1,56 @@
 # Filter Bubble
 
-Filter Bubble is a browser add-on/extension for
-[Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo) and
-[Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
-that enables you to hide content that you don't want to see on the web.
+Filter Bubble is a Chrome and Firefox browser extension that hides web content matching topics you don't want to see.
 
-- [Install Filter Bubble for Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo)
-- [Install Filter Bubble for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
+- [Install for Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo)
+- [Install for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
+
+[![Filter out topics](./resources/screenshots/screenshot-topics.png)](./resources/screenshots/screenshot-topics.png)
 
 ## How it works
 
-1. Create a list of "topics" that you want to hide or remove from specific websites
-1. Configure rules for these websites by specifying
-   [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors)
-   that target the
-   [HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element)
-   of the content blocks or feed items that might contain any of the targeted topics
-1. If a targeted topic appears in a targeted HTML element on a targeted website, then it'll be hidden or removed from view
+1. Add the **topics** you want to hide.
+1. For each website, add [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) that target the content blocks or feed items that might contain those topics.
+1. When a topic appears inside a targeted element on that website, the element is hidden or removed.
 
-n.b. Only a handful of websites are configured out of the box, and you'll need to know how to target
-[HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element) using
-[CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) in order to configure additional websites!
+A handful of websites are configured out of the box. Adding others requires targeting [HTML elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element) with [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) yourself.
 
-![filter-out topics](./resources/screenshots/screenshot-topics.png)
-
-![website-specific query selectors](./resources/screenshots/screenshot-websites.png)
+[![Per-website selectors](./resources/screenshots/screenshot-websites.png)](./resources/screenshots/screenshot-websites.png)
 
 ## Developing
 
-### Getting Started
-
-1. Install [node](https://nodejs.org/en/) (see [`.nvmrc`](.nvmrc) for the recommended version)
+1. Install [Node](https://nodejs.org/) (see [`.nvmrc`](.nvmrc) for the version)
 1. `npm install`
 1. `npm start`
 
-### Developing for Android
+`npm test`, `npm run lint`, and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
 
-Follow the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/):
+### Android
 
-- [Enable Android "Developer Options"](https://developer.android.com/studio/debug/dev-options)
-- [Remote Debugging via USB](https://developer.mozilla.org/en-US/docs/Tools/about:debugging) in Firefox for Android
-- Connect your device to your computer via USB
-- Install [Android Platform Tools](https://developer.android.com/studio/releases/platform-tools.html)
-- Enable "Remote Debugging via USB" from Firefox Android -> Settings -> Developer Tools
-- Create `/etc/udev/rules.d/50-android-usb.rules` with the following content:
+`npm run start:android` runs the extension on a USB-connected device. See the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/) for the full walkthrough; the short version:
 
-  ```bash
-  SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"
-  ```
+1. Enable Android developer options and USB debugging, and turn on "Remote Debugging via USB" in Firefox for Android.
+1. Install `adb`: `sudo apt install adb`
+1. On Linux, grant USB access with a udev rule (replace `idVendor` with the value from `dmesg`):
 
-  Replace the value for `idVendor` with the one from `dmesg`, eg:
+   ```bash
+   echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"' \
+     | sudo tee /etc/udev/rules.d/50-android-usb.rules
+   ```
 
-  ```bash
-  New USB device found, idVendor=18d1, idProduct=4ee7, bcdDevice= 5.15
-  ```
-
-```bash
-sudo apt install adb android-sdk-platform-tools-common
-
-# You may need to restart the adb server if you have a previous manual installation
-sudo adb kill-server
-sudo adb start-server
-
-adb devices
-```
-
-Your device will now prompt you to authorize the computer. Once authorized, continue with the [instructions for web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/#testing-in-firefox-for-android):
-
-```bash
-device="$(adb devices  2>&1| awk '/./{device=$1} END{print device}')"
-echo Device \"${device}\"
-
-npx web-ext run --target=firefox-android --android-device=${device}
-
-# If you have multiple Firefox versions installed, then you can disambiguate using the `--firefox-apk` flag.
-npx web-ext run \
-    --target=firefox-android \
-    --android-device=${device} \
-    --firefox-apk=org.mozilla.firefox
-```
-
-Alternatively, you can run: `npm run start:android`
+1. Connect the device, run `adb devices`, and authorize the computer when prompted.
+1. Run `npm run start:android`.
 
 ### Publishing
 
-Tagged releases (`v*`) automatically produce a packaged extension via
-[GitHub Actions](.github/workflows/ci.yml). To create a release:
+Tagged releases (`v*`) build a packaged extension via [GitHub Actions](.github/workflows/ci.yml):
 
-1. Update the version in both `package.json` and `manifest.json`
-2. Commit the version bump
-3. Tag and push:
+1. Match `version` in [`package.json`](./package.json) and [`manifest.json`](./manifest.json).
+1. Commit, then tag and push:
 
-```bash
-git tag v0.x.x
-git push && git push --tags
-```
+   ```bash
+   git tag v0.x.x
+   git push && git push --tags
+   ```
 
-To build a package locally:
-
-```bash
-npm run package
-ls web-ext-artifacts/
-```
-
-Store dashboards:
-
-- [Chrome](https://chromewebstore.google.com/devconsole/)
-- [Firefox](https://addons.mozilla.org/en-US/developers/addons)
+Build locally with `npm run package` (output in `web-ext-artifacts/`). Store dashboards: [Chrome](https://chromewebstore.google.com/devconsole/), [Firefox](https://addons.mozilla.org/en-US/developers/addons).
