@@ -5,6 +5,7 @@ import {
   toggleTopicEnabled,
   toId,
 } from "../actions/topics";
+import { downloadJson, exportFilename } from "../export";
 import { toCanonicalArray, unsplit } from "../helpers";
 import { useSelection } from "../hooks/useSelection";
 import { textField } from "./fields";
@@ -47,6 +48,10 @@ export const Topics = ({ list }) => {
     editTopic(selectedId, data);
     clearSelected();
   };
+  const handleExport = (event) => {
+    event.preventDefault();
+    downloadJson(exportFilename("topics"), { topics: list });
+  };
 
   return (
     <section>
@@ -77,6 +82,11 @@ export const Topics = ({ list }) => {
         toId={toId}
         toggleEnabled={toggleTopicEnabled}
       />
+      <div className="topics__footer">
+        <a className="topics__export" href="#" onClick={handleExport}>
+          Export topics
+        </a>
+      </div>
     </section>
   );
 };

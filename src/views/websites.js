@@ -5,6 +5,7 @@ import {
   toggleWebsiteEnabled,
   toId,
 } from "../actions/websites";
+import { downloadJson, exportFilename } from "../export";
 import { toCanonicalArray, unsplit } from "../helpers";
 import { useSelection } from "../hooks/useSelection";
 import { requestPermissionsFromAddresses } from "../permissions";
@@ -90,6 +91,10 @@ export const Websites = ({ list }) => {
     editWebsite(selectedId, data);
     clearSelected();
   };
+  const handleExport = (event) => {
+    event.preventDefault();
+    downloadJson(exportFilename("websites"), { websites: list });
+  };
 
   return (
     <section>
@@ -122,6 +127,11 @@ export const Websites = ({ list }) => {
         toId={toId}
         toggleEnabled={toggleWebsiteEnabled}
       />
+      <div className="websites__footer">
+        <a className="websites__export" href="#" onClick={handleExport}>
+          Export websites
+        </a>
+      </div>
     </section>
   );
 };
