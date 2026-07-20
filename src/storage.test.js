@@ -273,6 +273,33 @@ describe("toStorage", () => {
     expect(Object.keys(set.mock.calls[0][0])).toEqual(["t:2"]);
   });
 
+  it("persists the sortDate a local toggle backfilled", async () => {
+    // A seeded/legacy item carries no `sortDate`; `createToggleEnabled`
+    // backfills it from the pre-toggle `modifiedDate`, and that value has to
+    // reach storage or each device re-derives its own and list order diverges.
+    const stored = topic("1", ["a"], "2020-01-01T00:00:00.000Z");
+    await seed({ "t:1": stored });
+
+    await toStorage({
+      topics: {
+        list: [
+          {
+            ...stored,
+            enabled: false,
+            modifiedDate: "2026-01-01T00:00:00.000Z",
+            sortDate: "2020-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      websites: { list: [] },
+    });
+
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][0]["t:1"].sortDate).toBe(
+      "2020-01-01T00:00:00.000Z",
+    );
+  });
+
   it("skips the write when nothing changed", async () => {
     const item = topic("1", ["a"], "2026-01-01T00:00:00.000Z");
     await seed({ "t:1": item });
@@ -339,6 +366,27 @@ describe("subscribeStorageSync", () => {
     expect(set).toHaveBeenCalledTimes(1);
     expect(set.mock.calls[0][0]["t:1"].text).toEqual(["new"]);
     expect(onLists).not.toHaveBeenCalled();
+  });
+
+  it("applies a remote toggle that bumped modifiedDate but not sortDate", async () => {
+    const sortDate = "2026-01-01T00:00:00.000Z";
+    await seed({ "t:1": { ...topic("1", ["a"], sortDate), sortDate } });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({
+      "t:1": {
+        newValue: {
+          ...topic("1", ["a"], "2026-02-01T00:00:00.000Z"),
+          enabled: false,
+          sortDate,
+        },
+      },
+    });
+
+    expect(onLists).toHaveBeenCalledTimes(1);
+    expect(onLists.mock.calls[0][0].topics.list[0].enabled).toBe(false);
+    expect(set).not.toHaveBeenCalled();
   });
 
   it("ignores non-sync areas and non-item keys", async () => {

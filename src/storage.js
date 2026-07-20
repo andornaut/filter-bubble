@@ -33,7 +33,10 @@ const stableStringify = (value) => {
 };
 
 // Last-writer-wins by `modifiedDate`, with a deterministic tie-break so every
-// device converges on the same value.
+// device converges on the same value. `modifiedDate` is the sync clock and must
+// be bumped by every change, including ones that leave the display order alone
+// (toggling `enabled`, importing); those bump `sortDate` separately. Older
+// releases merge on this same field, so they converge with this one.
 const mergeByModified = (a, b) => {
   if (!a) return b;
   if (!b) return a;

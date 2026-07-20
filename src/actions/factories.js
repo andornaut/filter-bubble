@@ -32,6 +32,7 @@ export const createAddItem = (toRoot, toContentKey) =>
       enabled: true,
       id,
       modifiedDate: now,
+      sortDate: now,
     });
     commit(state);
   });
@@ -58,11 +59,13 @@ export const createEditItem = (toRoot, toContentKey) =>
     if (hasContentKey(toContentKey, list, contentKey, id)) {
       throw new Error(`Duplicate item: ${contentKey}`);
     }
+    const now = new Date().toJSON();
     list[index] = {
       ...list[index],
       ...data,
       id,
-      modifiedDate: new Date().toJSON(),
+      modifiedDate: now,
+      sortDate: now,
     };
     commit(state);
   });
@@ -75,7 +78,12 @@ export const createToggleEnabled = (toRoot) =>
       throw new Error(`Item not found: ${id}`);
     }
     item.enabled = !item.enabled;
-    // Bump `modifiedDate` so the change wins the per-item sync merge.
+    // Backfill `sortDate` from the pre-toggle `modifiedDate` first: items stored
+    // before the field existed, and the seeded defaults, carry no `sortDate`, so
+    // without this the bump below would become their sort key and reorder them.
+    item.sortDate = item.sortDate || item.modifiedDate;
+    // Bump `modifiedDate` so the change wins the per-item sync merge, but leave
+    // `sortDate` alone so the list does not reorder.
     item.modifiedDate = new Date().toJSON();
     commit(state);
   });

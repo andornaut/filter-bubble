@@ -60,8 +60,8 @@ body {
   background-color: #444;
   display: flex;
   justify-content: space-around;
-  padding-top: calc(2 * var(--spacing));
-  padding-bottom: var(--spacing);
+  padding-bottom: 0;
+  padding-top: var(--spacing);
 }
 
 .app__nav :any-link {
@@ -86,10 +86,10 @@ body {
 }
 
 .app__tab {
-  border-bottom: var(--spacing) solid transparent;
+  border-bottom: 6px solid transparent;
   color: var(--subtle-text-color);
   display: inline-block;
-  font-size: 1.2em;
+  font-size: 1.5em;
   outline: none;
   padding: var(--spacing);
 }

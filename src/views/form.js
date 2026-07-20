@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-import { humanDate } from "../helpers";
+import { humanDate, toIsoDate, toSortDate } from "../helpers";
 import { withError } from "./with-error";
 
 const formToJson = (form) =>
@@ -75,9 +75,13 @@ export const EditForm = ({
   return (
     <form ref={formRef} onSubmit={handleSubmit}>
       {fields(selected)}
-      <time className="form__date" dateTime={selected.modifiedDate}>
+      <time
+        className="form__date"
+        // Omit rather than emit a value the HTML datetime format rejects.
+        dateTime={toIsoDate(toSortDate(selected)) || undefined}
+      >
         <span className="form__date-label">Last updated:</span>{" "}
-        {humanDate(selected.modifiedDate)}
+        {humanDate(toSortDate(selected))}
       </time>
       <div className="form__actions-container">
         <div className="form__actions-primary">

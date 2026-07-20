@@ -4,8 +4,8 @@ import { getState } from "statezero/src";
 import { downloadJson, exportFilename } from "../export";
 import { HELP_HTML } from "./hints";
 
-// Import happens on a dedicated page in a tab: Firefox closes the popup as soon
-// as the OS file dialog opens, so a file input can't run in the popup itself.
+// Import happens on a dedicated page in a tab: the popup closes as soon as the
+// OS file dialog opens, which would abort the import, and a tab does not.
 const IMPORT_HASH = "#import";
 
 export const Footer = () => {
@@ -46,14 +46,18 @@ export const Footer = () => {
           return openTab();
         }
         // Bring the tab's window forward too, in case it is not the current
-        // one; best-effort, so ignore a missing API or failure (e.g. Android).
-        chrome.windows
-          ?.update(existing.windowId, { focused: true })
-          .catch(() => {});
+        // one; best-effort, so ignore a missing API or failure. Wrapped in
+        // `Promise.resolve` because a callback-style `update` returns
+        // undefined, which would throw here and fall through to `openTab`.
+        Promise.resolve(
+          chrome.windows?.update(existing.windowId, { focused: true }),
+        ).catch(() => {});
         // Return this so a stale/closed tab (rejected update) falls back below.
         return chrome.tabs.update(existing.id, { active: true });
       })
-      .catch(openTab);
+      .catch(openTab)
+      // Close the popup so it does not linger behind the tab we just focused.
+      .finally(() => window.close());
   };
 
   const label = showHelp ? "Hide help" : "Show help";

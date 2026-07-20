@@ -1,4 +1,4 @@
-import { sortByModifiedDateDesc } from "../helpers";
+import { sortByDateDesc } from "../helpers";
 import { Item } from "./item";
 
 export const List = ({
@@ -14,7 +14,7 @@ export const List = ({
   }
   return (
     <ul className="list">
-      {sortByModifiedDateDesc(list).map((item) => {
+      {sortByDateDesc(list).map((item) => {
         const id = toId(item);
         return (
           <Item
