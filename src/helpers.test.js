@@ -1,6 +1,6 @@
 import {
   humanDate,
-  sortByModifiedDateDesc,
+  sortByDateDesc,
   toCanonicalArray,
   unsplit,
 } from "./helpers";
@@ -48,23 +48,49 @@ describe("unsplit", () => {
   });
 });
 
-describe("sortByModifiedDateDesc", () => {
-  it("sorts by modifiedDate in descending order", () => {
+describe("sortByDateDesc", () => {
+  it("sorts by sortDate in descending order", () => {
+    const items = [
+      { id: 1, sortDate: "2024-01-01" },
+      { id: 2, sortDate: "2024-03-01" },
+      { id: 3, sortDate: "2024-02-01" },
+    ];
+    const sorted = sortByDateDesc(items);
+    expect(sorted.map((i) => i.id)).toEqual([2, 3, 1]);
+  });
+
+  it("falls back to modifiedDate when sortDate is absent", () => {
     const items = [
       { id: 1, modifiedDate: "2024-01-01" },
       { id: 2, modifiedDate: "2024-03-01" },
       { id: 3, modifiedDate: "2024-02-01" },
     ];
-    const sorted = sortByModifiedDateDesc(items);
-    expect(sorted.map((i) => i.id)).toEqual([2, 3, 1]);
+    expect(sortByDateDesc(items).map((i) => i.id)).toEqual([2, 3, 1]);
+  });
+
+  it("ignores modifiedDate when sortDate is present", () => {
+    const items = [
+      { id: 1, modifiedDate: "2024-12-01", sortDate: "2024-01-01" },
+      { id: 2, modifiedDate: "2024-01-01", sortDate: "2024-03-01" },
+    ];
+    expect(sortByDateDesc(items).map((i) => i.id)).toEqual([2, 1]);
+  });
+
+  it("does not throw on a non-string date", () => {
+    const items = [
+      { id: 1, sortDate: 12345 },
+      { id: 2, modifiedDate: {} },
+      { id: 3, sortDate: "2024-02-01" },
+    ];
+    expect(() => sortByDateDesc(items)).not.toThrow();
   });
 
   it("does not mutate original array", () => {
     const items = [
-      { id: 1, modifiedDate: "2024-01-01" },
-      { id: 2, modifiedDate: "2024-02-01" },
+      { id: 1, sortDate: "2024-01-01" },
+      { id: 2, sortDate: "2024-02-01" },
     ];
-    sortByModifiedDateDesc(items);
+    sortByDateDesc(items);
     expect(items[0].id).toBe(1);
   });
 });

@@ -1,5 +1,6 @@
 import { getState, setState } from "statezero/src";
 
+import { sortByDateDesc } from "../helpers";
 import { importData, parseImport } from "./import";
 
 describe("parseImport", () => {
@@ -103,8 +104,59 @@ describe("importData", () => {
       topics: [{ id: "1", modifiedDate: "2024-01-01", text: ["cats"] }],
     });
     const { topics } = getState();
-    expect(topics.list[0].createdDate).toBe("2024-01-01");
+    // Normalized to full ISO, which parses to the same instant, so ids derived
+    // from `createdDate` are unchanged.
+    expect(topics.list[0].createdDate).toBe("2024-01-01T00:00:00.000Z");
     expect(topics.list[0].modifiedDate > "2024-01-01").toBe(true);
+    // Carried over from the file, so importing does not reshuffle the list.
+    expect(topics.list[0].sortDate).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("prefers an exported sortDate over modifiedDate for list order", () => {
+    importData({
+      topics: [
+        {
+          id: "1",
+          modifiedDate: "2024-06-01",
+          sortDate: "2024-01-01",
+          text: ["cats"],
+        },
+      ],
+    });
+    expect(getState().topics.list[0].sortDate).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("replaces a malformed date so the list stays sortable", () => {
+    importData({
+      topics: [
+        { id: "1", sortDate: 12345, text: ["cats"] },
+        { id: "2", modifiedDate: "not a date", text: ["dogs"] },
+        { createdDate: {}, id: "3", sortDate: [], text: ["birds"] },
+      ],
+    });
+    const { topics } = getState();
+    topics.list.forEach((topic) => {
+      expect(topic.sortDate).toBe(new Date(topic.sortDate).toJSON());
+    });
+    expect(() => sortByDateDesc(topics.list)).not.toThrow();
+  });
+
+  it("normalizes a non-ISO date so it sorts chronologically", () => {
+    importData({
+      topics: [
+        { id: "1", sortDate: "March 5, 2020", text: ["older"] },
+        { id: "2", sortDate: "2026-01-01T00:00:00.000Z", text: ["newer"] },
+      ],
+    });
+    const { topics } = getState();
+    // Stored as ISO, so lexicographic order matches chronological order. A bare
+    // date string parses as local time, so compare against the same conversion
+    // rather than a fixed UTC literal.
+    expect(topics.list[0].sortDate).toBe(new Date("March 5, 2020").toJSON());
+    expect(sortByDateDesc(topics.list).map((t) => t.text[0])).toEqual([
+      "newer",
+      "older",
+    ]);
   });
 
   it("keys by id only: a different-id item with matching content is added", () => {

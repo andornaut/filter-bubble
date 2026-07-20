@@ -1,6 +1,6 @@
 import { action, getState } from "statezero/src";
 
-import { toItemId } from "../helpers";
+import { toIsoDate, toItemId } from "../helpers";
 import { toStorage } from "../storage";
 import {
   canonicalizeAddresses,
@@ -33,19 +33,27 @@ export const parseImport = (text) => {
 };
 
 // Fill in the shared item fields. `createdDate`/`id` are preserved so a
-// re-imported item merges onto itself instead of duplicating. `modifiedDate`
-// is set to the import time so the item wins the last-writer-wins sync merge,
-// overriding any tombstone or older value on this or another device.
+// re-imported item merges onto itself instead of duplicating, and so is
+// `sortDate`, so importing does not reshuffle the list. `modifiedDate` is set to
+// the import time so the item wins the last-writer-wins sync merge, overriding
+// any tombstone or older value on this or another device.
+// Dates in the file are untrusted, so every one is normalized through
+// `toIsoDate`: unparseable values are dropped and non-ISO ones are converted, so
+// nothing downstream has to re-check them.
 const normalizeMeta = (ids, item) => {
-  const createdDate =
-    item.createdDate || item.modifiedDate || new Date().toJSON();
+  const now = new Date().toJSON();
+  // Fall back through the exported item's own clocks, oldest-wins, so a file
+  // exported before `sortDate` existed still lands in its original list order.
+  const sortDate = toIsoDate(item.sortDate) || toIsoDate(item.modifiedDate);
+  const createdDate = toIsoDate(item.createdDate) || sortDate || now;
   const id = item.id || toItemId(ids, createdDate);
   ids.add(id);
   return {
     createdDate,
     enabled: item.enabled !== false,
     id,
-    modifiedDate: new Date().toJSON(),
+    modifiedDate: now,
+    sortDate: sortDate || createdDate,
   };
 };
 

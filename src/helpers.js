@@ -23,8 +23,29 @@ export const humanDate = (dateStr) => {
   return isToday(dt) ? formatTime(dt) : dt.toDateString();
 };
 
-export const sortByModifiedDateDesc = (arr) =>
-  Array.from(arr).sort((a, b) => b.modifiedDate.localeCompare(a.modifiedDate));
+// Normalize to ISO 8601, the only format the app stores or compares. Dates are
+// ordered lexicographically, so a parseable-but-non-ISO value ("March 5, 2020")
+// would sort as text and land in the wrong place. Returns "" if unparseable.
+export const toIsoDate = (value) =>
+  typeof value === "string" && !Number.isNaN(Date.parse(value))
+    ? new Date(value).toJSON()
+    : "";
+
+// Display clock, set on create/edit and left alone by changes that must not
+// reorder the list (toggling `enabled`, importing). Falls back to the
+// `modifiedDate` sync clock for items stored before this field existed, for the
+// seeded defaults, and for errors. Coerced because `localeCompare` needs a
+// string; normalization happens where untrusted dates enter.
+export const toSortDate = (item) =>
+  String(item.sortDate || item.modifiedDate || "");
+
+// Decorate-sort-undecorate so each sort key is derived once per item rather
+// than twice per comparison.
+export const sortByDateDesc = (arr) =>
+  Array.from(arr)
+    .map((item) => [toSortDate(item), item])
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([, item]) => item);
 
 // Used to canonicalize identifiers, so it must return a sorted array.
 export const toCanonicalArray = (str) =>

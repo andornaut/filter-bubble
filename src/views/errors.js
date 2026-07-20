@@ -1,5 +1,5 @@
 import { clearError, toId } from "../actions/errors";
-import { sortByModifiedDateDesc } from "../helpers";
+import { sortByDateDesc } from "../helpers";
 
 const CLEAR_LABEL = "Clear message";
 
@@ -28,7 +28,7 @@ export const Errors = ({ errors }) => {
   }
   return (
     <ul className="errors">
-      {sortByModifiedDateDesc(list).map((item) => (
+      {sortByDateDesc(list).map((item) => (
         <Error item={item} key={toId(item)} />
       ))}
     </ul>

@@ -1,3 +1,4 @@
+import { sortByDateDesc } from "../helpers";
 import {
   createAddItem,
   createDeleteItem,
@@ -171,13 +172,43 @@ describe("createToggleEnabled", () => {
     toggleEnabled = createToggleEnabled(toRoot);
   });
 
-  it("toggles enabled from true to false and bumps modifiedDate", () => {
+  it("toggles enabled from true to false and bumps modifiedDate only", () => {
     const before = state.items.list[0].modifiedDate;
+    state.items.list[0].sortDate = before;
 
     toggleEnabled("item-1");
 
     expect(state.items.list[0].enabled).toBe(false);
-    expect(state.items.list[0].modifiedDate).not.toBe(before);
+    expect(state.items.list[0].modifiedDate > before).toBe(true);
+    // Left alone, so the toggle does not reorder the list.
+    expect(state.items.list[0].sortDate).toBe(before);
+  });
+
+  it("backfills sortDate on an item stored before the field existed", () => {
+    // The seeded defaults and every item written by an earlier release carry no
+    // `sortDate`, so the bump must not become their sort key.
+    const before = state.items.list[0].modifiedDate;
+
+    toggleEnabled("item-1");
+
+    expect(state.items.list[0].sortDate).toBe(before);
+    expect(state.items.list[0].modifiedDate > before).toBe(true);
+  });
+
+  it("does not reorder a list of items that have no sortDate", () => {
+    state.items.list.push({
+      enabled: true,
+      id: "item-2",
+      modifiedDate: "2026-01-01",
+      name: "Newer",
+    });
+    const before = sortByDateDesc(state.items.list).map((item) => item.id);
+
+    toggleEnabled("item-1");
+
+    expect(sortByDateDesc(state.items.list).map((item) => item.id)).toEqual(
+      before,
+    );
   });
 
   it("toggles enabled from false to true", () => {
