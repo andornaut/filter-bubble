@@ -3,7 +3,10 @@ import { action } from "statezero/src";
 import { toCanonicalArray, toItemId } from "../helpers";
 
 // Content key used only for duplicate detection (not identity). Two items with
-// the same canonical content are considered duplicates.
+// the same canonical content are considered duplicates. Stored arrays are used
+// verbatim, not re-canonicalized: legacy items may hold differently-ordered
+// arrays that must keep distinct keys, or coexisting items would collide and
+// become uneditable duplicates.
 export const createToContentKey = (field) => (item) =>
   (Array.isArray(item[field])
     ? item[field]
@@ -52,7 +55,7 @@ export const createEditItem = (toRoot, toContentKey) =>
   action(({ commit, state }, id, data) => {
     const { list } = toRoot(state);
     const index = findIndexById(list, id);
-    if (index === -1) {
+    if (index < 0) {
       throw new Error(`Item not found: ${id}`);
     }
     const contentKey = toContentKey(data);
@@ -87,3 +90,25 @@ export const createToggleEnabled = (toRoot) =>
     item.modifiedDate = new Date().toJSON();
     commit(state);
   });
+
+// Build the full pre-bound action set for one collection (`topics` or
+// `websites`): the statezero root key and the duplicate-detection content field
+// are the only differences between the two.
+export const createCollectionActions = (rootKey, contentField) => {
+  const toRoot = (state) => state[rootKey];
+  const toItemContentKey = createToContentKey(contentField);
+  return {
+    addItem: createAddItem(toRoot, toItemContentKey),
+    deleteItem: createDeleteItem(toRoot),
+    editItem: createEditItem(toRoot, toItemContentKey),
+    hydrate: action(({ commit, state }, lists) => {
+      const root = lists[rootKey] || {};
+      root.list = root.list || [];
+      state[rootKey] = root;
+      commit(state);
+    }),
+    toContentKey: toItemContentKey,
+    toId: (item) => item.id,
+    toggleEnabled: createToggleEnabled(toRoot),
+  };
+};

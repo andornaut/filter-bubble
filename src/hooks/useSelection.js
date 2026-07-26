@@ -1,14 +1,16 @@
 import { useState } from "react";
 
 export const useSelection = (list, toId) => {
-  const [selected, setSelected] = useState(null);
-  const selectedId = selected ? toId(selected) : "";
+  const [selectedId, setSelectedId] = useState("");
+  // Derive the item rather than snapshot it, so the selection stays current
+  // when the item is edited elsewhere (e.g. by a sync) and collapses to "no
+  // selection" when it is deleted.
+  const selected = list.find((item) => toId(item) === selectedId) || null;
 
-  const handleSelect = (id) => {
-    const item = list.find((item) => toId(item) === id);
-    setSelected(item);
+  return {
+    clearSelected: () => setSelectedId(""),
+    handleSelect: setSelectedId,
+    selected,
+    selectedId,
   };
-  const clearSelected = () => setSelected(null);
-
-  return { clearSelected, handleSelect, selected, selectedId };
 };

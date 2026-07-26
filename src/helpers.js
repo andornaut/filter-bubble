@@ -40,11 +40,12 @@ export const toSortDate = (item) =>
   String(item.sortDate || item.modifiedDate || "");
 
 // Decorate-sort-undecorate so each sort key is derived once per item rather
-// than twice per comparison.
+// than twice per comparison. ISO dates order lexicographically, so a plain
+// string comparison suffices.
 export const sortByDateDesc = (arr) =>
   Array.from(arr)
     .map((item) => [toSortDate(item), item])
-    .sort((a, b) => b[0].localeCompare(a[0]))
+    .sort((a, b) => (a[0] === b[0] ? 0 : a[0] < b[0] ? 1 : -1))
     .map(([, item]) => item);
 
 // Used to canonicalize identifiers, so it must return a sorted array.
@@ -53,8 +54,7 @@ export const toCanonicalArray = (str) =>
     new Set(
       (str || "")
         .split("\n")
-        .map((line) => line.split(","))
-        .flat()
+        .flatMap((line) => line.split(","))
         .map((s) => s.trim())
         .filter((s) => s),
     ),
