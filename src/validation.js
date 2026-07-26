@@ -35,4 +35,7 @@ export const canonicalizeAddresses = (value) =>
         return domainName;
       }),
     ),
-  );
+    // Re-sort: lowercasing/scheme-stripping can change the relative order of
+    // the pre-canonicalized input, and the stored array is compared verbatim
+    // for duplicate detection, so its order must not depend on the input form.
+  ).sort();

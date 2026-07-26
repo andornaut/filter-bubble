@@ -2,13 +2,15 @@ import { action } from "statezero/src";
 
 export const toId = ({ message }) => message;
 
-export const addError = action(({ commit, state }, message) => {
-  message = message.toString();
+export const addError = action(({ commit, state }, error) => {
+  // Prefer `message`: Error.toString() prefixes the redundant "Error: ".
+  // Optional chaining keeps a null/undefined rejection reason surfaceable.
+  const message = error?.message || String(error);
   state.errors = state.errors || [];
   const now = new Date().toJSON();
-  const error = state.errors.find((error_) => toId(error_) === message);
-  if (error) {
-    error.modifiedDate = now;
+  const existing = state.errors.find((error_) => toId(error_) === message);
+  if (existing) {
+    existing.modifiedDate = now;
   } else {
     state.errors.push({ message, modifiedDate: now });
   }

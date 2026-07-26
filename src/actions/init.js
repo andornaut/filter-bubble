@@ -1,27 +1,38 @@
 import { getState, subscribe } from "statezero/src";
 
-import { checkWebsitePermissions } from "../permissions";
+import { checkAllPermissions } from "../permissions";
 import { fromStorage, subscribeStorageSync, toStorage } from "../storage";
+import { addError } from "./errors";
 import { hydratePermissions } from "./permissions";
-import { hydrateTopics } from "./topics";
-import { hydrateWebsites } from "./websites";
+import { topicActions } from "./topics";
+import { websiteActions } from "./websites";
 
-const dataHydrators = [hydrateTopics, hydrateWebsites];
+const dataHydrators = [topicActions.hydrate, websiteActions.hydrate];
+
+// `initState` re-runs on ErrorBoundary retry; subscribing again would stack
+// duplicate statezero and `storage.onChanged` listeners, so subscribe once.
+let subscribed = false;
 
 export const initState = async () => {
   const lists = await fromStorage();
   hydratePermissions();
   dataHydrators.forEach((hydrate) => hydrate(lists));
-  // Swallow+log write failures here (not inside `toStorage`) so this subscriber
-  // does not loop, while direct callers still see the rejection.
+  if (subscribed) {
+    return;
+  }
+  subscribed = true;
+  // Surface write failures (e.g. over quota) so the user knows the change did
+  // not persist. This cannot loop: `toStorage` records the attempted write
+  // before rejecting, so the commit from `addError` diffs to nothing.
   subscribe((state) =>
-    toStorage(state).catch((err) =>
-      console.error("filter-bubble: storage.sync.set() failed:", err),
-    ),
+    toStorage(state).catch((err) => {
+      console.error("filter-bubble: storage.sync.set() failed:", err);
+      addError(err);
+    }),
   );
   // Apply data that `storage.sync` delivers while the popup is open.
   subscribeStorageSync((updatedLists) => {
     dataHydrators.forEach((hydrate) => hydrate(updatedLists));
-    checkWebsitePermissions(getState());
+    checkAllPermissions(getState());
   });
 };

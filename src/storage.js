@@ -47,6 +47,9 @@ const mergeByModified = (a, b) => {
   return stableStringify(b) > stableStringify(a) ? b : a;
 };
 
+// Unlike the duplicate-detection content key, this fully re-canonicalizes the
+// array: v1 data may hold unsorted addresses that must map onto the same
+// default id.
 const canonicalAddresses = (addresses) =>
   toCanonicalArray((addresses || []).join("\n")).toString();
 
@@ -236,9 +239,10 @@ export const toStorage = (state) => {
   keys.forEach((key) => {
     store[key] = changes[key];
   });
-  // Propagate the rejection (`storage.sync` rejects when over quota) so a direct
-  // caller can react to it. The state subscriber wraps this to swallow+log, so
-  // it does not surface via `addError` and re-trigger itself in a loop.
+  // Propagate the rejection (`storage.sync` rejects when over quota) so callers
+  // can surface it. Handling it with a commit (e.g. `addError`) cannot loop:
+  // `store` above already matches the desired state, so the re-triggered
+  // subscriber diffs to nothing here.
   return chrome.storage.sync.set(changes);
 };
 

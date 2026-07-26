@@ -15,10 +15,12 @@ import { clearAllErrors } from "./actions/errors";
 import { initState } from "./actions/init";
 import { useHash } from "./hooks/useHash";
 import { useStore } from "./hooks/useStore";
-import { checkPermissions, checkWebsitePermissions } from "./permissions";
+import { checkAllPermissions } from "./permissions";
 import { App } from "./views/app";
-import { ErrorBoundary } from "./views/error-boundary";
+import { ErrorBoundary, ErrorFallback } from "./views/error-boundary";
 import { Import } from "./views/import";
+
+const root = createRoot(document.body);
 
 const Root = () => {
   const state = useStore();
@@ -27,13 +29,31 @@ const Root = () => {
   return hash === "#import" ? <Import /> : <App hash={hash} state={state} />;
 };
 
+// Guard against overlapping runs (e.g. a double-clicked retry button), which
+// would register duplicate listeners and open a second background port.
+let initializing = false;
+
 const init = async () => {
-  await initState();
+  if (initializing) {
+    return;
+  }
+  initializing = true;
+  try {
+    await initState();
+  } catch (error) {
+    // Render the failure with a retry: a rejected storage read would otherwise
+    // abort init before render() is ever called, leaving a blank popup.
+    console.error("filter-bubble: initState() failed:", error);
+    root.render(<ErrorFallback error={error} onRetry={init} />);
+    return;
+  } finally {
+    initializing = false;
+  }
 
   // Clear errors on navigation; the resulting store change re-renders `Root`.
   window.addEventListener("hashchange", () => clearAllErrors());
 
-  createRoot(document.body).render(
+  root.render(
     <ErrorBoundary>
       <Root />
     </ErrorBoundary>,
@@ -46,10 +66,7 @@ const init = async () => {
     return;
   }
 
-  const state = getState();
-
-  checkPermissions(state); // May update the state.
-  checkWebsitePermissions(state); // May update the state.
+  checkAllPermissions(getState()); // May update the state.
 
   /**
    * Workaround a bug in Chrome that prevents using .sendMessage() in a window "unload" event handler:

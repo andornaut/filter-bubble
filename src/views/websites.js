@@ -1,22 +1,19 @@
-import {
-  addWebsite,
-  deleteWebsite,
-  editWebsite,
-  toggleWebsiteEnabled,
-  toId,
-} from "../actions/websites";
+import { getState } from "statezero/src";
+
+import { websiteActions } from "../actions/websites";
 import { unsplit } from "../helpers";
-import { useSelection } from "../hooks/useSelection";
-import { requestPermissionsFromAddresses } from "../permissions";
+import {
+  checkAllPermissions,
+  requestPermissionsFromAddresses,
+} from "../permissions";
 import { canonicalizeAddresses, canonicalizeSelectors } from "../validation";
+import { Collection } from "./collection";
 import { checkboxField, textField } from "./fields";
-import { AddForm, EditForm } from "./form";
 import {
   CSS_SELECTORS_HINT,
   DOMAIN_NAMES_HINT,
   HIDE_OR_REMOVE_HINT,
 } from "./hints";
-import { List } from "./list";
 
 const fields = (
   website = { addresses: "", hideInsteadOfRemove: false, selectors: "" },
@@ -58,6 +55,22 @@ const transform = (data) => {
 
 const callback = ({ addresses }) => requestPermissionsFromAddresses(addresses);
 
+// The permission flags count only enabled websites, so toggling or deleting
+// one can change them (e.g. enabling a website whose host permission was never
+// granted must surface the banner and warning). Add/edit recompute via
+// `callback` -> requestPermissionsFromAddresses.
+const actions = {
+  ...websiteActions,
+  deleteItem: (id) => {
+    websiteActions.deleteItem(id);
+    checkAllPermissions(getState());
+  },
+  toggleEnabled: (id) => {
+    websiteActions.toggleEnabled(id);
+    checkAllPermissions(getState());
+  },
+};
+
 const UNPERMISSIONED_WARNING =
   "Content on this website won't be filtered until you grant Filter Bubble permission to access it";
 
@@ -83,51 +96,13 @@ const itemDetails =
     </>
   );
 
-export const Websites = ({ list, unpermissionedIds = [] }) => {
-  const { clearSelected, handleSelect, selected, selectedId } = useSelection(
-    list,
-    toId,
-  );
-  const handleDelete = () => {
-    deleteWebsite(selectedId);
-    clearSelected();
-  };
-  const handleEdit = (data) => {
-    editWebsite(selectedId, data);
-    clearSelected();
-  };
-
-  return (
-    <section>
-      <div className="form">
-        {selected ? (
-          <EditForm
-            callback={callback}
-            cancelSelected={clearSelected}
-            deleteSelected={handleDelete}
-            editSelected={handleEdit}
-            fields={fields}
-            selected={selected}
-            transform={transform}
-          />
-        ) : (
-          <AddForm
-            addItem={addWebsite}
-            callback={callback}
-            cancelSelected={clearSelected}
-            fields={fields}
-            transform={transform}
-          />
-        )}
-      </div>
-      <List
-        itemDetails={itemDetails(unpermissionedIds)}
-        list={list}
-        select={handleSelect}
-        selectedId={selectedId}
-        toId={toId}
-        toggleEnabled={toggleWebsiteEnabled}
-      />
-    </section>
-  );
-};
+export const Websites = ({ list, unpermissionedIds = [] }) => (
+  <Collection
+    actions={actions}
+    callback={callback}
+    fields={fields}
+    itemDetails={itemDetails(unpermissionedIds)}
+    list={list}
+    transform={transform}
+  />
+);

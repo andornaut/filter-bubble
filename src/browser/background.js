@@ -56,20 +56,23 @@ const setBadge = (tabId, count) => {
  *   - prefix, followed by a non-word character
  *   - suffix, preceded by a non-word character
  *   - internal, but surrounded by non-words characters
+ * Lookarounds rather than `\b`: `\b` requires a word character on its inner
+ * side, so it could never match against a topic edge that is itself a non-word
+ * character (e.g. "c++"). `(?<!\w)`/`(?!\w)` enforce the same non-word context
+ * regardless of the edge character.
  */
 const toPattern = (topicsList) =>
   Array.from(
     new Set(
       topicsList
         .filter(({ enabled }) => enabled)
-        .map(({ text }) => text)
-        .flat()
+        .flatMap(({ text }) => text)
         // Escape special characters (edited to avoid an unnecessary "\" escape character):
         // https://stackoverflow.com/a/17886301
         .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
     ),
   )
-    .map((phrase) => `(?:\\b${phrase}\\b)`)
+    .map((phrase) => `(?:(?<!\\w)${phrase}(?!\\w))`)
     .join("|");
 
 // =============================================================================

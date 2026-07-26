@@ -260,9 +260,9 @@ describe("toPattern", () => {
     expect(toPattern([{ enabled: false, text: "spoilers" }])).toBe("");
   });
 
-  it("wraps each enabled topic in word boundaries", () => {
+  it("wraps each enabled topic in non-word lookarounds", () => {
     expect(toPattern([{ enabled: true, text: "spoilers" }])).toBe(
-      "(?:\\bspoilers\\b)",
+      "(?:(?<!\\w)spoilers(?!\\w))",
     );
   });
 
@@ -272,7 +272,7 @@ describe("toPattern", () => {
         { enabled: true, text: "spoilers" },
         { enabled: true, text: "politics" },
       ]),
-    ).toBe("(?:\\bspoilers\\b)|(?:\\bpolitics\\b)");
+    ).toBe("(?:(?<!\\w)spoilers(?!\\w))|(?:(?<!\\w)politics(?!\\w))");
   });
 
   it("deduplicates repeated topics", () => {
@@ -281,13 +281,28 @@ describe("toPattern", () => {
         { enabled: true, text: "spoilers" },
         { enabled: true, text: "spoilers" },
       ]),
-    ).toBe("(?:\\bspoilers\\b)");
+    ).toBe("(?:(?<!\\w)spoilers(?!\\w))");
   });
 
   it("escapes regex metacharacters in topic text", () => {
     expect(toPattern([{ enabled: true, text: "c++" }])).toBe(
-      "(?:\\bc\\+\\+\\b)",
+      "(?:(?<!\\w)c\\+\\+(?!\\w))",
     );
+  });
+
+  it("matches topics with non-word edge characters as whole tokens", () => {
+    // `\b` could never match against a non-word edge, hence the lookarounds.
+    const regex = new RegExp(toPattern([{ enabled: true, text: "c++" }]), "i");
+    expect(regex.test("I love c++ dearly")).toBe(true);
+    expect(regex.test("ends with c++")).toBe(true);
+    expect(regex.test("abc++")).toBe(false);
+    expect(regex.test("c++x")).toBe(false);
+  });
+
+  it("does not let a symbol-only topic match inside words or numbers", () => {
+    const regex = new RegExp(toPattern([{ enabled: true, text: "-" }]), "i");
+    expect(regex.test("2026-07-26")).toBe(false);
+    expect(regex.test("a - b")).toBe(true);
   });
 
   it("produces a pattern that matches whole words only", () => {

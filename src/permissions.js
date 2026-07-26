@@ -9,78 +9,64 @@ const toPermissions = (addresses) => ({
   origins: addresses.map((address) => `*://${address}/*`),
 });
 
-const getPermissionsFromState = (state) => {
-  const addresses = state.websites.list.reduce((accumulator, current) => {
-    accumulator.push(...current.addresses);
-    return accumulator;
-  }, []);
-
-  return toPermissions(addresses);
-};
-
-const requestPermissions = (permissions) =>
-  chrome.permissions.request(permissions).then((granted) =>
-    // The request may cover only a subset of websites, so recompute the global
-    // and per-website flags from the full state rather than trusting `granted`
-    // for the global banner. Return `granted` for the caller.
-    Promise.all([
-      checkPermissions(getState()).catch(() => {}),
-      checkWebsitePermissions(getState()),
-    ]).then(() => granted),
-  );
-
-export const checkPermissions = (state) =>
-  chrome.permissions
-    .contains(getPermissionsFromState(state))
-    .then(setHasPermissions);
+const getPermissionsFromState = (state) =>
+  toPermissions(state.websites.list.flatMap((website) => website.addresses));
 
 // Ids of enabled websites whose host permission is not yet granted. Disabled
 // websites are excluded: the background never filters them, so they need no
-// permission. The app only ever requests `*://<addr>/*` origins, so a single
-// getAll() plus exact membership (or a broad `<all_urls>` / `*://*/*` grant)
-// matches what a per-website contains() would report, without one call per
-// website. If getAll() rejects, fall back to per-website contains() so the
-// flags are still recomputed rather than left stale.
-const unpermissionedEnabledIds = (state) => {
+// permission. A single getAll() with exact origin membership is the fast path
+// (the app only ever requests `*://<addr>/*` origins); websites it does not
+// cover are confirmed with contains(), which honors match-pattern subsumption,
+// so a broader grant made in the browser's own UI (e.g. `*://*.example.com/*`)
+// still counts. If getAll() rejects, every website falls through to contains().
+const unpermissionedEnabledIds = async (state) => {
   const enabled = state.websites.list.filter((website) => website.enabled);
-  return chrome.permissions
+  const isExactlyGranted = await chrome.permissions
     .getAll()
     .then(({ origins = [] }) => {
       const granted = new Set(origins);
       const broad = granted.has("<all_urls>") || granted.has("*://*/*");
-      const isGranted = (website) =>
+      return (website) =>
         broad ||
         website.addresses.every((address) => granted.has(`*://${address}/*`));
-      return enabled
-        .filter((website) => !isGranted(website))
-        .map((website) => website.id);
     })
-    .catch(() =>
-      Promise.all(
-        enabled.map((website) =>
-          chrome.permissions
-            .contains(toPermissions(website.addresses))
-            .then((granted) => ({ granted, id: website.id })),
-        ),
-      ).then((results) =>
-        results.filter((result) => !result.granted).map((result) => result.id),
-      ),
-    );
+    .catch(() => () => false);
+  const suspects = enabled.filter((website) => !isExactlyGranted(website));
+  const results = await Promise.all(
+    suspects.map((website) =>
+      chrome.permissions
+        .contains(toPermissions(website.addresses))
+        .then((granted) => ({ granted, id: website.id })),
+    ),
+  );
+  return results.filter((result) => !result.granted).map((result) => result.id);
 };
 
-// Flag enabled websites whose host permission is not yet granted so the list
-// can warn about them individually.
-export const checkWebsitePermissions = (state) =>
+// Recompute the global banner flag and the per-website warnings from one
+// permission sweep. Both count only enabled websites. Swallows+logs failures so
+// callers can fire-and-forget.
+export const checkAllPermissions = (state) =>
   unpermissionedEnabledIds(state)
-    .then(setUnpermissionedWebsiteIds)
+    .then((ids) => {
+      setHasPermissions(ids.length === 0);
+      setUnpermissionedWebsiteIds(ids);
+    })
     .catch((err) =>
-      console.error("filter-bubble: website permission check failed:", err),
+      console.error("filter-bubble: permission check failed:", err),
     );
 
 // Resolve to whether every enabled website's host permission is already
 // granted, without mutating state.
 export const hasEnabledPermissions = (state) =>
   unpermissionedEnabledIds(state).then((ids) => ids.length === 0);
+
+const requestPermissions = (permissions) =>
+  chrome.permissions.request(permissions).then((granted) =>
+    // The request may cover only a subset of websites, so recompute the flags
+    // from the full state rather than trusting `granted` for the banner.
+    // Return `granted` for the caller.
+    checkAllPermissions(getState()).then(() => granted),
+  );
 
 export const requestPermissionsFromAddresses = (addresses) =>
   requestPermissions(toPermissions(addresses));
