@@ -42,7 +42,9 @@
   class FilterBubble {
     constructor() {
       // This state is reset in `this.disable()`
+      this.bodyRetryTimer = null;
       this.count = 0;
+      this.debounceTimer = null;
       this.pending = false;
       this.queued = false;
       this.regex = null;
@@ -54,6 +56,12 @@
     }
 
     disable() {
+      this._cancelBodyRetry();
+      // Cancel the debounce timer along with resetting `pending`: left alone,
+      // it would fire after a subsequent enable() and clear `pending` early,
+      // defeating the throttle.
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
       this.observer.disconnect();
       this._removeFilters();
 
@@ -65,11 +73,14 @@
     }
 
     enable(state, retries = 0) {
+      // A new enable or disable supersedes any pending body retry, which would
+      // otherwise fire later and re-apply the state it captured.
+      this._cancelBodyRetry();
       if (!document.body) {
         // document.body can be null on the first onUpdated.status===loading event.
         // Try again in a bit, but give up after MAX_BODY_RETRIES attempts.
         if (retries < BODY_MAX_RETRIES) {
-          setTimeout(
+          this.bodyRetryTimer = setTimeout(
             this.enable.bind(this, state, retries + 1),
             BODY_RETRY_DELAY_MS,
           );
@@ -122,6 +133,11 @@
       this._runFiltering();
     }
 
+    _cancelBodyRetry() {
+      clearTimeout(this.bodyRetryTimer);
+      this.bodyRetryTimer = null;
+    }
+
     _runFiltering() {
       // Throttle updates to once per DEBOUNCE_DELAY_MS.
       if (this.pending) {
@@ -132,7 +148,7 @@
       this.queued = false;
 
       this._setCount(this._filterContent());
-      setTimeout(() => {
+      this.debounceTimer = setTimeout(() => {
         this.pending = false;
         if (this.queued) {
           this._runFiltering();
@@ -148,7 +164,7 @@
       chrome.runtime
         .sendMessage({
           command: "count",
-          data: { count: this.count, tabId: this.state.tabId },
+          data: { count: this.count },
         })
         .catch((err) => {
           console.error("filter-bubble: sendMessage(count) failed:", err);
