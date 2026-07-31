@@ -30,7 +30,6 @@ const enable = (overrides = {}) =>
     filterMode: "hide",
     pattern: toPattern("banana"),
     selectors: [".post"],
-    tabId: 7,
     ...overrides,
   });
 
@@ -72,7 +71,7 @@ describe("FilterBubble.enable", () => {
 
     expect(sendMessage).toHaveBeenCalledWith({
       command: "count",
-      data: { count: 2, tabId: 7 },
+      data: { count: 2 },
     });
   });
 
@@ -158,5 +157,45 @@ describe("FilterBubble.disable", () => {
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);
     expect(el.classList.contains("filter-bubble--hide")).toBe(false);
+  });
+});
+
+describe("FilterBubble body retry", () => {
+  // Fake timers plus runOnlyPendingTimers() make the retry deterministic
+  // without depending on the retry interval's value.
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("retries until document.body exists, then filters", () => {
+    const body = document.body;
+    body.remove();
+    enable(); // document.body is null: schedules a retry instead of filtering
+
+    document.documentElement.appendChild(body);
+    body.innerHTML = `<div class="post">banana</div>`;
+    jest.runOnlyPendingTimers();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
+  it("cancels a pending retry on disable(), so stale state is not re-applied", () => {
+    const body = document.body;
+    body.remove();
+    enable();
+    window.filterBubble.disable();
+
+    document.documentElement.appendChild(body);
+    body.innerHTML = `<div class="post">banana</div>`;
+    jest.runOnlyPendingTimers();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

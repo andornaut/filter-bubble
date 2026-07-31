@@ -82,16 +82,17 @@ const toPattern = (topicsList) =>
 const updateTab = async (
   { forceHighlight = false, pattern = "", websitesList = [] },
   { id: tabId, url: tabUrl },
-  alwaysDisable = false,
+  disableWhenUnmatched = true,
 ) => {
   const website = matchedWebsite(websitesList, tabUrl);
 
   // `pattern` is empty string when the extension is first installed or if all topics are disabled.
   // Exit early to avoid matching against empty string regex, which matches every string.
   if (!website || !pattern) {
-    if (SCHEME_REGEX.test(tabUrl) && alwaysDisable) {
-      // Always `disable` when resetting the current tab to handle the case where the website that matches the current
-      // tab was deleted from `state.websiteList`, or if the selectors on the current tab have changed.
+    if (SCHEME_REGEX.test(tabUrl) && disableWhenUnmatched) {
+      // Disable by default: the tab may have been filtered under earlier state (website deleted, selectors changed,
+      // topics disabled), and this event may be its only repair opportunity. Callers that will get a later event for
+      // the same navigation can defer the disable to it.
       //
       // Catch the following error, which usually occurs if `content-script.js` is not installed
       // on the tab, but we attempt to send a message to it anyway in case the script /was/
@@ -124,10 +125,7 @@ const updateTab = async (
   }
 
   // Response is sometimes `undefined || [undefined] || [null]`
-  response = response || [];
-  response = response[0] || {};
-  response = response.result || {};
-  const { isInstalled = false } = response;
+  const { isInstalled = false } = response?.[0]?.result || {};
   if (!isInstalled) {
     // Use the chrome.scripting API to add the stylesheet, because the content-script may be prevented from doing so
     // by CSP rules:
@@ -149,25 +147,37 @@ const updateTab = async (
   chrome.tabs
     .sendMessage(tabId, {
       command: "enable",
-      data: {
-        filterMode,
-        pattern,
-        selectors,
-        tabId,
-      },
+      data: { filterMode, pattern, selectors },
     })
     .catch((err) => {
       console.error("filter-bubble: sendMessage(enable) failed:", err);
     });
 };
 
-const resetCurrentTab = async (state) => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  // `tab` can be undefined when focused on a separate window to eg. inspect the extension background page.
-  if (tab && tab.url) {
-    updateTab(state, tab, true);
-  }
-};
+// Re-evaluate the active tab matched by `query` against the current state;
+// `updateTab` disables stale filters by default.
+// Known race, accepted: on Firefox (no `tab.pendingUrl`), `tabs.query` during
+// a navigation can resolve with the outgoing document's URL, and a disable
+// computed from it can land after a newer enable, stripping live filters until
+// the next tab event repairs them. Messages carry no sequence token, so a
+// stale disable cannot be detected; closing the race requires adding one.
+const resetActiveTab = (state, query) =>
+  chrome.tabs
+    .query({ active: true, ...query })
+    .then(([tab]) => {
+      // `tab` can be undefined when focused on a separate window to eg. inspect the extension background page.
+      // Skip pre-commit states, where `tab.url` still holds the outgoing document's URL while `tab.pendingUrl`
+      // (Chrome-only) holds the in-flight one; `onUpdated` fires once the navigation commits.
+      if (tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url)) {
+        updateTab(state, tab);
+      }
+    })
+    .catch((err) => {
+      console.error("filter-bubble: tabs.query() failed:", err);
+    });
+
+const resetCurrentTab = (state) =>
+  resetActiveTab(state, { currentWindow: true });
 
 // =============================================================================
 // State
@@ -258,10 +268,15 @@ chrome.runtime.onConnect.addListener((port) => {
   setForceHighlight(true);
 });
 
-// Receive messages from `content-script.js`.
-chrome.runtime.onMessage.addListener(({ command, data }) => {
+// Receive messages from `content-script.js`. `sender.tab` identifies the
+// content script's tab, so the payload does not need to carry a tab id.
+chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
   if (command === "count") {
-    setBadge(data.tabId, data.count);
+    // `sender.tab` is only set for content-script senders; ignore other
+    // contexts rather than throwing.
+    if (sender.tab) {
+      setBadge(sender.tab.id, data.count);
+    }
   } else {
     console.error(`filter-bubble: Unknown command: ${command}`);
   }
@@ -273,18 +288,7 @@ chrome.runtime.onMessage.addListener(({ command, data }) => {
 // When loading the extension on an existing tab, it's possible that onUpdated
 // isn't called, but that onActivated will be.
 chrome.tabs.onActivated.addListener(
-  whenReady(({ windowId }) => {
-    chrome.tabs
-      .query({ active: true, windowId })
-      .then(([tab]) => {
-        if (tab && tab.url) {
-          updateTab(state, tab);
-        }
-      })
-      .catch((err) => {
-        console.error("filter-bubble: onActivated tabs.query() failed:", err);
-      });
-  }),
+  whenReady(({ windowId }) => resetActiveTab(state, { windowId })),
 );
 
 // Called when a tab metadata, such as its loading state or URL, changes.
@@ -307,9 +311,9 @@ chrome.tabs.onUpdated.addListener(
     }
     // The "complete" pass repairs an injection that raced the navigation and
     // ran in the outgoing document: it re-enables when the tab matches a
-    // website, and always disables when it doesn't (Firefox lacks
-    // `pendingUrl`, so a raced injection can have applied another site's
-    // rules to this tab).
-    updateTab(state, tab, changeInfo.status === "complete");
+    // website, and disables when it doesn't (Firefox lacks `pendingUrl`, so a
+    // raced injection can have applied another site's rules to this tab). The
+    // "loading" pass skips the disable, deferring that repair to "complete".
+    updateTab(state, tab, changeInfo.status !== "loading");
   }),
 );

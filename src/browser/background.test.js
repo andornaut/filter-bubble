@@ -251,6 +251,48 @@ describe("tabs.onUpdated listener", () => {
   });
 });
 
+describe("runtime.onMessage listener", () => {
+  let onMessage;
+  let setBadgeText;
+
+  // Re-evaluate the source to capture the registered listener, so these tests
+  // exercise the shipped badge-count handling.
+  beforeEach(() => {
+    setBadgeText = jest.fn(() => Promise.resolve());
+    const mock = {
+      ...chromeMock,
+      action: { setBadgeText },
+      runtime: {
+        ...chromeMock.runtime,
+        onMessage: {
+          addListener: (listener) => {
+            onMessage = listener;
+          },
+        },
+      },
+    };
+    new Function("chrome", source)(mock);
+  });
+
+  it("sets the badge for the sender's tab on a count message", () => {
+    onMessage({ command: "count", data: { count: 3 } }, { tab: { id: 7 } });
+
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 7, text: "3" });
+  });
+
+  it("clears the badge when the count is zero", () => {
+    onMessage({ command: "count", data: { count: 0 } }, { tab: { id: 7 } });
+
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 7, text: "" });
+  });
+
+  it("ignores a count message from a sender without a tab", () => {
+    onMessage({ command: "count", data: { count: 3 } }, {});
+
+    expect(setBadgeText).not.toHaveBeenCalled();
+  });
+});
+
 describe("toPattern", () => {
   it("returns an empty string when there are no topics", () => {
     expect(toPattern([])).toBe("");

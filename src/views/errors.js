@@ -3,7 +3,7 @@ import { sortByDateDesc } from "../helpers";
 
 const CLEAR_LABEL = "Clear message";
 
-const Error = ({ item }) => {
+const ErrorItem = ({ item }) => {
   const id = toId(item);
   const handleDelete = () => clearError(id);
   return (
@@ -29,7 +29,7 @@ export const Errors = ({ errors }) => {
   return (
     <ul className="errors">
       {sortByDateDesc(list).map((item) => (
-        <Error item={item} key={toId(item)} />
+        <ErrorItem item={item} key={toId(item)} />
       ))}
     </ul>
   );
