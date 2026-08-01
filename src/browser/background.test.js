@@ -136,6 +136,130 @@ describe("matchedWebsite", () => {
   });
 });
 
+describe("active tab re-evaluation", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // Re-evaluate the source against a mock whose active tab is `tab`, then clear
+  // the mocks: initialization runs `resetCurrentTab` through the same
+  // `tabs.query`, so without this the assertions would pass on the
+  // initialization pass alone and never exercise a listener.
+  const evaluate = async (tab) => {
+    const executeScript = jest
+      .fn()
+      .mockResolvedValue([{ result: { isInstalled: true } }]);
+    const sendMessage = jest.fn(() => Promise.resolve());
+    let onActivated;
+    let onChanged;
+    const mock = {
+      ...chromeMock,
+      scripting: { ...chromeMock.scripting, executeScript },
+      storage: {
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+        sync: {
+          get: () =>
+            Promise.resolve({
+              schema: 2,
+              "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+              "w:9": {
+                addresses: ["reddit.com"],
+                enabled: true,
+                id: "9",
+                selectors: [".post"],
+              },
+            }),
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        onActivated: {
+          addListener: (listener) => {
+            onActivated = listener;
+          },
+        },
+        query: () => Promise.resolve([tab]),
+        sendMessage,
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+    executeScript.mockClear();
+    sendMessage.mockClear();
+    return { executeScript, onActivated, onChanged, sendMessage };
+  };
+
+  it("onActivated injects the content script for a settled matching tab", async () => {
+    const { executeScript, onActivated } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+  });
+
+  it("onActivated disables filtering for a settled unmatched tab", async () => {
+    const { onActivated, sendMessage } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://example.org/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  // `tab.url` can still hold the outgoing document's URL while a tab is
+  // loading, so a disable computed from it would strip the incoming
+  // document's filters. The `onUpdated` "complete" pass makes the call instead.
+  it("onActivated does not disable a loading tab that matches no website", async () => {
+    const { executeScript, onActivated, sendMessage } = await evaluate({
+      id: 1,
+      status: "loading",
+      url: "https://example.org/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  // Only the disable defers: a page that never finishes loading would
+  // otherwise never be filtered.
+  it("onActivated injects the content script for a loading tab that matches", async () => {
+    const { executeScript, onActivated } = await evaluate({
+      id: 1,
+      status: "loading",
+      url: "https://reddit.com/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+  });
+
+  // A storage change gets no `onUpdated` pass of its own, so it must not defer:
+  // a stalled load reports "loading" indefinitely, which would leave the user's
+  // just-removed topics still filtering the page.
+  it("a storage change disables a loading tab that matches no website", async () => {
+    const { onChanged, sendMessage } = await evaluate({
+      id: 1,
+      status: "loading",
+      url: "https://example.org/",
+    });
+    onChanged({}, "sync");
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+});
+
 describe("tabs.onUpdated listener", () => {
   const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 

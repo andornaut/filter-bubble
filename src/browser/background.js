@@ -154,14 +154,21 @@ const updateTab = async (
     });
 };
 
-// Re-evaluate the active tab matched by `query` against the current state;
-// `updateTab` disables stale filters by default.
-// Known race, accepted: on Firefox (no `tab.pendingUrl`), `tabs.query` during
-// a navigation can resolve with the outgoing document's URL, and a disable
-// computed from it can land after a newer enable, stripping live filters until
-// the next tab event repairs them. Messages carry no sequence token, so a
-// stale disable cannot be detected; closing the race requires adding one.
-const resetActiveTab = (state, query) =>
+// Re-evaluate the active tab matched by `query` against the current state.
+// `deferDisableWhileLoading` skips the disable for a tab that is still loading,
+// leaving that call to the navigation's `onUpdated` "complete" pass, which is
+// the only pass that disables. A load that never completes therefore never gets
+// the deferred disable, so callers whose own repair opportunity this is must
+// leave it unset.
+//
+// Residual race, accepted: a navigation that starts after `tabs.query` resolves,
+// or one in flight on Firefox (no `tab.pendingUrl`), leaves `tab.url` holding the
+// outgoing document's URL. A disable computed from it can land after a newer
+// enable and strip live filters, and an enable can apply the outgoing site's
+// selectors to the new document, until the next tab event repairs either.
+// Messages carry no sequence token, so a stale one cannot be detected; closing
+// the race requires adding one.
+const resetActiveTab = (state, query, deferDisableWhileLoading = false) =>
   chrome.tabs
     .query({ active: true, ...query })
     .then(([tab]) => {
@@ -169,7 +176,11 @@ const resetActiveTab = (state, query) =>
       // Skip pre-commit states, where `tab.url` still holds the outgoing document's URL while `tab.pendingUrl`
       // (Chrome-only) holds the in-flight one; `onUpdated` fires once the navigation commits.
       if (tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url)) {
-        updateTab(state, tab);
+        updateTab(
+          state,
+          tab,
+          !(deferDisableWhileLoading && tab.status === "loading"),
+        );
       }
     })
     .catch((err) => {
@@ -287,8 +298,13 @@ chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
 // Called when the active tab in a window changes.
 // When loading the extension on an existing tab, it's possible that onUpdated
 // isn't called, but that onActivated will be.
+// Defer the disable while the tab is loading: activating a tab mid-navigation
+// is the likeliest way to read a stale `tab.url`, and the navigation's
+// `onUpdated` "complete" pass makes the call instead. A load that never
+// completes keeps stale filters until the tab settles, accepted as the narrower
+// failure of the two.
 chrome.tabs.onActivated.addListener(
-  whenReady(({ windowId }) => resetActiveTab(state, { windowId })),
+  whenReady(({ windowId }) => resetActiveTab(state, { windowId }, true)),
 );
 
 // Called when a tab metadata, such as its loading state or URL, changes.
