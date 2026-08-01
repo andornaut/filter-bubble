@@ -172,6 +172,10 @@ const ensureV2 = async (raw) => {
 
 const sweepTombstones = async () => {
   const cutoff = Date.now() - TOMBSTONE_MAX_AGE_MS;
+  // Every write sets `modifiedDate`, so an unparseable one cannot arise here.
+  // Comparing NaN is always false, which retains such a tombstone rather than
+  // sweeping it: the safe direction, since sweeping resurrects the item from
+  // any device that still holds it live.
   const stale = Object.keys(store).filter((key) => {
     const value = store[key];
     return value && value.deleted && Date.parse(value.modifiedDate) < cutoff;

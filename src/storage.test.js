@@ -245,6 +245,35 @@ describe("fromStorage", () => {
 
     expect(remove).toHaveBeenCalledWith(["t:old"]);
   });
+
+  it("retains a tombstone it cannot age", async () => {
+    // Not reachable through `toStorage`, which always writes a `modifiedDate`.
+    // Retaining is the safe direction: sweeping resurrects the item from any
+    // device that still holds it live.
+    get.mockResolvedValue({
+      schema: 2,
+      "t:missing": { deleted: true, id: "missing" },
+    });
+
+    await fromStorage();
+
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("retains a tombstone inside the retention window", async () => {
+    get.mockResolvedValue({
+      schema: 2,
+      "t:recent": {
+        deleted: true,
+        id: "recent",
+        modifiedDate: new Date().toJSON(),
+      },
+    });
+
+    await fromStorage();
+
+    expect(remove).not.toHaveBeenCalled();
+  });
 });
 
 // Seed the module store via a v2 read, then clear the write mocks.
