@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getState } from "statezero/src";
 
+import { toggleDisabled } from "../actions/settings";
 import { downloadJson, exportFilename } from "../export";
 import { HELP_HTML } from "./hints";
 
@@ -8,7 +9,7 @@ import { HELP_HTML } from "./hints";
 // OS file dialog opens, which would abort the import, and a tab does not.
 const IMPORT_HASH = "#import";
 
-export const Footer = () => {
+export const Footer = ({ isDisabled }) => {
   const [showHelp, setShowHelp] = useState(false);
   const contentRef = useRef(null);
 
@@ -60,7 +61,12 @@ export const Footer = () => {
       .finally(() => window.close());
   };
 
+  const handleToggleDisabled = () => toggleDisabled();
+
   const label = showHelp ? "Hide help" : "Show help";
+  const toggleDisabledClassName = `btn footer__toggle ${
+    isDisabled ? "footer__toggle--disabled" : ""
+  }`.trim();
   return (
     <section className="footer">
       {showHelp && <div ref={contentRef}>{HELP_HTML}</div>}
@@ -77,6 +83,14 @@ export const Footer = () => {
           {label}
         </a>
       </div>
+      <button
+        className={toggleDisabledClassName}
+        onClick={handleToggleDisabled}
+        title="Turn all filtering on or off in this browser"
+        type="button"
+      >
+        {isDisabled ? "Enable Filter Bubble" : "Disable Filter Bubble"}
+      </button>
     </section>
   );
 };

@@ -15,6 +15,7 @@ const chromeMock = {
   },
   scripting: { executeScript: noopPromise, insertCSS: noopPromise },
   storage: {
+    local: { get: () => Promise.resolve({}) },
     onChanged: { addListener: () => {} },
     sync: { get: () => Promise.resolve({}) },
   },
@@ -172,7 +173,9 @@ describe("active tab re-evaluation", () => {
   // the mocks: initialization runs `resetCurrentTab` through the same
   // `tabs.query`, so without this the assertions would pass on the
   // initialization pass alone and never exercise a listener.
-  const evaluate = async (tab) => {
+  // `localStore` backs `storage.local` and is returned so a test can flip the
+  // master switch and then fire the corresponding `onChanged` event.
+  const evaluate = async (tab, localStore = {}) => {
     const executeScript = jest
       .fn()
       .mockResolvedValue([{ result: { isInstalled: true } }]);
@@ -183,6 +186,7 @@ describe("active tab re-evaluation", () => {
       ...chromeMock,
       scripting: { ...chromeMock.scripting, executeScript },
       storage: {
+        local: { get: () => Promise.resolve({ ...localStore }) },
         onChanged: {
           addListener: (listener) => {
             onChanged = listener;
@@ -217,7 +221,7 @@ describe("active tab re-evaluation", () => {
     await flush();
     executeScript.mockClear();
     sendMessage.mockClear();
-    return { executeScript, onActivated, onChanged, sendMessage };
+    return { executeScript, localStore, onActivated, onChanged, sendMessage };
   };
 
   it("onActivated injects the content script for a settled matching tab", async () => {
@@ -286,6 +290,41 @@ describe("active tab re-evaluation", () => {
     onChanged({}, "sync");
     await flush();
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  it("disables a matching tab while the master switch is on", async () => {
+    const { executeScript, onActivated, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { disabled: true },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  it("re-reads state when the master switch changes in storage.local", async () => {
+    const { localStore, onChanged, sendMessage } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    localStore.disabled = true;
+    onChanged({ disabled: { newValue: true } }, "local");
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  it("ignores unrelated storage.local changes", async () => {
+    const { executeScript, onChanged, sendMessage } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onChanged({ someOtherKey: { newValue: true } }, "local");
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });
 
