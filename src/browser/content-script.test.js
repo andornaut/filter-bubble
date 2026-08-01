@@ -75,6 +75,32 @@ describe("FilterBubble.enable", () => {
     });
   });
 
+  it("counts an element matched by two selectors once", () => {
+    document.body.innerHTML = `<div class="post thing">banana</div>`;
+    enable({ selectors: [".post", ".thing"] });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 1 },
+    });
+  });
+
+  it("counts a filtered container and its filtered descendant once", () => {
+    // Hiding the outer element already takes the inner one out of view, so the
+    // pair is one filtered block to the reader.
+    document.body.innerHTML = `
+      <article class="post"><div class="thing">banana</div></article>`;
+    enable({ selectors: [".post", ".thing"] });
+
+    expect(document.querySelector(".thing").classList).toContain(
+      "filter-bubble",
+    );
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 1 },
+    });
+  });
+
   it("skips filtering when the pattern is empty", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable({ pattern: "" });
@@ -185,6 +211,45 @@ describe("FilterBubble re-filtering", () => {
 
     const el = newBody.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
+  it("keeps a filtered container filtered when its text stops matching", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+    sendMessage.mockClear();
+
+    // Filtering is sticky. A page that recycles this node for other content
+    // leaves it hidden, which is the accepted trade: re-testing would release
+    // any container that is transiently non-matching mid-update and show
+    // content the user asked to hide. Only a full reset releases it.
+    el.textContent = "something else entirely";
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+    // Still filtered, so still counted.
+    expect(sendMessage).not.toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 0 },
+    });
+  });
+
+  it("releases a stale filter on the next state change", async () => {
+    // The escape hatch for the stickiness above: a pattern or selector change
+    // resets every container and re-tests from scratch.
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    el.textContent = "something else entirely";
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+
+    enable({ pattern: toPattern("cherry") });
+
+    expect(el.classList.contains("filter-bubble")).toBe(false);
   });
 
   it("re-applies filters on a duplicate enable() after the page strips classes", async () => {
