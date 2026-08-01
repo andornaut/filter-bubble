@@ -38,6 +38,32 @@
   const remove = (el) => {
     el.classList.add(CSS_BLOCK, CSS_REMOVE_MODIFIER);
   };
+  const unfilter = (el) => {
+    el.classList.remove(
+      CSS_BLOCK,
+      CSS_HIDE_MODIFIER,
+      CSS_HIGHLIGHT_MODIFIER,
+      CSS_REMOVE_MODIFIER,
+    );
+  };
+
+  // Count only the outermost filtered elements. Overlapping selectors can match
+  // both a container and something inside it (e.g. "article" and ".thing"), but
+  // hiding the outer one already takes the inner one out of view, so the pair is
+  // one filtered block to the reader and must count as one on the badge.
+  const countOutermost = (elements) => {
+    let count = 0;
+    for (const el of elements) {
+      let ancestor = el.parentElement;
+      while (ancestor && !elements.has(ancestor)) {
+        ancestor = ancestor.parentElement;
+      }
+      if (!ancestor) {
+        count += 1;
+      }
+    }
+    return count;
+  };
 
   class FilterBubble {
     constructor() {
@@ -194,7 +220,10 @@
         fn = remove;
       }
 
-      let count = 0;
+      // Collect into a Set so an element matched by more than one selector is
+      // filtered and counted once: the badge reports filtered elements, not
+      // selector hits.
+      const matched = new Set();
       for (const selector of selectors) {
         let containers;
         try {
@@ -207,27 +236,41 @@
           continue;
         }
         for (const container of containers) {
+          if (matched.has(container)) {
+            continue;
+          }
+          // Filtering is sticky: an already-filtered container is counted and
+          // skipped rather than re-tested. It is only released by a full reset,
+          // which a pattern or selector change performs.
+          //
+          // Accepted limitation: a page that recycles DOM nodes can refill a
+          // filtered container with content that does not match, and it stays
+          // hidden. Re-testing to release it is worse, because the decision has
+          // to be made from one synchronous `textContent` read with no way to
+          // know the DOM has settled. Any container that is transiently
+          // non-matching mid-update (a title node swapped out while its metadata
+          // remains) is then revealed, showing content the user asked to hide,
+          // and in `remove` mode restoring the container's height can prompt a
+          // virtualized feed to render into it and start the cycle again.
+          // Over-hiding is the lesser failure for this extension. Releasing
+          // safely means driving this pass from the observer's MutationRecords
+          // so a container is only re-tested when its own subtree changed.
           if (container.classList.contains(CSS_BLOCK)) {
-            count += 1;
+            matched.add(container);
             continue;
           }
           if (this.regex.test(container.textContent)) {
             fn(container);
-            count += 1;
+            matched.add(container);
           }
         }
       }
-      return count;
+      return countOutermost(matched);
     }
 
     _removeFilters() {
       for (const el of document.querySelectorAll(`.${CSS_BLOCK}`)) {
-        el.classList.remove(
-          CSS_BLOCK,
-          CSS_HIDE_MODIFIER,
-          CSS_HIGHLIGHT_MODIFIER,
-          CSS_REMOVE_MODIFIER,
-        );
+        unfilter(el);
       }
     }
   }
