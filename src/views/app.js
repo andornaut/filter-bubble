@@ -41,7 +41,7 @@ export const App = ({ hash, state }) => {
           unpermissionedIds={state.unpermissionedWebsiteIds}
         />
       )}
-      <Footer />
+      <Footer isDisabled={state.isDisabled} />
     </div>
   );
 };

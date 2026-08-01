@@ -11,6 +11,9 @@ const SCHEME_REGEX = /^(https?)?:\/\//;
 // be imported here (service worker, no bundling).
 const TOPIC_PREFIX = "t:";
 const WEBSITE_PREFIX = "w:";
+// Master on/off switch, held in `storage.local` so it applies to this browser
+// only. Duplicated from src/settings.js, which cannot be imported here either.
+const DISABLED_KEY = "disabled";
 
 // =============================================================================
 // Helpers
@@ -231,18 +234,33 @@ const toLists = (raw) => {
   return { topicsList, websitesList };
 };
 
-const updateState = ({ topicsList = [], websitesList = [] }) => {
-  state.pattern = toPattern(topicsList);
+const updateState = ({
+  isDisabled = false,
+  topicsList = [],
+  websitesList = [],
+}) => {
+  // The master switch clears the pattern rather than the website list, which
+  // reuses the existing "filter nothing" path: `updateTab` then disables every
+  // tab it evaluates instead of injecting. Per-item `enabled` flags are left
+  // untouched, so re-enabling restores the previous configuration.
+  state.pattern = isDisabled ? "" : toPattern(topicsList);
   state.websitesList = websitesList.filter(({ enabled }) => enabled);
   resetCurrentTab(state);
 };
 
 const readState = () =>
-  chrome.storage.sync
-    .get(null)
-    .then((raw) => updateState(toLists(raw || {})))
+  Promise.all([
+    chrome.storage.sync.get(null),
+    chrome.storage.local.get(DISABLED_KEY),
+  ])
+    .then(([raw, local]) =>
+      updateState({
+        ...toLists(raw || {}),
+        isDisabled: (local || {})[DISABLED_KEY] === true,
+      }),
+    )
     .catch((err) => {
-      console.error("filter-bubble: storage.sync.get() failed:", err);
+      console.error("filter-bubble: storage.get() failed:", err);
     });
 
 // Initialize state from storage.
@@ -265,13 +283,17 @@ const whenStateIsReady =
 
 chrome.storage.onChanged.addListener(
   whenStateIsReady((changes, areaName) => {
-    if (areaName !== "sync") {
-      // `areaName` is one of "local", "session", or "managed"
+    if (areaName === "sync") {
+      // A write landed in `storage.sync`: either from the popup or, on desktop,
+      // synced in from another browser instance.
+      readState();
       return;
     }
-    // A write landed in `storage.sync`: either from the popup or, on desktop,
-    // synced in from another browser instance.
-    readState();
+    // The master switch is the only `storage.local` key we track; ignore the
+    // other areas ("session" and "managed") entirely.
+    if (areaName === "local" && DISABLED_KEY in changes) {
+      readState();
+    }
   }),
 );
 

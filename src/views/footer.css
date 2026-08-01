@@ -12,3 +12,14 @@
 .footer__data a:not(:last-child) {
   margin-right: calc(2 * var(--spacing));
 }
+
+.footer__toggle {
+  width: 100%;
+}
+
+/* Paused: the extension is filtering nothing, so make the state hard to miss. */
+.footer__toggle--disabled {
+  background-color: var(--danger-bg-color);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
