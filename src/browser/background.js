@@ -179,9 +179,15 @@ const updateTab = async (
 // or one in flight on Firefox (no `tab.pendingUrl`), leaves `tab.url` holding the
 // outgoing document's URL. A disable computed from it can land after a newer
 // enable and strip live filters, and an enable can apply the outgoing site's
-// selectors to the new document, until the next tab event repairs either.
-// Messages carry no sequence token, so a stale one cannot be detected; closing
-// the race requires adding one.
+// selectors to the new document, until the next tab event repairs either. Two
+// overlapping `updateTab` calls can also finish out of order and leave the older
+// `enable` payload applied. Messages carry no sequence token, so a stale one
+// cannot be detected; closing the race requires adding one.
+//
+// `updateTab` is deliberately not awaited. It awaits `chrome.scripting
+// .executeScript`, which does not settle while the target renderer is blocked
+// (a modal dialog, for instance), so anything that waited on it would stall for
+// as long as that tab is stuck. See the read queue below.
 const resetActiveTab = (state, query, deferDisableWhileLoading = false) =>
   chrome.tabs
     .query({ active: true, ...query })
@@ -248,20 +254,45 @@ const updateState = ({
   resetCurrentTab(state);
 };
 
-const readState = () =>
-  Promise.all([
-    chrome.storage.sync.get(null),
-    chrome.storage.local.get(DISABLED_KEY),
-  ])
-    .then(([raw, local]) =>
-      updateState({
-        ...toLists(raw || {}),
-        isDisabled: (local || {})[DISABLED_KEY] === true,
-      }),
+// Serialize reads: `storage.onChanged` can fire again while a read is in flight,
+// and two concurrent reads can resolve in either order, which would leave
+// `state` holding the older snapshot until some later event repaired it.
+// Chaining makes the last read to start the last to apply. A burst of changes
+// therefore costs one full read each, run back to back rather than overlapped,
+// which is latency rather than a correctness problem: each read fetches
+// everything, so the last one is still authoritative.
+//
+// The queue covers the read and the assignment to `state`, and stops there. It
+// deliberately does not extend through the tab update that `updateState`
+// triggers: that awaits `executeScript`, which does not settle while the target
+// renderer is blocked, and a queue waiting on it would stop applying storage
+// changes entirely for as long as one tab is stuck. The cost of stopping here is
+// the message-ordering race described above `resetActiveTab`, which the next tab
+// event repairs; the cost of not stopping here is edits silently doing nothing.
+let readQueue = Promise.resolve();
+
+const readState = () => {
+  readQueue = readQueue
+    .then(() =>
+      Promise.all([
+        chrome.storage.sync.get(null),
+        chrome.storage.local.get(DISABLED_KEY),
+      ]).then(([raw, local]) =>
+        updateState({
+          ...toLists(raw || {}),
+          isDisabled: (local || {})[DISABLED_KEY] === true,
+        }),
+      ),
     )
+    // Catch on the outer chain, not on the inner one: a synchronous throw from
+    // the callback (e.g. `chrome.storage` on an invalidated extension context)
+    // would otherwise reject `readQueue` and silently drop every read after it,
+    // including the release of the handlers gated on the first read below.
     .catch((err) => {
       console.error("filter-bubble: storage.get() failed:", err);
     });
+  return readQueue;
+};
 
 // Initialize state from storage.
 // n.b. `storage.sync` doesn't actually synchronize between instances of Firefox for Android:
