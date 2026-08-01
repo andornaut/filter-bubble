@@ -315,6 +315,253 @@ describe("active tab re-evaluation", () => {
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
   });
 
+  // Two changes landing back to back each trigger a full re-read. If those
+  // reads run concurrently they can resolve in either order, and the older
+  // snapshot can win and sit in `state` until some later event repairs it.
+  it("applies overlapping storage reads in the order they were triggered", async () => {
+    const resolvers = [];
+    const executeScript = jest
+      .fn()
+      .mockResolvedValue([{ result: { isInstalled: true } }]);
+    const sendMessage = jest.fn(() => Promise.resolve());
+    let onChanged;
+    const mock = {
+      ...chromeMock,
+      scripting: { ...chromeMock.scripting, executeScript },
+      storage: {
+        local: { get: () => Promise.resolve({}) },
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+        sync: {
+          // Hand out a promise per call so the test controls resolution order.
+          get: () =>
+            new Promise((resolve) => {
+              resolvers.push(resolve);
+            }),
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        query: () =>
+          Promise.resolve([
+            { id: 1, status: "complete", url: "https://reddit.com/" },
+          ]),
+        sendMessage,
+      },
+    };
+    new Function("chrome", source)(mock);
+
+    const toSync = (text) => ({
+      schema: 2,
+      "t:1": { enabled: true, id: "1", text: [text] },
+      "w:9": {
+        addresses: ["reddit.com"],
+        enabled: true,
+        id: "9",
+        selectors: [".post"],
+      },
+    });
+
+    // Settle initialization so the listener runs its body rather than queueing.
+    await flush();
+    resolvers.shift()(toSync("first"));
+    await flush();
+    sendMessage.mockClear();
+
+    onChanged({}, "sync");
+    await flush();
+    onChanged({}, "sync");
+    await flush();
+
+    // Only the first read is in flight, so resolving out of order is not even
+    // possible: the second read starts once the first has assigned `state`.
+    expect(resolvers).toHaveLength(1);
+    resolvers.shift()(toSync("older"));
+    await flush();
+    resolvers.shift()(toSync("newer"));
+    await flush();
+
+    // `sendMessage(tabId, message)`, so the message is the second argument.
+    const patterns = sendMessage.mock.calls.map(([, { data }]) => data.pattern);
+    expect(patterns.at(-1)).toContain("newer");
+  });
+
+  // The queue must not extend through the tab update: `updateTab` awaits
+  // `executeScript`, which does not settle while the target renderer is blocked
+  // (a modal dialog, say). A queue waiting on it would stop applying storage
+  // changes for as long as that tab is stuck, which is every topic edit, every
+  // website edit, and the master switch silently doing nothing.
+  it("keeps reading storage while a tab update is stalled", async () => {
+    const get = jest.fn(() =>
+      Promise.resolve({
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:9": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          id: "9",
+          selectors: [".post"],
+        },
+      }),
+    );
+    let onChanged;
+    const mock = {
+      ...chromeMock,
+      scripting: {
+        ...chromeMock.scripting,
+        executeScript: jest.fn(() => new Promise(() => {})), // never settles
+      },
+      storage: {
+        local: { get: () => Promise.resolve({}) },
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+        sync: { get },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        query: () =>
+          Promise.resolve([
+            { id: 1, status: "complete", url: "https://reddit.com/" },
+          ]),
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+    expect(get).toHaveBeenCalledTimes(1);
+
+    onChanged({}, "sync");
+    await flush();
+
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  // Handlers gate on the first read, which does not wait for the tab update it
+  // triggers, so a stalled inject cannot stop tab events from being processed.
+  it("processes tab events while a tab update is still in flight", async () => {
+    const executeScript = jest.fn(() => new Promise(() => {})); // never settles
+    let onUpdated;
+    const mock = {
+      ...chromeMock,
+      scripting: { ...chromeMock.scripting, executeScript },
+      storage: {
+        local: { get: () => Promise.resolve({}) },
+        onChanged: { addListener: () => {} },
+        sync: {
+          get: () =>
+            Promise.resolve({
+              schema: 2,
+              "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+              "w:9": {
+                addresses: ["reddit.com"],
+                enabled: true,
+                id: "9",
+                selectors: [".post"],
+              },
+            }),
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        onUpdated: {
+          addListener: (listener) => {
+            onUpdated = listener;
+          },
+        },
+        query: () =>
+          Promise.resolve([
+            { id: 1, status: "complete", url: "https://reddit.com/" },
+          ]),
+        sendMessage: jest.fn(() => Promise.resolve()),
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+
+    // Initialization's own inject is parked and never settles.
+    expect(executeScript).toHaveBeenCalledTimes(1);
+
+    onUpdated(
+      2,
+      { status: "complete" },
+      { id: 2, status: "complete", url: "https://reddit.com/" },
+    );
+    await flush();
+
+    expect(executeScript).toHaveBeenCalledTimes(2);
+  });
+
+  // `chrome.storage` throws synchronously on an invalidated extension context.
+  // That throw happens in the queue callback itself, before any inner promise
+  // exists, so it must not leave the queue rejected and every later read
+  // chained onto it.
+  it("keeps processing reads after a storage call throws synchronously", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation();
+    const executeScript = jest
+      .fn()
+      .mockResolvedValue([{ result: { isInstalled: true } }]);
+    const sendMessage = jest.fn(() => Promise.resolve());
+    let calls = 0;
+    let onChanged;
+    const mock = {
+      ...chromeMock,
+      scripting: { ...chromeMock.scripting, executeScript },
+      storage: {
+        local: { get: () => Promise.resolve({}) },
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+        sync: {
+          get: () => {
+            calls += 1;
+            if (calls === 1) {
+              throw new Error("Extension context invalidated");
+            }
+            return Promise.resolve({
+              schema: 2,
+              "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+              "w:9": {
+                addresses: ["reddit.com"],
+                enabled: true,
+                id: "9",
+                selectors: [".post"],
+              },
+            });
+          },
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        query: () =>
+          Promise.resolve([
+            { id: 1, status: "complete", url: "https://reddit.com/" },
+          ]),
+        sendMessage,
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+
+    // The failed first read still releases the handlers, so the next storage
+    // change is processed rather than dropped.
+    expect(sendMessage).not.toHaveBeenCalled();
+    onChanged({}, "sync");
+    await flush();
+
+    const [, message] = sendMessage.mock.calls.at(-1);
+    expect(message.command).toBe("enable");
+    expect(consoleError).toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
   it("ignores unrelated storage.local changes", async () => {
     const { executeScript, onChanged, sendMessage } = await evaluate({
       id: 1,
