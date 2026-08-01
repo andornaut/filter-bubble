@@ -84,6 +84,32 @@ describe("FilterBubble.enable", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it("tears down existing filters when the pattern becomes empty", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+    sendMessage.mockClear();
+
+    enable({ pattern: "" });
+
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+    expect(el.classList.contains("filter-bubble--hide")).toBe(false);
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 0 },
+    });
+
+    // The observer is disconnected too, so later content stays unfiltered.
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(added.classList.contains("filter-bubble")).toBe(false);
+  });
+
   it("ignores an invalid selector and still applies valid ones", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable({ selectors: ["::::bad", ".post"] });
@@ -113,7 +139,7 @@ describe("FilterBubble re-filtering", () => {
 
     // The MutationObserver callback fires on a microtask, but the initial
     // enable() pass is still within its 200ms throttle window, so the
-    // re-filter is queued and runs after the debounce elapses.
+    // re-filter is queued and runs after the throttle interval elapses.
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     expect(added.classList.contains("filter-bubble")).toBe(true);

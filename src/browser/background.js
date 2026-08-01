@@ -156,6 +156,8 @@ const updateTab = async (
   chrome.tabs
     .sendMessage(tabId, {
       command: "enable",
+      // Keep this key order stable: the content script detects an unchanged
+      // state by comparing the serialized payload.
       data: { filterMode, pattern, selectors },
     })
     .catch((err) => {

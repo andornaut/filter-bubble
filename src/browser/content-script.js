@@ -7,7 +7,7 @@
   // Configuration constants
   const BODY_MAX_RETRIES = 100; // Max attempts to wait for document.body
   const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
-  const DEBOUNCE_DELAY_MS = 200; // Throttle DOM updates to once per this interval
+  const THROTTLE_DELAY_MS = 200; // Throttle DOM updates to once per this interval
 
   // Cache the most recently compiled pattern. The pattern rarely changes within
   // a tab, so a single entry avoids recompiling on every enable() call without
@@ -44,11 +44,11 @@
       // This state is reset in `this.disable()`
       this.bodyRetryTimer = null;
       this.count = 0;
-      this.debounceTimer = null;
       this.pending = false;
       this.queued = false;
       this.regex = null;
       this.state = {};
+      this.throttleTimer = null;
 
       // Re-filter on any observed mutation. See the observe() config in
       // enable() for why no observed mutation is ever self-caused.
@@ -57,11 +57,11 @@
 
     disable() {
       this._cancelBodyRetry();
-      // Cancel the debounce timer along with resetting `pending`: left alone,
+      // Cancel the throttle timer along with resetting `pending`: left alone,
       // it would fire after a subsequent enable() and clear `pending` early,
       // defeating the throttle.
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = null;
       this.observer.disconnect();
       this._removeFilters();
 
@@ -92,18 +92,28 @@
         return;
       }
 
+      // Empty pattern would match everything - filter nothing. Tear down
+      // rather than return: a bare return would leave filters from the
+      // previous state applied and the observer running against it. Checked
+      // before the duplicate-state comparison below, so that the branch never
+      // has to hold a state whose pattern is empty.
+      if (!state.pattern) {
+        this.disable();
+        return;
+      }
+
       // Duplicate calls, where the state hasn't changed, skip the reset and
       // re-observe below, but still re-run filtering: the observer misses
       // characterData and attribute mutations (e.g. the page rewriting
       // `className` and stripping the filter classes), so these calls are the
       // repair path for them.
+      //
+      // Serialized comparison, so key order matters: the sender must build the
+      // payload with a stable key order (see the `enable` message in
+      // background.js). A reordered payload compares unequal and downgrades
+      // every repeat call to a full reset instead of this repair path.
       if (JSON.stringify(this.state) === JSON.stringify(state)) {
         this._runFiltering();
-        return;
-      }
-
-      // Empty pattern would match everything - skip filtering
-      if (!state.pattern) {
         return;
       }
 
@@ -139,7 +149,7 @@
     }
 
     _runFiltering() {
-      // Throttle updates to once per DEBOUNCE_DELAY_MS.
+      // Throttle updates to once per THROTTLE_DELAY_MS.
       if (this.pending) {
         this.queued = true;
         return;
@@ -148,12 +158,12 @@
       this.queued = false;
 
       this._setCount(this._filterContent());
-      this.debounceTimer = setTimeout(() => {
+      this.throttleTimer = setTimeout(() => {
         this.pending = false;
         if (this.queued) {
           this._runFiltering();
         }
-      }, DEBOUNCE_DELAY_MS);
+      }, THROTTLE_DELAY_MS);
     }
 
     _setCount(newCount) {
