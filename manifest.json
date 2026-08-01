@@ -23,7 +23,6 @@
       "strict_min_version": "128.0"
     }
   },
-  "default_locale": "en",
   "description": "Filter Bubble enables you to hide content that you don't want to see on the web",
   "homepage_url": "https://github.com/andornaut/filter-bubble",
   "icons": {

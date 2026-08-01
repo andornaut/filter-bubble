@@ -17,7 +17,6 @@ const copyStatic = () => {
     recursive: true,
   });
   cpSync("manifest.json", "dist/manifest.json");
-  cpSync("_locales", "dist/_locales", { recursive: true });
 };
 
 const watchStatic = () => {
@@ -27,7 +26,6 @@ const watchStatic = () => {
       path: "src/browser",
       toDest: (f) => (isShippableScript(f) ? `dist/js/${f}` : null),
     },
-    { path: "_locales", toDest: (f) => `dist/_locales/${f}` },
     { path: "manifest.json", toDest: () => "dist/manifest.json" },
   ];
   watchers.forEach(({ path, toDest }) => {
