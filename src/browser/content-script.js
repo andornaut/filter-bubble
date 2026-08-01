@@ -122,6 +122,10 @@
         regex = getOrCompileRegex(state.pattern);
       } catch (e) {
         console.error("filter-bubble: Invalid regex pattern", state.pattern, e);
+        // Tear down for the same reason as the empty pattern above: returning
+        // would leave the previous state's filters applied and its observer
+        // running, so the stale pattern would keep filtering new content.
+        this.disable();
         return;
       }
 

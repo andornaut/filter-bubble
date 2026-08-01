@@ -110,6 +110,34 @@ describe("FilterBubble.enable", () => {
     expect(added.classList.contains("filter-bubble")).toBe(false);
   });
 
+  it("tears down existing filters when the pattern will not compile", async () => {
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+    sendMessage.mockClear();
+
+    enable({ pattern: "(unclosed" });
+
+    expect(error).toHaveBeenCalled();
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 0 },
+    });
+
+    // The stale pattern must not keep filtering content added afterwards.
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(added.classList.contains("filter-bubble")).toBe(false);
+    error.mockRestore();
+  });
+
   it("ignores an invalid selector and still applies valid ones", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable({ selectors: ["::::bad", ".post"] });
