@@ -26,10 +26,11 @@ const chromeMock = {
   },
 };
 
-const { matchedWebsite, matchesAddress, toLists, toPattern } = new Function(
-  "chrome",
-  `${source}\nreturn { matchedWebsite, matchesAddress, toLists, toPattern };`,
-)(chromeMock);
+const { isCommitted, matchedWebsite, matchesAddress, toLists, toPattern } =
+  new Function(
+    "chrome",
+    `${source}\nreturn { isCommitted, matchedWebsite, matchesAddress, toLists, toPattern };`,
+  )(chromeMock);
 
 describe("toLists", () => {
   it("reads the legacy v1 state blob before migration", () => {
@@ -133,6 +134,34 @@ describe("matchedWebsite", () => {
     expect(
       matchedWebsite(websitesList, "https://reddit.companyx.com"),
     ).toBeNull();
+  });
+});
+
+describe("isCommitted", () => {
+  it.each([
+    ["a settled tab", { url: "https://reddit.com/" }],
+    [
+      "a tab whose pendingUrl matches its url",
+      { pendingUrl: "https://reddit.com/", url: "https://reddit.com/" },
+    ],
+    [
+      "a tab with no pendingUrl (Firefox)",
+      { status: "loading", url: "https://reddit.com/" },
+    ],
+  ])("accepts %s", (_, tab) => {
+    expect(isCommitted(tab)).toBe(true);
+  });
+
+  it.each([
+    ["an undefined tab", undefined],
+    ["a tab with no url", { id: 1 }],
+    ["a tab with an empty url", { url: "" }],
+    [
+      "a pre-commit tab, where pendingUrl differs from url",
+      { pendingUrl: "https://example.org/", url: "https://reddit.com/" },
+    ],
+  ])("rejects %s", (_, tab) => {
+    expect(isCommitted(tab)).toBe(false);
   });
 });
 

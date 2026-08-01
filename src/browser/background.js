@@ -42,6 +42,15 @@ const matchedWebsite = (websitesList, url) => {
   return null;
 };
 
+// True when `tab` can be acted on: it exists, has a URL, and has committed its
+// navigation. `tab` is undefined when focused on a separate window to eg.
+// inspect the extension background page. In a pre-commit state `tab.url` still
+// holds the outgoing document's URL while `tab.pendingUrl` (Chrome-only) holds
+// the in-flight one, so acting would apply the outgoing site's rules to the new
+// document; `onUpdated` fires again once the navigation commits.
+const isCommitted = (tab) =>
+  Boolean(tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url));
+
 const setBadge = (tabId, count) => {
   count = (count || "").toString(); // Display 0 as empty string
   // Catch errors if tab is closed or otherwise unavailable
@@ -172,10 +181,7 @@ const resetActiveTab = (state, query, deferDisableWhileLoading = false) =>
   chrome.tabs
     .query({ active: true, ...query })
     .then(([tab]) => {
-      // `tab` can be undefined when focused on a separate window to eg. inspect the extension background page.
-      // Skip pre-commit states, where `tab.url` still holds the outgoing document's URL while `tab.pendingUrl`
-      // (Chrome-only) holds the in-flight one; `onUpdated` fires once the navigation commits.
-      if (tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url)) {
+      if (isCommitted(tab)) {
         updateTab(
           state,
           tab,
@@ -194,9 +200,9 @@ const resetCurrentTab = (state) =>
 // State
 // =============================================================================
 
-// State is populated asynchronously; event handlers await `stateReady` before
-// using it, because an event can wake the service worker and dispatch before
-// the read from storage below resolves.
+// State is populated asynchronously; event handlers await `readStatePromise`
+// before using it, because an event can wake the service worker and dispatch
+// before the first read from storage below resolves.
 const state = {};
 
 // Build effective topic/website lists from the per-item storage layout,
@@ -240,15 +246,15 @@ const readState = () =>
 // Initialize state from storage.
 // n.b. `storage.sync` doesn't actually synchronize between instances of Firefox for Android:
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
-const stateReady = readState();
+const readStatePromise = readState();
 
 // Wrap an event handler so that its body runs after `state` has been
 // initialized from storage. Wraps the body rather than delaying registration,
 // which must stay synchronous.
-const whenReady =
+const whenStateIsReady =
   (fn) =>
   (...args) => {
-    stateReady.then(() => fn(...args));
+    readStatePromise.then(() => fn(...args));
   };
 
 // =============================================================================
@@ -256,16 +262,19 @@ const whenReady =
 // =============================================================================
 
 chrome.storage.onChanged.addListener(
-  whenReady((changes, area) => {
-    if (area !== "sync") {
+  whenStateIsReady((changes, areaName) => {
+    if (areaName !== "sync") {
+      // `areaName` is one of "local", "session", or "managed"
       return;
     }
+    // A write landed in `storage.sync`: either from the popup or, on desktop,
+    // synced in from another browser instance.
     readState();
   }),
 );
 
 const setForceHighlight = (forceHighlight) =>
-  stateReady.then(() => {
+  readStatePromise.then(() => {
     state.forceHighlight = forceHighlight;
     resetCurrentTab(state);
   });
@@ -304,12 +313,12 @@ chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
 // completes keeps stale filters until the tab settles, accepted as the narrower
 // failure of the two.
 chrome.tabs.onActivated.addListener(
-  whenReady(({ windowId }) => resetActiveTab(state, { windowId }, true)),
+  whenStateIsReady(({ windowId }) => resetActiveTab(state, { windowId }, true)),
 );
 
 // Called when a tab metadata, such as its loading state or URL, changes.
 chrome.tabs.onUpdated.addListener(
-  whenReady((_, changeInfo, tab) => {
+  whenStateIsReady((_, changeInfo, tab) => {
     // Act when a document starts loading and again when it completes. Use
     // `tab.url` rather than `changeInfo.url`: browsers omit `url` from
     // `changeInfo` when it hasn't changed, so a page reload would otherwise
@@ -318,11 +327,7 @@ chrome.tabs.onUpdated.addListener(
     if (changeInfo.status !== "loading" && changeInfo.status !== "complete") {
       return;
     }
-    // Skip pre-commit events: `tab.url` still holds the outgoing document's
-    // URL while `tab.pendingUrl` (Chrome-only) holds the in-flight one, so
-    // acting here would apply the outgoing site's rules to the new document.
-    // The commit fires another event with `tab.url` updated.
-    if (!tab.url || (tab.pendingUrl && tab.pendingUrl !== tab.url)) {
+    if (!isCommitted(tab)) {
       return;
     }
     // The "complete" pass repairs an injection that raced the navigation and
