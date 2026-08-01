@@ -62,6 +62,11 @@ const callback = ({ addresses }) => requestPermissionsFromAddresses(addresses);
 const actions = {
   ...websiteActions,
   deleteItem: (id) => {
+    // Host permissions granted for a website are deliberately not released when
+    // it is deleted. Revoking would cost more than it saves: the extension
+    // repairs already-filtered tabs lazily on tab events, through APIs that need
+    // the permission, so giving it back strands every open tab of that host with
+    // its content still hidden until a reload.
     websiteActions.deleteItem(id);
     checkAllPermissions(getState());
   },
