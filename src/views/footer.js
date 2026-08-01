@@ -61,36 +61,50 @@ export const Footer = ({ isDisabled }) => {
       .finally(() => window.close());
   };
 
-  const handleToggleDisabled = () => toggleDisabled();
+  const handleToggleDisabled = (event) => {
+    event.preventDefault();
+    toggleDisabled();
+  };
 
   const label = showHelp ? "Hide help" : "Show help";
-  const toggleDisabledClassName = `btn footer__toggle ${
-    isDisabled ? "footer__toggle--disabled" : ""
+  const statusLinkClassName = `footer__status-link ${
+    isDisabled ? "footer__status-link--disabled" : ""
   }`.trim();
+  // The visible text is the current state, so name the control by the action it
+  // performs instead: "Enabled, link" alone does not say what activating does.
+  const statusLabel = isDisabled
+    ? "Turn all filtering on in this browser"
+    : "Turn all filtering off in this browser";
   return (
     <section className="footer">
       {showHelp && <div ref={contentRef}>{HELP_HTML}</div>}
       <div className="footer__actions">
-        <span className="footer__data">
+        <span className="footer__status">
+          Status:{" "}
+          <a
+            aria-label={statusLabel}
+            className={statusLinkClassName}
+            href="#"
+            onClick={handleToggleDisabled}
+            title={statusLabel}
+          >
+            {isDisabled ? "Disabled" : "Enabled"}
+          </a>{" "}
+          {/* The link text already says it, so keep the icon decorative. */}
+          <span aria-hidden="true">{isDisabled ? "🚫" : "✅"}</span>
+        </span>
+        <span className="footer__links">
           <a href="#" onClick={handleExport}>
             Export
           </a>
           <a href="#" onClick={handleImport}>
             Import
           </a>
+          <a href="#" onClick={handleToggle}>
+            {label}
+          </a>
         </span>
-        <a href="#" onClick={handleToggle}>
-          {label}
-        </a>
       </div>
-      <button
-        className={toggleDisabledClassName}
-        onClick={handleToggleDisabled}
-        title="Turn all filtering on or off in this browser"
-        type="button"
-      >
-        {isDisabled ? "Enable Filter Bubble" : "Disable Filter Bubble"}
-      </button>
     </section>
   );
 };

@@ -9,17 +9,16 @@
   margin: calc(2 * var(--spacing)) 0;
 }
 
-.footer__data a:not(:last-child) {
+.footer__links a:not(:last-child) {
   margin-right: calc(2 * var(--spacing));
 }
 
-.footer__toggle {
-  width: 100%;
+.footer__status {
+  color: var(--subtle-text-color);
+  white-space: nowrap;
 }
 
 /* Paused: the extension is filtering nothing, so make the state hard to miss. */
-.footer__toggle--disabled {
-  background-color: var(--danger-bg-color);
-  border-color: var(--danger-color);
+.footer__status-link--disabled:any-link {
   color: var(--danger-color);
 }
