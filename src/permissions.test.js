@@ -12,7 +12,21 @@ const website = (id, addresses, enabled = true) => ({
   id,
 });
 
-const seed = (list, getAll, contains) => {
+// Stand in for the browser's own `permissions.contains`: every requested origin
+// must be covered by `origins`, either exactly or by `<all_urls>`.
+const containsFrom = (origins) =>
+  jest
+    .fn()
+    .mockImplementation(({ origins: requested }) =>
+      Promise.resolve(
+        requested.every(
+          (origin) =>
+            origins.includes("<all_urls>") || origins.includes(origin),
+        ),
+      ),
+    );
+
+const seed = (list, { origins }, contains) => {
   // A prior value so that clearing to [] is an observable state change.
   setState(undefined, {
     hasPermissions: false,
@@ -20,10 +34,7 @@ const seed = (list, getAll, contains) => {
     websites: { list },
   });
   global.chrome = {
-    permissions: {
-      contains: contains || jest.fn().mockResolvedValue(false),
-      getAll: jest.fn().mockResolvedValue(getAll),
-    },
+    permissions: { contains: contains || containsFrom(origins) },
   };
 };
 
@@ -67,12 +78,12 @@ describe("checkAllPermissions", () => {
     expect(getState().unpermissionedWebsiteIds).toEqual(["1"]);
   });
 
-  it("honors a broader-than-exact grant via contains()", async () => {
-    // getAll() exact membership misses e.g. a `*://*.example.com/*` grant made
-    // in the browser's own UI, so contains() must confirm before flagging.
+  it("honors a broader-than-exact grant, which contains() resolves", async () => {
+    // A `*://*.example.com/*` grant made in the browser's own UI covers
+    // `sub.example.com`, which exact origin membership would miss.
     seed(
       [website("1", ["sub.example.com"])],
-      { origins: ["*://*.example.com/*"] },
+      { origins: [] },
       jest.fn().mockResolvedValue(true),
     );
 
@@ -82,34 +93,10 @@ describe("checkAllPermissions", () => {
     expect(getState().hasPermissions).toBe(true);
   });
 
-  it("falls back to per-website contains when getAll rejects", async () => {
-    setState(undefined, {
-      unpermissionedWebsiteIds: ["stale"],
-      websites: { list: [website("1", ["a.com"]), website("2", ["b.com"])] },
-    });
-    global.chrome = {
-      permissions: {
-        contains: jest
-          .fn()
-          .mockImplementation(({ origins }) =>
-            Promise.resolve(origins[0] === "*://a.com/*"),
-          ),
-        getAll: jest.fn().mockRejectedValue(new Error("boom")),
-      },
-    };
-
-    await checkAllPermissions(getState());
-
-    expect(getState().unpermissionedWebsiteIds).toEqual(["2"]);
-  });
-
-  it("logs and does not throw when both getAll and contains fail", async () => {
+  it("logs and does not throw when contains fails", async () => {
     setState(undefined, { websites: { list: [website("1", ["a.com"])] } });
     global.chrome = {
-      permissions: {
-        contains: jest.fn().mockRejectedValue(new Error("boom")),
-        getAll: jest.fn().mockRejectedValue(new Error("boom")),
-      },
+      permissions: { contains: jest.fn().mockRejectedValue(new Error("boom")) },
     };
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
 
@@ -146,8 +133,7 @@ describe("requestPermissionsFromAddresses", () => {
     });
     global.chrome = {
       permissions: {
-        contains: jest.fn().mockResolvedValue(false), // b.com stays ungranted
-        getAll: jest.fn().mockResolvedValue({ origins: ["*://a.com/*"] }),
+        contains: containsFrom(["*://a.com/*"]), // b.com stays ungranted
         request: jest.fn().mockResolvedValue(true), // user approves a.com
       },
     };

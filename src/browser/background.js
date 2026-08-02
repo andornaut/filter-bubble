@@ -45,20 +45,6 @@ const matchedWebsite = (websitesList, url) => {
   return null;
 };
 
-// The add/edit form and import both require non-empty `addresses` and
-// `selectors`, so a website missing either is legacy or corrupt stored data.
-// Both are iterated without a guard, so a missing one throws, but at different
-// blast radii: `addresses` throws in `matchedWebsite` above, aborting the shared
-// loop so that no website matches any tab, while `selectors` throws in the
-// content script's `_filterContent`, breaking only the tabs this one website
-// matches. Drop such a website at the state boundary rather than guarding both
-// iteration sites.
-const isUsableWebsite = ({ addresses, selectors }) =>
-  Array.isArray(addresses) &&
-  addresses.length > 0 &&
-  Array.isArray(selectors) &&
-  selectors.length > 0;
-
 // True when `tab` can be acted on: it exists, has a URL, and has committed its
 // navigation. `tab` is undefined when focused on a separate window to eg.
 // inspect the extension background page. In a pre-commit state `tab.url` still
@@ -69,9 +55,8 @@ const isCommitted = (tab) =>
   Boolean(tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url));
 
 // `try` rather than a chained `.catch()`: `chrome.action` raises synchronously
-// on an invalidated extension context, and a `.catch()` is attached to the
-// promise the call returns, so it is never in place to see a throw from the call
-// itself. That throw would escape the `runtime.onMessage` listener entirely.
+// on an invalidated extension context, which a `.catch()` on the returned
+// promise is not in place to see.
 const setBadge = async (tabId, count) => {
   const text = (count || "").toString(); // Display 0 as empty string
   try {
@@ -83,23 +68,19 @@ const setBadge = async (tabId, count) => {
 };
 
 /*
- * Return a regular expression that matches all topics using the following approaches:
- *   - exact
- *   - prefix, followed by a non-word character
- *   - suffix, preceded by a non-word character
- *   - internal, but surrounded by non-words characters
+ * Return a regular expression matching any enabled topic phrase, bounded by
+ * non-word characters on both sides so that a phrase matches only as a whole
+ * word.
+ *
  * Lookarounds rather than `\b`: `\b` requires a word character on its inner
- * side, so it could never match against a topic edge that is itself a non-word
+ * side, so it could never match a topic edge that is itself a non-word
  * character (e.g. "c++"). `(?<!\w)`/`(?!\w)` enforce the same non-word context
  * regardless of the edge character.
  *
- * The lookarounds wrap the whole alternation rather than each phrase. Both
- * shapes accept the same input, because the engine retries every alternative at
- * a position before advancing. Wrapping once evaluates the lookbehind once per
- * candidate position rather than once per phrase, which measured flat in the
- * number of topics where the per-phrase form grew linearly (V8 and SpiderMonkey
- * alike, 6x faster at 200 topics). Keep the lookarounds factored out when
- * editing this.
+ * Keep the lookarounds wrapping the whole alternation rather than each phrase.
+ * Both shapes accept the same input, but wrapping once evaluates the lookbehind
+ * once per candidate position rather than once per phrase, which keeps match
+ * time flat in the number of topics instead of linear.
  */
 const toPattern = (topicsList) => {
   const phrases = Array.from(
@@ -107,11 +88,9 @@ const toPattern = (topicsList) => {
       topicsList
         .filter(({ enabled }) => enabled)
         .flatMap(({ text }) => text)
-        // Drop anything unusable before escaping it. The form and import both
-        // reject these, but legacy or corrupt stored data may hold a missing or
-        // non-string `text`, which would throw in the escape below, and an
-        // empty phrase would compile to an alternative that matches everywhere.
-        .filter((text) => typeof text === "string" && text)
+        // An empty phrase would compile to an alternative that matches
+        // everywhere, blanking every page. Never emit one.
+        .filter(Boolean)
         // Escape special characters (edited to avoid an unnecessary "\" escape character):
         // https://stackoverflow.com/a/17886301
         .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
@@ -140,15 +119,13 @@ const updateTab = async (
   // Exit early to avoid matching against empty string regex, which matches every string.
   if (!website || !pattern) {
     if (SCHEME_REGEX.test(tabUrl) && disableWhenUnmatched) {
-      // Disable by default: the tab may have been filtered under earlier state (website deleted, selectors changed,
-      // topics disabled), and this event may be its only repair opportunity. Callers that will get a later event for
-      // the same navigation can defer the disable to it.
+      // Disable by default: the tab may have been filtered under earlier state
+      // (website deleted, selectors changed, topics disabled), and this event
+      // may be its only repair opportunity. Callers that will get a later event
+      // for the same navigation can defer the disable to it.
       //
-      // Catch the following error, which usually occurs if `content-script.js` is not installed
-      // on the tab, but we attempt to send a message to it anyway in case the script /was/
-      // previously installed before the tab.url was removed from `state.websiteList`.
-      // > Could not establish connection. Receiving end does not exist
-      // Log at debug level: this is the expected case for most tabs.
+      // Log at debug level: most tabs have no content script installed, so
+      // "Could not establish connection" is the expected outcome here.
       chrome.tabs.sendMessage(tabId, { command: "disable" }).catch((err) => {
         console.debug("filter-bubble: sendMessage(disable) failed:", err);
       });
@@ -221,27 +198,20 @@ const updateTabSafely = (...args) =>
 // the deferred disable, so callers whose own repair opportunity this is must
 // leave it unset.
 //
-// Residual race, accepted: a navigation that starts after `tabs.query` resolves,
-// or one in flight on Firefox (no `tab.pendingUrl`), leaves `tab.url` holding the
-// outgoing document's URL. A disable computed from it can land after a newer
-// enable and strip live filters, and an enable can apply the outgoing site's
-// selectors to the new document, until the next tab event repairs either. Two
-// overlapping `updateTab` calls can also finish out of order and leave the older
-// `enable` payload applied. Messages carry no sequence token, so a stale one
-// cannot be detected; closing the race requires adding one.
+// Accepted race: a navigation that starts after `tabs.query` resolves, or one in
+// flight on Firefox (no `tab.pendingUrl`), leaves `tab.url` holding the outgoing
+// document's URL, so a message computed from it can apply the wrong rules until
+// the next tab event repairs it. Messages carry no sequence token, so a stale
+// one cannot be detected; closing the race requires adding one.
 //
-// `updateTab` is deliberately not awaited. It awaits `chrome.scripting
-// .executeScript`, which does not settle while the target renderer is blocked
-// (a modal dialog, for instance), so anything that waited on it would stall for
-// as long as that tab is stuck. See the read queue below.
+// `updateTab` is deliberately not awaited: it awaits `executeScript`, which does
+// not settle while the target renderer is blocked (a modal dialog, for
+// instance).
 //
 // `try` rather than a chained `.catch()`: `chrome.tabs` raises synchronously on
-// an invalidated extension context, and a `.catch()` is attached to the promise
-// the call returns, so it is never in place to see a throw from the call itself.
-// That throw would otherwise escape into whichever caller is on the stack and be
-// reported as that caller's failure (`updateState` runs on the read queue, whose
-// catch calls everything a storage failure). The query is still issued
-// synchronously: an async function body runs to its first `await`.
+// an invalidated extension context, which a `.catch()` on the returned promise
+// is not in place to see. The query is still issued synchronously, since an
+// async function body runs to its first `await`.
 const resetActiveTab = async (
   state,
   query,
@@ -249,8 +219,8 @@ const resetActiveTab = async (
 ) => {
   let tab;
   try {
-    // Only the query and reading its result are inside: anything else here would
-    // be reported as a tabs failure, which is the misattribution this avoids.
+    // Only the query and reading its result are inside, so an unrelated throw is
+    // not misreported as a tabs failure.
     [tab] = await chrome.tabs.query({ active: true, ...query });
   } catch (err) {
     console.error("filter-bubble: tabs.query() failed:", err);
@@ -277,13 +247,6 @@ const resetCurrentTab = (state) =>
 // before the first read from storage below resolves.
 const state = {};
 
-// Take the entries of a legacy v1 list, applying the same "skip anything falsy"
-// rule the v2 branch of `toLists` uses. A `null` entry, or a `list` that is not
-// an array at all, would otherwise throw where the lists are filtered by
-// `enabled`, which reports a corrupt-data failure as a storage read failure and
-// leaves `state` on its previous snapshot with nothing to retry it.
-const toItems = (list) => (Array.isArray(list) ? list.filter(Boolean) : []);
-
 // Build effective topic/website lists from the per-item storage layout,
 // falling back to the legacy v1 `state` blob before migration runs. Mirrors
 // `toLists` in src/storage.js, which cannot be imported here.
@@ -291,15 +254,15 @@ const toLists = (raw) => {
   if (raw.state && raw.schema === undefined) {
     const { topics, websites } = raw.state;
     return {
-      topicsList: toItems(topics?.list),
-      websitesList: toItems(websites?.list),
+      topicsList: topics?.list || [],
+      websitesList: websites?.list || [],
     };
   }
   const topicsList = [];
   const websitesList = [];
   Object.keys(raw).forEach((key) => {
     const value = raw[key];
-    if (!value || value.deleted) {
+    if (value.deleted) {
       return;
     }
     if (key.startsWith(TOPIC_PREFIX)) {
@@ -321,27 +284,20 @@ const updateState = ({
   // tab it evaluates instead of injecting. Per-item `enabled` flags are left
   // untouched, so re-enabling restores the previous configuration.
   state.pattern = isDisabled ? "" : toPattern(topicsList);
-  state.websitesList = websitesList.filter(
-    (website) => website.enabled && isUsableWebsite(website),
-  );
+  state.websitesList = websitesList.filter((website) => website.enabled);
   resetCurrentTab(state);
 };
 
 // Serialize reads: `storage.onChanged` can fire again while a read is in flight,
 // and two concurrent reads can resolve in either order, which would leave
-// `state` holding the older snapshot until some later event repaired it.
-// Chaining makes the last read to start the last to apply. A burst of changes
-// therefore costs one full read each, run back to back rather than overlapped,
-// which is latency rather than a correctness problem: each read fetches
-// everything, so the last one is still authoritative.
+// `state` holding the older snapshot. Chaining makes the last read to start the
+// last to apply.
 //
-// The queue covers the read and the assignment to `state`, and stops there. It
-// deliberately does not extend through the tab update that `updateState`
-// triggers: that awaits `executeScript`, which does not settle while the target
-// renderer is blocked, and a queue waiting on it would stop applying storage
-// changes entirely for as long as one tab is stuck. The cost of stopping here is
-// the message-ordering race described above `resetActiveTab`, which the next tab
-// event repairs; the cost of not stopping here is edits silently doing nothing.
+// The queue covers the read and the assignment to `state`, and stops there,
+// short of the tab update `updateState` triggers: that awaits `executeScript`,
+// which does not settle while the target renderer is blocked, and a queue
+// waiting on it would stop applying storage changes for as long as one tab is
+// stuck.
 let readQueue = Promise.resolve();
 
 const readState = () => {
@@ -375,12 +331,6 @@ const readStatePromise = readState();
 // Run `fn` once `state` has been initialized from storage. Nothing awaits the
 // result, so without the catch a throw from `fn` becomes an unhandled rejection
 // that drops the event with no trace.
-//
-// Defence in depth: every handler registered below already handles its own
-// failures, so nothing currently reaches this catch. It is here so that a
-// handler added later cannot silently drop events by omission, which is the
-// failure this file is least able to notice. The message is generic because the
-// wrapper cannot name the caller; the logged error carries the stack.
 const runWhenStateIsReady = (fn) =>
   readStatePromise.then(fn).catch((err) => {
     console.error("filter-bubble: deferred handler failed:", err);
@@ -435,9 +385,7 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
   if (command === "count") {
     // `sender.tab` is only set for content-script senders; ignore other
-    // contexts rather than throwing. `data` is optional for the same reason
-    // `setBadge` cannot throw: a malformed message must not take the listener
-    // down, and an absent count clears the badge.
+    // contexts. An absent count clears the badge.
     if (sender.tab) {
       setBadge(sender.tab.id, data?.count);
     }
@@ -448,14 +396,13 @@ chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
   return false;
 });
 
-// Called when the active tab in a window changes.
-// When loading the extension on an existing tab, it's possible that onUpdated
-// isn't called, but that onActivated will be.
-// Defer the disable while the tab is loading: activating a tab mid-navigation
-// is the likeliest way to read a stale `tab.url`, and the navigation's
-// `onUpdated` "complete" pass makes the call instead. A load that never
-// completes keeps stale filters until the tab settles, accepted as the narrower
-// failure of the two.
+// Called when the active tab in a window changes. When loading the extension on
+// an existing tab, it's possible that onUpdated isn't called, but that
+// onActivated will be.
+//
+// Defer the disable while the tab is loading: activating a tab mid-navigation is
+// the likeliest way to read a stale `tab.url`, so the navigation's `onUpdated`
+// "complete" pass makes the call instead.
 chrome.tabs.onActivated.addListener(
   whenStateIsReady(({ windowId }) => resetActiveTab(state, { windowId }, true)),
 );
