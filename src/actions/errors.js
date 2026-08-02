@@ -30,8 +30,11 @@ export const clearError = action(({ commit, state }, id) => {
     return;
   }
   const index = state.errors.findIndex((error) => toId(error) === id);
-  if (index > -1) {
-    state.errors.splice(index, 1);
+  // Commit only on a real removal: an unmatched id would otherwise re-render and
+  // run the storage subscriber for a state that has not changed.
+  if (index < 0) {
+    return;
   }
+  state.errors.splice(index, 1);
   commit(state);
 });
