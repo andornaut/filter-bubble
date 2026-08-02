@@ -45,6 +45,20 @@ const matchedWebsite = (websitesList, url) => {
   return null;
 };
 
+// The add/edit form and import both require non-empty `addresses` and
+// `selectors`, so a website missing either is legacy or corrupt stored data.
+// Both are iterated without a guard, so a missing one throws, but at different
+// blast radii: `addresses` throws in `matchedWebsite` above, aborting the shared
+// loop so that no website matches any tab, while `selectors` throws in the
+// content script's `_filterContent`, breaking only the tabs this one website
+// matches. Drop such a website at the state boundary rather than guarding both
+// iteration sites.
+const isUsableWebsite = ({ addresses, selectors }) =>
+  Array.isArray(addresses) &&
+  addresses.length > 0 &&
+  Array.isArray(selectors) &&
+  selectors.length > 0;
+
 // True when `tab` can be acted on: it exists, has a URL, and has committed its
 // navigation. `tab` is undefined when focused on a separate window to eg.
 // inspect the extension background page. In a pre-commit state `tab.url` still
@@ -54,12 +68,18 @@ const matchedWebsite = (websitesList, url) => {
 const isCommitted = (tab) =>
   Boolean(tab && tab.url && !(tab.pendingUrl && tab.pendingUrl !== tab.url));
 
-const setBadge = (tabId, count) => {
-  count = (count || "").toString(); // Display 0 as empty string
-  // Catch errors if tab is closed or otherwise unavailable
-  chrome.action.setBadgeText({ tabId, text: count }).catch((err) => {
+// `try` rather than a chained `.catch()`: `chrome.action` raises synchronously
+// on an invalidated extension context, and a `.catch()` is attached to the
+// promise the call returns, so it is never in place to see a throw from the call
+// itself. That throw would escape the `runtime.onMessage` listener entirely.
+const setBadge = async (tabId, count) => {
+  const text = (count || "").toString(); // Display 0 as empty string
+  try {
+    // Fails if the tab is closed or otherwise unavailable.
+    await chrome.action.setBadgeText({ tabId, text });
+  } catch (err) {
     console.error("filter-bubble: setBadge() failed:", err);
-  });
+  }
 };
 
 /*
@@ -186,6 +206,14 @@ const updateTab = async (
     });
 };
 
+// Nothing awaits `updateTab` (see the note below), so a rejection has nowhere to
+// surface and would be swallowed as an unhandled one. Every call goes through
+// here so that a throw is logged instead.
+const updateTabSafely = (...args) =>
+  updateTab(...args).catch((err) => {
+    console.error("filter-bubble: updateTab() failed:", err);
+  });
+
 // Re-evaluate the active tab matched by `query` against the current state.
 // `deferDisableWhileLoading` skips the disable for a tab that is still loading,
 // leaving that call to the navigation's `onUpdated` "complete" pass, which is
@@ -206,21 +234,36 @@ const updateTab = async (
 // .executeScript`, which does not settle while the target renderer is blocked
 // (a modal dialog, for instance), so anything that waited on it would stall for
 // as long as that tab is stuck. See the read queue below.
-const resetActiveTab = (state, query, deferDisableWhileLoading = false) =>
-  chrome.tabs
-    .query({ active: true, ...query })
-    .then(([tab]) => {
-      if (isCommitted(tab)) {
-        updateTab(
-          state,
-          tab,
-          !(deferDisableWhileLoading && tab.status === "loading"),
-        );
-      }
-    })
-    .catch((err) => {
-      console.error("filter-bubble: tabs.query() failed:", err);
-    });
+//
+// `try` rather than a chained `.catch()`: `chrome.tabs` raises synchronously on
+// an invalidated extension context, and a `.catch()` is attached to the promise
+// the call returns, so it is never in place to see a throw from the call itself.
+// That throw would otherwise escape into whichever caller is on the stack and be
+// reported as that caller's failure (`updateState` runs on the read queue, whose
+// catch calls everything a storage failure). The query is still issued
+// synchronously: an async function body runs to its first `await`.
+const resetActiveTab = async (
+  state,
+  query,
+  deferDisableWhileLoading = false,
+) => {
+  let tab;
+  try {
+    // Only the query and reading its result are inside: anything else here would
+    // be reported as a tabs failure, which is the misattribution this avoids.
+    [tab] = await chrome.tabs.query({ active: true, ...query });
+  } catch (err) {
+    console.error("filter-bubble: tabs.query() failed:", err);
+    return;
+  }
+  if (isCommitted(tab)) {
+    updateTabSafely(
+      state,
+      tab,
+      !(deferDisableWhileLoading && tab.status === "loading"),
+    );
+  }
+};
 
 const resetCurrentTab = (state) =>
   resetActiveTab(state, { currentWindow: true });
@@ -234,13 +277,23 @@ const resetCurrentTab = (state) =>
 // before the first read from storage below resolves.
 const state = {};
 
+// Take the entries of a legacy v1 list, applying the same "skip anything falsy"
+// rule the v2 branch of `toLists` uses. A `null` entry, or a `list` that is not
+// an array at all, would otherwise throw where the lists are filtered by
+// `enabled`, which reports a corrupt-data failure as a storage read failure and
+// leaves `state` on its previous snapshot with nothing to retry it.
+const toItems = (list) => (Array.isArray(list) ? list.filter(Boolean) : []);
+
 // Build effective topic/website lists from the per-item storage layout,
 // falling back to the legacy v1 `state` blob before migration runs. Mirrors
 // `toLists` in src/storage.js, which cannot be imported here.
 const toLists = (raw) => {
   if (raw.state && raw.schema === undefined) {
-    const { topics = { list: [] }, websites = { list: [] } } = raw.state;
-    return { topicsList: topics.list || [], websitesList: websites.list || [] };
+    const { topics, websites } = raw.state;
+    return {
+      topicsList: toItems(topics?.list),
+      websitesList: toItems(websites?.list),
+    };
   }
   const topicsList = [];
   const websitesList = [];
@@ -268,7 +321,9 @@ const updateState = ({
   // tab it evaluates instead of injecting. Per-item `enabled` flags are left
   // untouched, so re-enabling restores the previous configuration.
   state.pattern = isDisabled ? "" : toPattern(topicsList);
-  state.websitesList = websitesList.filter(({ enabled }) => enabled);
+  state.websitesList = websitesList.filter(
+    (website) => website.enabled && isUsableWebsite(website),
+  );
   resetCurrentTab(state);
 };
 
@@ -317,13 +372,27 @@ const readState = () => {
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1625257
 const readStatePromise = readState();
 
+// Run `fn` once `state` has been initialized from storage. Nothing awaits the
+// result, so without the catch a throw from `fn` becomes an unhandled rejection
+// that drops the event with no trace.
+//
+// Defence in depth: every handler registered below already handles its own
+// failures, so nothing currently reaches this catch. It is here so that a
+// handler added later cannot silently drop events by omission, which is the
+// failure this file is least able to notice. The message is generic because the
+// wrapper cannot name the caller; the logged error carries the stack.
+const runWhenStateIsReady = (fn) =>
+  readStatePromise.then(fn).catch((err) => {
+    console.error("filter-bubble: deferred handler failed:", err);
+  });
+
 // Wrap an event handler so that its body runs after `state` has been
 // initialized from storage. Wraps the body rather than delaying registration,
 // which must stay synchronous.
 const whenStateIsReady =
   (fn) =>
   (...args) => {
-    readStatePromise.then(() => fn(...args));
+    runWhenStateIsReady(() => fn(...args));
   };
 
 // =============================================================================
@@ -347,7 +416,7 @@ chrome.storage.onChanged.addListener(
 );
 
 const setForceHighlight = (forceHighlight) =>
-  readStatePromise.then(() => {
+  runWhenStateIsReady(() => {
     state.forceHighlight = forceHighlight;
     resetCurrentTab(state);
   });
@@ -366,9 +435,11 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
   if (command === "count") {
     // `sender.tab` is only set for content-script senders; ignore other
-    // contexts rather than throwing.
+    // contexts rather than throwing. `data` is optional for the same reason
+    // `setBadge` cannot throw: a malformed message must not take the listener
+    // down, and an absent count clears the badge.
     if (sender.tab) {
-      setBadge(sender.tab.id, data.count);
+      setBadge(sender.tab.id, data?.count);
     }
   } else {
     console.error(`filter-bubble: Unknown command: ${command}`);
@@ -408,6 +479,6 @@ chrome.tabs.onUpdated.addListener(
     // website, and disables when it doesn't (Firefox lacks `pendingUrl`, so a
     // raced injection can have applied another site's rules to this tab). The
     // "loading" pass skips the disable, deferring that repair to "complete".
-    updateTab(state, tab, changeInfo.status !== "loading");
+    updateTabSafely(state, tab, changeInfo.status !== "loading");
   }),
 );

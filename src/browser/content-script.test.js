@@ -181,6 +181,142 @@ describe("FilterBubble.enable", () => {
   });
 });
 
+describe("FilterBubble failure recovery", () => {
+  // `pending` is cleared only by the throttle timer, so a pass that threw
+  // before arming it would leave the flag set and every later mutation would
+  // return at the throttle guard: the tab stops being filtered for good.
+  // The failure has to come from `_filterContent`: `_setCount` catches its own,
+  // so injecting there would never reach the recovery this covers.
+  const failingEnable = () => enable({ selectors: undefined });
+
+  it("keeps filtering after a pass fails", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    // `selectors` is iterated without a guard, so this fails mid-pass, after
+    // `pending` has been set and before the throttle timer is armed.
+    failingEnable();
+
+    // Long enough for that timer, if it was armed at all, to clear `pending`.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    enable();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(document.querySelector(".post").classList).toContain(
+      "filter-bubble",
+    );
+
+    consoleError.mockRestore();
+  });
+
+  it("stops retrying a pass that keeps failing", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    failingEnable();
+
+    // Each mutation drives one more pass, once the throttle interval elapses.
+    for (let i = 0; i < 5; i += 1) {
+      document.body.appendChild(document.createElement("div"));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining("giving up"),
+    );
+
+    // The observer is disconnected, so further mutations drive nothing at all.
+    consoleError.mockClear();
+    document.body.appendChild(document.createElement("div"));
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(consoleError).not.toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  // Giving up is not permanent: the background re-sends `enable` on tab events,
+  // and a payload that could not be applied before may be applicable now.
+  it("resumes filtering after a later enable", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    failingEnable();
+    for (let i = 0; i < 5; i += 1) {
+      document.body.appendChild(document.createElement("div"));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    enable();
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(added.classList).toContain("filter-bubble");
+
+    consoleError.mockRestore();
+  });
+
+  // Badge counts are cosmetic, so a send that fails must not abort the pass
+  // that already applied the filters.
+  it("logs a synchronous sendMessage throw rather than failing the pass", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    sendMessage.mockImplementationOnce(() => {
+      throw new Error("Extension context invalidated");
+    });
+    document.body.innerHTML = `<div class="post">banana</div>`;
+
+    expect(() => enable()).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector(".post").classList).toContain(
+      "filter-bubble",
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: sendMessage(count) failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
+  });
+
+  // The badge the background is showing is whatever the last delivered message
+  // said, so a count that failed to send must not be recorded as delivered.
+  it("resends an unchanged count after a failed send", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    sendMessage.mockImplementationOnce(() => Promise.reject(new Error("gone")));
+    enable();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    sendMessage.mockClear();
+
+    // Append a container that does not match, so the next pass recomputes the
+    // same count of 1. A changed count would be resent either way and would not
+    // exercise the guard at all.
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "no fruit here";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 1 },
+    });
+
+    consoleError.mockRestore();
+  });
+});
+
 describe("FilterBubble re-filtering", () => {
   it("filters content added to the DOM after enable()", async () => {
     document.body.innerHTML = `<div class="post">banana</div>`;

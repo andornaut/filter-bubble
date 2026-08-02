@@ -77,14 +77,30 @@ const toLists = (currentStore) => {
   return { topics: { list: topics }, websites: { list: websites } };
 };
 
-const migrateList = (toWrite, prefix, list, idFor) => {
+const migrateList = (toWrite, prefix, collection, idFor) => {
   const ids = new Set();
-  (list || []).forEach((item) => {
+  // Skip anything falsy, matching `toLists` above and `toItems` in
+  // src/browser/background.js, which reads the same v1 blob before this
+  // migration can run. A corrupt entry would otherwise throw in `idFor` and
+  // fail the whole migration.
+  const list = collection && collection.list;
+  const items = Array.isArray(list) ? list.filter(Boolean) : [];
+  items.forEach((item) => {
     const id = idFor(ids, item);
     ids.add(id);
     toWrite[prefix + id] = { ...item, id };
   });
 };
+
+// True when a v1 collection held nothing, or held a list this could read in
+// full. Take the whole `{ list: [...] }` wrapper, not `collection.list`: a
+// malformed wrapper (the bare array, a string, a different key) also yields an
+// undefined `list`, which is indistinguishable from an absent collection by the
+// time it has been dereferenced. Anything else means the blob is still the only
+// copy of what that collection held, so it must be kept. Dropped falsy entries
+// do not count against this, as they carry nothing.
+const isCarriedOver = (collection) =>
+  !collection || Array.isArray(collection.list);
 
 // Bring raw `storage.sync` contents to the v2 per-item layout. Migration is
 // idempotent: any v1 `state` blob is folded into the per-item keys and removed,
@@ -96,6 +112,7 @@ const ensureV2 = async (raw) => {
   if (!alreadyV2) {
     toWrite[SCHEMA_KEY] = SCHEMA_VERSION;
   }
+  let carriedOver = true;
   if (raw.state) {
     // Derive the id from `createdDate` (stable across edits), not
     // `modifiedDate`, so an item edited on a still-v1 instance folds onto its
@@ -104,18 +121,30 @@ const ensureV2 = async (raw) => {
     migrateList(
       toWrite,
       TOPIC_PREFIX,
-      raw.state.topics && raw.state.topics.list,
+      raw.state.topics,
       (ids, item) => item.id || toItemId(ids, item.createdDate),
     );
     migrateList(
       toWrite,
       WEBSITE_PREFIX,
-      raw.state.websites && raw.state.websites.list,
+      raw.state.websites,
       (ids, item) =>
         item.id ||
         defaultIdByAddresses[canonicalAddresses(item.addresses)] ||
         toItemId(ids, item.createdDate),
     );
+    // A `state` that is not an object at all reaches neither collection, so
+    // check it too rather than reading its absent properties as "nothing here".
+    carriedOver =
+      typeof raw.state === "object" &&
+      isCarriedOver(raw.state.topics) &&
+      isCarriedOver(raw.state.websites);
+    if (!carriedOver) {
+      console.error(
+        "filter-bubble: the v1 state blob holds a list that cannot be read;" +
+          " keeping the blob rather than dropping its contents",
+      );
+    }
   } else if (!alreadyV2) {
     // Fresh install (no schema, no v1 blob): seed the default websites.
     defaultWebsites.list.forEach((website) => {
@@ -158,9 +187,10 @@ const ensureV2 = async (raw) => {
         return false;
       });
   }
-  // Only drop the v1 blob once the v2 layout is safely persisted, so a failed
-  // write does not lose data.
-  if (persisted && raw.state) {
+  // Only drop the v1 blob once the v2 layout is safely persisted and everything
+  // in it was carried over, so neither a failed write nor a list this could not
+  // read destroys the only copy of the data.
+  if (persisted && carriedOver && raw.state) {
     await chrome.storage.sync.remove("state").catch((err) => {
       console.error("filter-bubble: storage.sync.remove() failed:", err);
     });
