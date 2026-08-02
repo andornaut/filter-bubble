@@ -159,6 +159,19 @@ describe("importData", () => {
     ]);
   });
 
+  it("replaces a non-string id, which would otherwise collide in the storage key", () => {
+    importData({
+      topics: [
+        { createdDate: "2024-01-01T00:00:00.000Z", id: {}, text: ["cats"] },
+        { createdDate: "2024-01-01T00:00:00.000Z", id: 7, text: ["dogs"] },
+        { createdDate: "2024-01-01T00:00:00.000Z", id: "", text: ["birds"] },
+      ],
+    });
+    const ids = getState().topics.list.map((topic) => topic.id);
+    ids.forEach((id) => expect(typeof id).toBe("string"));
+    expect(new Set(ids).size).toBe(3);
+  });
+
   it("keys by id only: a different-id item with matching content is added", () => {
     setState(undefined, {
       topics: {
