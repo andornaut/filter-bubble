@@ -19,8 +19,9 @@
   "scripts": {
     "build": "node build.mjs",
     "build:prod": "node build.mjs --production",
-    "format": "prettier --write \"**/*.{css,js,json,md}\" && eslint --fix .",
+    "format": "prettier --write \"**/*.{css,html,js,json,md}\" && eslint --fix .",
     "lint": "eslint --max-warnings 0 .",
+    "lint:ext": "npm run build:prod && web-ext lint",
     "lint:fix": "eslint --fix .",
     "package": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",

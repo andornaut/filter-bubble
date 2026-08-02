@@ -41,6 +41,9 @@ jobs:
       - name: Check size
         run: npm run size
 
+      - name: Lint the built extension
+        run: npm run lint:ext
+
       - name: Package extension
         run: npm run package
 
