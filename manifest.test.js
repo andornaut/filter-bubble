@@ -23,12 +23,26 @@ describe("manifest", () => {
     expect(manifest.version).toBe(pkg.version);
   });
 
-  it("points every referenced page at a file that ships", () => {
-    [manifest.action.default_popup, manifest.options_ui.page].forEach((page) =>
-      expect(() =>
-        readFileSync(join(__dirname, "static", page), "utf8"),
-      ).not.toThrow(),
-    );
+  // `build.mjs` copies `static/` to `dist/` and `src/browser/` to `dist/js/`,
+  // so every path the manifest names maps back to exactly one source file.
+  const toSource = (path) =>
+    path.startsWith("js/")
+      ? join(__dirname, "src/browser", path.replace(/^js\//, ""))
+      : join(__dirname, "static", path);
+
+  const referenced = [
+    manifest.action.default_popup,
+    manifest.options_ui.page,
+    manifest.background.service_worker,
+    ...manifest.background.scripts,
+    ...Object.values(manifest.icons),
+    ...Object.values(manifest.action.default_icon),
+  ];
+
+  it.each([...new Set(referenced)])("ships the referenced file %s", (path) => {
+    // The manifest is not validated against the build, so a renamed or moved
+    // file leaves a reference that only fails once the extension is loaded.
+    expect(() => readFileSync(toSource(path))).not.toThrow();
   });
 });
 

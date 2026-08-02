@@ -35,11 +35,38 @@ describe("constants duplicated into the unbundled browser scripts", () => {
   });
 });
 
-describe("content-script classes duplicated into the stylesheet", () => {
-  const STYLESHEET = readFileSync(
-    join(__dirname, "../../static/css/content-script.css"),
-    "utf8",
+// `build.mjs` copies `static/` to `dist/` and `src/browser/` to `dist/js/`, so
+// a runtime path in background.js maps back to exactly one source file.
+const toSource = (runtimePath) =>
+  runtimePath.startsWith("/js/")
+    ? join(__dirname, runtimePath.replace("/js/", "./"))
+    : join(__dirname, "../../static", runtimePath);
+
+describe("runtime asset paths in background.js", () => {
+  // These encode build.mjs's output layout. A mistyped stylesheet path renders
+  // filtered pages unstyled with only a console log; a mistyped content-script
+  // path fails `executeScript` and reports a misleading missing-permission
+  // error. Neither fails the build.
+  it.each([["CONTENT_SCRIPT_PATH"], ["STYLESHEET_PATH"]])(
+    "%s resolves to a file that ships",
+    (name) => {
+      const path = JSON.parse(constant(BACKGROUND, name));
+
+      expect(() => readFileSync(toSource(path), "utf8")).not.toThrow();
+    },
   );
+});
+
+describe("content-script classes duplicated into the stylesheet", () => {
+  // Read through the same constant the background injects, so a rename of the
+  // stylesheet is caught here rather than silently going unstyled. Read lazily:
+  // at module scope an unresolvable path collapses the whole file instead of
+  // failing the assertions that name the problem.
+  const stylesheet = () =>
+    readFileSync(
+      toSource(JSON.parse(constant(BACKGROUND, "STYLESHEET_PATH"))),
+      "utf8",
+    );
 
   // The block class is only a marker that `_removeFilters` selects on, so it
   // needs no rule of its own; every modifier is what actually hides content.
@@ -50,7 +77,7 @@ describe("content-script classes duplicated into the stylesheet", () => {
   ])("%s has a rule in content-script.css", (name) => {
     const className = JSON.parse(constant(CONTENT_SCRIPT, name));
 
-    expect(STYLESHEET).toContain(`.${className} {`);
+    expect(stylesheet()).toContain(`.${className} {`);
   });
 
   it("derives every modifier from the block class", () => {
