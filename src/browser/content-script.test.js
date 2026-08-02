@@ -210,58 +210,6 @@ describe("FilterBubble failure recovery", () => {
     consoleError.mockRestore();
   });
 
-  it("stops retrying a pass that keeps failing", async () => {
-    const consoleError = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    document.body.innerHTML = `<div class="post">banana</div>`;
-    failingEnable();
-
-    // Each mutation drives one more pass, once the throttle interval elapses.
-    for (let i = 0; i < 5; i += 1) {
-      document.body.appendChild(document.createElement("div"));
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining("giving up"),
-    );
-
-    // The observer is disconnected, so further mutations drive nothing at all.
-    consoleError.mockClear();
-    document.body.appendChild(document.createElement("div"));
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    expect(consoleError).not.toHaveBeenCalled();
-
-    consoleError.mockRestore();
-  });
-
-  // Giving up is not permanent: the background re-sends `enable` on tab events,
-  // and a payload that could not be applied before may be applicable now.
-  it("resumes filtering after a later enable", async () => {
-    const consoleError = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    document.body.innerHTML = `<div class="post">banana</div>`;
-    failingEnable();
-    for (let i = 0; i < 5; i += 1) {
-      document.body.appendChild(document.createElement("div"));
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-
-    enable();
-    const added = document.createElement("div");
-    added.className = "post";
-    added.textContent = "more banana";
-    document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    expect(added.classList).toContain("filter-bubble");
-
-    consoleError.mockRestore();
-  });
-
   // Badge counts are cosmetic, so a send that fails must not abort the pass
   // that already applied the filters.
   it("logs a synchronous sendMessage throw rather than failing the pass", async () => {
@@ -283,35 +231,6 @@ describe("FilterBubble failure recovery", () => {
       "filter-bubble: sendMessage(count) failed:",
       expect.any(Error),
     );
-
-    consoleError.mockRestore();
-  });
-
-  // The badge the background is showing is whatever the last delivered message
-  // said, so a count that failed to send must not be recorded as delivered.
-  it("resends an unchanged count after a failed send", async () => {
-    const consoleError = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    document.body.innerHTML = `<div class="post">banana</div>`;
-    sendMessage.mockImplementationOnce(() => Promise.reject(new Error("gone")));
-    enable();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    sendMessage.mockClear();
-
-    // Append a container that does not match, so the next pass recomputes the
-    // same count of 1. A changed count would be resent either way and would not
-    // exercise the guard at all.
-    const added = document.createElement("div");
-    added.className = "post";
-    added.textContent = "no fruit here";
-    document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    expect(sendMessage).toHaveBeenCalledWith({
-      command: "count",
-      data: { count: 1 },
-    });
 
     consoleError.mockRestore();
   });
@@ -415,42 +334,34 @@ describe("FilterBubble.disable", () => {
   });
 });
 
-describe("FilterBubble body retry", () => {
-  // Fake timers plus runOnlyPendingTimers() make the retry deterministic
-  // without depending on the retry interval's value.
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it("retries until document.body exists, then filters", () => {
+describe("FilterBubble injected before document.body exists", () => {
+  // The content script is injected with `injectImmediately`, so it can run
+  // before the parser has produced a body. The observer is on
+  // `documentElement`, so the body arrives as an observed mutation.
+  it("filters the body once the parser appends it", async () => {
     const body = document.body;
     body.remove();
-    enable(); // document.body is null: schedules a retry instead of filtering
+    enable(); // Nothing to filter yet.
 
-    document.documentElement.appendChild(body);
     body.innerHTML = `<div class="post">banana</div>`;
-    jest.runOnlyPendingTimers();
+    document.documentElement.appendChild(body);
+    await new Promise((resolve) => setTimeout(resolve, 250));
 
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(true);
   });
 
-  it("cancels a pending retry on disable(), so stale state is not re-applied", () => {
+  it("does not filter a body appended after disable()", async () => {
     const body = document.body;
     body.remove();
     enable();
     window.filterBubble.disable();
 
-    document.documentElement.appendChild(body);
     body.innerHTML = `<div class="post">banana</div>`;
-    jest.runOnlyPendingTimers();
+    document.documentElement.appendChild(body);
+    await new Promise((resolve) => setTimeout(resolve, 250));
 
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);
-    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

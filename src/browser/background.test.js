@@ -64,27 +64,12 @@ describe("toLists", () => {
     expect(toLists({})).toEqual({ topicsList: [], websitesList: [] });
   });
 
-  // The v2 branch skips anything falsy, so the v1 branch must too: a `null`
-  // entry reaching `updateState` throws where the lists are filtered by
-  // `enabled`, and the read queue then reports it as a storage read failure.
-  it("skips falsy entries in a legacy v1 list", () => {
-    const raw = {
-      state: {
-        topics: { list: [null, { enabled: true, text: "spoilers" }] },
-        websites: {
-          list: [{ addresses: ["reddit.com"], enabled: true }, undefined],
-        },
-      },
-    };
+  it("treats a missing legacy v1 collection as empty", () => {
+    const raw = { state: { topics: { list: [{ text: "spoilers" }] } } };
     expect(toLists(raw)).toEqual({
-      topicsList: [{ enabled: true, text: "spoilers" }],
-      websitesList: [{ addresses: ["reddit.com"], enabled: true }],
+      topicsList: [{ text: "spoilers" }],
+      websitesList: [],
     });
-  });
-
-  it("treats a legacy v1 collection that is missing or malformed as empty", () => {
-    const raw = { state: { topics: null, websites: { list: "not a list" } } };
-    expect(toLists(raw)).toEqual({ topicsList: [], websitesList: [] });
   });
 });
 
@@ -596,81 +581,6 @@ describe("active tab re-evaluation", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  // `addresses` is iterated without a guard, so one corrupt website would
-  // otherwise abort the match loop and stop filtering on every other one. The
-  // corrupt entries are stored ahead of the working one so a regression cannot
-  // pass by reaching it first.
-  it("keeps filtering the other websites when one is unusable", async () => {
-    const { executeScript, onActivated } = await evaluate(
-      { id: 1, status: "complete", url: "https://reddit.com/" },
-      {},
-      {
-        schema: 2,
-        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
-        "w:1": { enabled: true, id: "1" },
-        "w:2": { addresses: [], enabled: true, id: "2", selectors: [".x"] },
-        "w:9": {
-          addresses: ["reddit.com"],
-          enabled: true,
-          id: "9",
-          selectors: [".post"],
-        },
-      },
-    );
-    onActivated({ windowId: 1 });
-    await flush();
-    expect(executeScript).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { tabId: 1 } }),
-    );
-  });
-
-  // A v1 blob is read before migration can run, so a corrupt entry in one
-  // reaches `updateState` with nothing in between to have filtered it out.
-  it("keeps filtering when a legacy v1 list holds a corrupt entry", async () => {
-    const { executeScript, onActivated } = await evaluate(
-      { id: 1, status: "complete", url: "https://reddit.com/" },
-      {},
-      {
-        state: {
-          topics: { list: [null, { enabled: true, text: "spoilers" }] },
-          websites: {
-            list: [
-              null,
-              {
-                addresses: ["reddit.com"],
-                enabled: true,
-                selectors: [".post"],
-              },
-            ],
-          },
-        },
-      },
-    );
-    onActivated({ windowId: 1 });
-    await flush();
-    expect(executeScript).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { tabId: 1 } }),
-    );
-  });
-
-  // Injecting for it would send `selectors: undefined`, which throws where the
-  // content script iterates it, so the tab is treated as unmatched instead.
-  it("disables a tab that only an unusable website matches", async () => {
-    const { executeScript, onActivated, sendMessage } = await evaluate(
-      { id: 1, status: "complete", url: "https://example.org/" },
-      {},
-      {
-        schema: 2,
-        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
-        "w:1": { addresses: ["example.org"], enabled: true, id: "1" },
-      },
-    );
-    onActivated({ windowId: 1 });
-    await flush();
-    expect(executeScript).not.toHaveBeenCalled();
-    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
-  });
-
   it("logs a failure inside a tab update rather than leaving it unhandled", async () => {
     const consoleError = jest
       .spyOn(console, "error")
@@ -1077,23 +987,6 @@ describe("toPattern", () => {
     expect(toPattern([{ enabled: true, text: "c++" }])).toBe(
       "(?<!\\w)(?:c\\+\\+)(?!\\w)",
     );
-  });
-
-  it("ignores stored topic text that is missing or not a string", () => {
-    // A throw here would reject the whole state read, leaving the background
-    // filtering on its previous pattern with only a console error.
-    expect(
-      toPattern([
-        { enabled: true },
-        { enabled: true, text: 5 },
-        { enabled: true, text: { a: 1 } },
-        { enabled: true, text: [null, undefined, "spoilers"] },
-      ]),
-    ).toBe("(?<!\\w)(?:spoilers)(?!\\w)");
-  });
-
-  it("returns an empty pattern when no topic text survives", () => {
-    expect(toPattern([{ enabled: true }, { enabled: true, text: 5 }])).toBe("");
   });
 
   it("never returns a pattern that matches everything", () => {

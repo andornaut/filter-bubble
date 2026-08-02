@@ -14,26 +14,13 @@ const getPermissionsFromState = (state) =>
 
 // Ids of enabled websites whose host permission is not yet granted. Disabled
 // websites are excluded: the background never filters them, so they need no
-// permission. A single getAll() with exact origin membership is the fast path
-// (the app only ever requests `*://<addr>/*` origins); websites it does not
-// cover are confirmed with contains(), which honors match-pattern subsumption,
-// so a broader grant made in the browser's own UI (e.g. `*://*.example.com/*`)
-// still counts. If getAll() rejects, every website falls through to contains().
+// permission. `contains()` rather than membership in `getAll()`, because it
+// honors match-pattern subsumption, so a broader grant made in the browser's own
+// UI (e.g. `*://*.example.com/*`) counts.
 const unpermissionedEnabledIds = async (state) => {
   const enabled = state.websites.list.filter((website) => website.enabled);
-  const isExactlyGranted = await chrome.permissions
-    .getAll()
-    .then(({ origins = [] }) => {
-      const granted = new Set(origins);
-      const broad = granted.has("<all_urls>") || granted.has("*://*/*");
-      return (website) =>
-        broad ||
-        website.addresses.every((address) => granted.has(`*://${address}/*`));
-    })
-    .catch(() => () => false);
-  const suspects = enabled.filter((website) => !isExactlyGranted(website));
   const results = await Promise.all(
-    suspects.map((website) =>
+    enabled.map((website) =>
       chrome.permissions
         .contains(toPermissions(website.addresses))
         .then((granted) => ({ granted, id: website.id })),
