@@ -1,5 +1,6 @@
 export default {
   moduleNameMapper: {
+    "\\.css$": "<rootDir>/jest-css-stub.cjs",
     "^statezero/src$": "<rootDir>/node_modules/statezero/src/index.js",
   },
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],

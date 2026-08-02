@@ -22,4 +22,27 @@ describe("manifest", () => {
     );
     expect(manifest.version).toBe(pkg.version);
   });
+
+  it("points every referenced page at a file that ships", () => {
+    [manifest.action.default_popup, manifest.options_ui.page].forEach((page) =>
+      expect(() =>
+        readFileSync(join(__dirname, "static", page), "utf8"),
+      ).not.toThrow(),
+    );
+  });
+});
+
+describe("popup.html", () => {
+  const html = readFileSync(join(__dirname, "static/popup.html"), "utf8");
+
+  it("provides the container that src/index.js renders into", () => {
+    // `createRoot(document.getElementById("root"))` throws on a null container,
+    // so losing this element breaks every page the extension has, and the
+    // entry-point tests build their own DOM rather than reading this file.
+    expect(html).toContain('id="root"');
+  });
+
+  it("loads the bundle that build.mjs emits", () => {
+    expect(html).toContain('src="popup.js"');
+  });
 });
