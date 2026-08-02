@@ -33,15 +33,7 @@ const Root = () => {
   return hash === "#import" ? <Import /> : <App hash={hash} state={state} />;
 };
 
-// Guard against overlapping runs (e.g. a double-clicked retry button), which
-// would register duplicate listeners and open a second background port.
-let initializing = false;
-
-const init = async () => {
-  if (initializing) {
-    return;
-  }
-  initializing = true;
+const bootstrap = async () => {
   try {
     await initState();
   } catch (error) {
@@ -50,8 +42,6 @@ const init = async () => {
     console.error("filter-bubble: initState() failed:", error);
     root.render(<ErrorFallback error={error} onRetry={init} />);
     return;
-  } finally {
-    initializing = false;
   }
 
   // Clear errors on navigation; the resulting store change re-renders `Root`.
@@ -86,6 +76,24 @@ const init = async () => {
    * Create a port to the background page. This will be used to detect opening/closing of the popup.
    */
   chrome.runtime.connect();
+};
+
+// Guard against overlapping runs (e.g. a double-clicked retry button), which
+// would register duplicate listeners and open a second background port. The
+// guard has to span the whole run: releasing it once `initState()` settles
+// leaves the later awaits open for a second run to overtake.
+let initializing = false;
+
+const init = async () => {
+  if (initializing) {
+    return;
+  }
+  initializing = true;
+  try {
+    await bootstrap();
+  } finally {
+    initializing = false;
+  }
 };
 
 init();
