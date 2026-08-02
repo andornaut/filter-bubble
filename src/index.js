@@ -20,7 +20,10 @@ import { App } from "./views/app";
 import { ErrorBoundary, ErrorFallback } from "./views/error-boundary";
 import { Import } from "./views/import";
 
-const root = createRoot(document.body);
+// Render into a dedicated container rather than `document.body`, which React
+// would then own: `downloadJson` appends a temporary anchor to the body, and
+// React must not have to reconcile around nodes it did not create.
+const root = createRoot(document.getElementById("root"));
 
 const Root = () => {
   const state = useStore();
