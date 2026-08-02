@@ -102,7 +102,18 @@ describe("clearAllErrors", () => {
     expect(getState("errors")).toEqual([]);
   });
 
+  it("does not commit when no errors have been recorded", () => {
+    expectNoCommit(() => clearAllErrors());
+  });
+
   it("does not commit when the list is already empty", () => {
+    // Distinct from the case above: this leaves `errors` an empty array rather
+    // than unset. `clearAllErrors` runs on every hashchange, so the common case
+    // is clearing a list that is already empty.
+    addError(new Error("boom"));
+    clearAllErrors();
+    expect(getState("errors")).toEqual([]);
+
     expectNoCommit(() => clearAllErrors());
   });
 });
