@@ -3,6 +3,7 @@ import { getState } from "statezero/src";
 
 import { toggleDisabled } from "../actions/settings";
 import { downloadJson, exportFilename } from "../export";
+import { isPopup } from "../is-popup";
 import { HELP_HTML } from "./hints";
 
 // Import happens on a dedicated page in a tab: the popup closes as soon as the
@@ -58,7 +59,15 @@ export const Footer = ({ isDisabled }) => {
       })
       .catch(openTab)
       // Close the popup so it does not linger behind the tab we just focused.
-      .finally(() => window.close());
+      // Only the popup: the options page is a real tab, so closing it would
+      // take away the page the user is working in. Best-effort, like the
+      // `chrome.windows` call above: this runs while the popup is being torn
+      // down, so the lookup can fail with the context already invalidated.
+      .finally(() =>
+        isPopup()
+          .then((popup) => popup && window.close())
+          .catch(() => {}),
+      );
   };
 
   const handleToggleDisabled = (event) => {
