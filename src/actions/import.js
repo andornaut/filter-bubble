@@ -39,14 +39,17 @@ export const parseImport = (text) => {
 // any tombstone or older value on this or another device.
 // Dates in the file are untrusted, so every one is normalized through
 // `toIsoDate`: unparseable values are dropped and non-ISO ones are converted, so
-// nothing downstream has to re-check them.
+// nothing downstream has to re-check them. `id` is untrusted for the same
+// reason: it becomes part of the `t:` / `w:` storage key, so a non-string would
+// be stringified into the key and silently collapse every such item onto one.
 const normalizeMeta = (ids, item) => {
   const now = new Date().toJSON();
   // Fall back through the exported item's own clocks, oldest-wins, so a file
   // exported before `sortDate` existed still lands in its original list order.
   const sortDate = toIsoDate(item.sortDate) || toIsoDate(item.modifiedDate);
   const createdDate = toIsoDate(item.createdDate) || sortDate || now;
-  const id = item.id || toItemId(ids, createdDate);
+  const id =
+    (typeof item.id === "string" && item.id) || toItemId(ids, createdDate);
   ids.add(id);
   return {
     createdDate,
