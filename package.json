@@ -23,7 +23,7 @@
     "lint": "eslint --max-warnings 0 .",
     "lint:ext": "npm run build:prod && web-ext lint",
     "lint:fix": "eslint --fix .",
-    "package": "npm run build:prod && rm -rf web-ext-artifacts/* && web-ext build",
+    "package": "npm run lint:ext && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
     "start": "npm run build && web-ext run",
     "start:android": "npm run build && web-ext run --target=firefox-android --android-device=$(adb devices 2>&1| awk '/./{device=$1} END{print device}') --verbose",

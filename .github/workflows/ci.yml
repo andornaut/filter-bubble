@@ -41,9 +41,7 @@ jobs:
       - name: Check size
         run: npm run size
 
-      - name: Lint the built extension
-        run: npm run lint:ext
-
+      # `npm run package` builds, lints that build, then zips it.
       - name: Package extension
         run: npm run package
 
