@@ -741,9 +741,9 @@ describe("toPattern", () => {
     expect(toPattern([{ enabled: false, text: "spoilers" }])).toBe("");
   });
 
-  it("wraps each enabled topic in non-word lookarounds", () => {
+  it("wraps the alternation in non-word lookarounds once", () => {
     expect(toPattern([{ enabled: true, text: "spoilers" }])).toBe(
-      "(?:(?<!\\w)spoilers(?!\\w))",
+      "(?<!\\w)(?:spoilers)(?!\\w)",
     );
   });
 
@@ -753,7 +753,7 @@ describe("toPattern", () => {
         { enabled: true, text: "spoilers" },
         { enabled: true, text: "politics" },
       ]),
-    ).toBe("(?:(?<!\\w)spoilers(?!\\w))|(?:(?<!\\w)politics(?!\\w))");
+    ).toBe("(?<!\\w)(?:spoilers|politics)(?!\\w)");
   });
 
   it("deduplicates repeated topics", () => {
@@ -762,13 +762,79 @@ describe("toPattern", () => {
         { enabled: true, text: "spoilers" },
         { enabled: true, text: "spoilers" },
       ]),
-    ).toBe("(?:(?<!\\w)spoilers(?!\\w))");
+    ).toBe("(?<!\\w)(?:spoilers)(?!\\w)");
   });
 
   it("escapes regex metacharacters in topic text", () => {
     expect(toPattern([{ enabled: true, text: "c++" }])).toBe(
-      "(?:(?<!\\w)c\\+\\+(?!\\w))",
+      "(?<!\\w)(?:c\\+\\+)(?!\\w)",
     );
+  });
+
+  it("ignores stored topic text that is missing or not a string", () => {
+    // A throw here would reject the whole state read, leaving the background
+    // filtering on its previous pattern with only a console error.
+    expect(
+      toPattern([
+        { enabled: true },
+        { enabled: true, text: 5 },
+        { enabled: true, text: { a: 1 } },
+        { enabled: true, text: [null, undefined, "spoilers"] },
+      ]),
+    ).toBe("(?<!\\w)(?:spoilers)(?!\\w)");
+  });
+
+  it("returns an empty pattern when no topic text survives", () => {
+    expect(toPattern([{ enabled: true }, { enabled: true, text: 5 }])).toBe("");
+  });
+
+  it("never returns a pattern that matches everything", () => {
+    // A falsy pattern is the "filter nothing" signal, so an empty topic set
+    // must not compile to an empty alternation, which matches every string.
+    [
+      [],
+      [{ enabled: false, text: "spoilers" }],
+      [{ enabled: true, text: [] }],
+      [{ enabled: true, text: "" }],
+      [{ enabled: true, text: ["", ""] }],
+    ].forEach((list) => expect(toPattern(list)).toBe(""));
+  });
+
+  it("drops empty phrases rather than admitting an always-matching branch", () => {
+    const regex = new RegExp(
+      toPattern([{ enabled: true, text: ["", "spoilers"] }]),
+      "i",
+    );
+    expect(regex.test("spoilers ahead")).toBe(true);
+    expect(regex.test("nothing to see")).toBe(false);
+  });
+
+  it("matches a longer topic that a shorter one prefixes", () => {
+    // The factored form relies on the engine retrying every alternative at a
+    // position before advancing, which these overlaps exercise.
+    const regex = new RegExp(
+      toPattern([
+        { enabled: true, text: "cat" },
+        { enabled: true, text: "cats" },
+      ]),
+      "i",
+    );
+    expect(regex.test("cats")).toBe(true);
+    expect(regex.test("cat")).toBe(true);
+    expect(regex.test("catsup")).toBe(false);
+  });
+
+  it("matches when the overlapping topic ends in a non-word character", () => {
+    const regex = new RegExp(
+      toPattern([
+        { enabled: true, text: "c" },
+        { enabled: true, text: "c++" },
+      ]),
+      "i",
+    );
+    expect(regex.test("c++")).toBe(true);
+    expect(regex.test("a c thing")).toBe(true);
+    expect(regex.test("cc")).toBe(false);
   });
 
   it("matches topics with non-word edge characters as whole tokens", () => {
