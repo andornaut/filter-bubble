@@ -15,6 +15,7 @@ import { clearAllErrors } from "./actions/errors";
 import { initState } from "./actions/init";
 import { useHash } from "./hooks/useHash";
 import { useStore } from "./hooks/useStore";
+import { isPopup } from "./is-popup";
 import { checkAllPermissions } from "./permissions";
 import { App } from "./views/app";
 import { ErrorBoundary, ErrorFallback } from "./views/error-boundary";
@@ -62,14 +63,21 @@ const init = async () => {
     </ErrorBoundary>,
   );
 
-  // The import page runs in its own tab and needs neither the permission check
-  // nor the highlight port. Connecting it would make the background force
-  // highlight mode on every filtered page for as long as the tab stays open.
+  // The import page runs in its own tab and re-checks permissions itself once a
+  // file has been applied, so skip the startup check here.
   if (window.location.hash === "#import") {
     return;
   }
 
   checkAllPermissions(getState()); // May update the state.
+
+  // Connect only from the popup, which closes on blur. The background holds
+  // highlight mode on for as long as this port is open, so a role that can stay
+  // open indefinitely would leave every filtered page highlighted instead of
+  // filtered.
+  if (!(await isPopup())) {
+    return;
+  }
 
   /**
    * Workaround a bug in Chrome that prevents using .sendMessage() in a window "unload" event handler:

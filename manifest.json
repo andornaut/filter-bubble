@@ -36,6 +36,7 @@
   "name": "Filter Bubble",
   "optional_host_permissions": ["<all_urls>"],
   "options_ui": {
+    "open_in_tab": true,
     "page": "popup.html"
   },
   "permissions": ["scripting", "storage", "tabs"],
