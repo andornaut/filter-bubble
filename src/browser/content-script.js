@@ -8,6 +8,7 @@
   const BODY_MAX_RETRIES = 100; // Max attempts to wait for document.body
   const BODY_RETRY_DELAY_MS = 100; // Delay between retries (~10 seconds total)
   const THROTTLE_DELAY_MS = 200; // Throttle DOM updates to once per this interval
+  const MAX_PASS_FAILURES = 5; // Consecutive failing passes before giving up
 
   // Cache the most recently compiled pattern. The pattern rarely changes within
   // a tab, so a single entry avoids recompiling on every enable() call without
@@ -70,6 +71,7 @@
       // This state is reset in `this.disable()`
       this.bodyRetryTimer = null;
       this.count = 0;
+      this.failures = 0;
       this.pending = false;
       this.queued = false;
       this.regex = null;
@@ -92,6 +94,7 @@
       this._removeFilters();
 
       this._setCount(0);
+      this.failures = 0;
       this.pending = false;
       this.queued = false;
       this.regex = null;
@@ -187,7 +190,39 @@
       this.pending = true;
       this.queued = false;
 
-      this._setCount(this._filterContent());
+      try {
+        this._setCount(this._filterContent());
+        this.failures = 0;
+      } catch (error) {
+        // Caught rather than left to propagate: this runs from a
+        // MutationObserver callback and from the message listener, neither of
+        // which can do anything useful with it, and the count below has to be
+        // kept either way.
+        this.failures += 1;
+        console.error("filter-bubble: filtering pass failed", error);
+      }
+
+      // Give up once a pass has failed this many times running. It is failing
+      // deterministically by then, and retrying it once per interval for as
+      // long as the page mutates would achieve nothing but fill the console.
+      // Disconnecting is what stops the loop, since mutations are what drive
+      // it; `pending` is cleared and the rest of the state left alone, so a
+      // later `enable()` re-observes and starts over. Giving up is therefore
+      // not permanent, and the counter needs no reset of its own: the first
+      // pass that succeeds clears it above.
+      if (this.failures >= MAX_PASS_FAILURES) {
+        console.error(
+          `filter-bubble: giving up after ${MAX_PASS_FAILURES} failed passes`,
+        );
+        this.observer.disconnect();
+        this.pending = false;
+        return;
+      }
+
+      // Arm the timer even when the pass failed. `pending` is cleared nowhere
+      // else, so skipping this would leave it set for good, and every later
+      // mutation would return at the guard above: the tab would stop being
+      // filtered entirely until a `disable` arrived.
       this.throttleTimer = setTimeout(() => {
         this.pending = false;
         if (this.queued) {
@@ -196,19 +231,34 @@
       }, THROTTLE_DELAY_MS);
     }
 
-    _setCount(newCount) {
+    // `try` rather than a chained `.catch()`: `chrome.runtime` raises
+    // synchronously once the extension context is invalidated (an update or
+    // reload while the page is open), and a `.catch()` is attached to the
+    // promise the call returns, so it is never in place to see a throw from the
+    // call itself. Badge counts are cosmetic, so this must not take a filtering
+    // pass down with it.
+    async _setCount(newCount) {
       if (this.count === newCount) {
         return;
       }
+      // Commit before the send, not after: `this.count` has to be up to date for
+      // the guard above by the time this returns, because a second call can
+      // follow synchronously (`disable()` sends 0 right after a pass sent its
+      // own count) and would otherwise compare against the stale value.
       this.count = newCount;
-      chrome.runtime
-        .sendMessage({
+      try {
+        await chrome.runtime.sendMessage({
           command: "count",
-          data: { count: this.count },
-        })
-        .catch((err) => {
-          console.error("filter-bubble: sendMessage(count) failed:", err);
+          data: { count: newCount },
         });
+      } catch (err) {
+        // Forget the committed count, so the next pass resends whatever it
+        // computes. Leaving it set would have `this.count` claiming a badge the
+        // background never received, and an unchanged count would then match the
+        // guard above and strand the stale badge until the count changed twice.
+        this.count = null;
+        console.error("filter-bubble: sendMessage(count) failed:", err);
+      }
     }
 
     _filterContent() {

@@ -108,6 +108,85 @@ describe("fromStorage", () => {
     expect(lists.websites.list).toHaveLength(1);
   });
 
+  // The background reads the same v1 blob directly, before this migration can
+  // run, and skips falsy entries there. Throwing here instead would reject the
+  // whole load. A falsy entry carries nothing, so dropping it loses nothing and
+  // the blob can still be removed.
+  it("migrates a legacy state blob past falsy entries and still drops it", async () => {
+    get.mockResolvedValue({
+      state: {
+        topics: {
+          list: [
+            null,
+            topic(undefined, ["spoilers"], "2026-01-01T00:00:00.000Z"),
+          ],
+        },
+        websites: { list: [] },
+      },
+    });
+
+    const lists = await fromStorage();
+
+    const topicId = String(Date.parse("2026-01-01T00:00:00.000Z"));
+    expect(set.mock.calls[0][0]["t:" + topicId]).toMatchObject({
+      id: topicId,
+      text: ["spoilers"],
+    });
+    expect(lists.topics.list).toHaveLength(1);
+    expect(remove).toHaveBeenCalledWith("state");
+  });
+
+  // A collection that cannot be read is different: the blob is the only copy of
+  // whatever it held, so removing it would destroy data rather than migrate it.
+  // Retrying on every load is the lesser cost.
+  //
+  // A malformed wrapper matters as much as a malformed `list`, and is easier to
+  // miss: dereferencing `.list` on one yields undefined, which is exactly what
+  // an absent collection yields, so the two are indistinguishable afterwards.
+  it.each([
+    ["a list that is not an array", { list: { 0: { addresses: ["a.net"] } } }],
+    ["the bare array, with no wrapper", [{ addresses: ["a.net"] }]],
+    ["a wrapper that is not an object", "websites"],
+  ])("keeps the legacy state blob when websites is %s", async (_, websites) => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    get.mockResolvedValue({
+      state: {
+        topics: {
+          list: [topic(undefined, ["spoilers"], "2026-01-01T00:00:00.000Z")],
+        },
+        websites,
+      },
+    });
+
+    const lists = await fromStorage();
+
+    // The readable half still migrates, so the popup is usable meanwhile.
+    const topicId = String(Date.parse("2026-01-01T00:00:00.000Z"));
+    expect(set.mock.calls[0][0]["t:" + topicId]).toMatchObject({ id: topicId });
+    expect(lists.topics.list).toHaveLength(1);
+    expect(remove).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining("cannot be read"),
+    );
+
+    consoleError.mockRestore();
+  });
+
+  it("keeps a legacy state blob that is not an object at all", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    get.mockResolvedValue({ state: "nonsense" });
+
+    await fromStorage();
+
+    expect(remove).not.toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
   it("keeps a newer per-item key over the v1 value during a re-migration", async () => {
     // A partially completed earlier migration left an edited t:<id> (newer)
     // next to the still-present v1 blob (older, same createdDate). Re-migration

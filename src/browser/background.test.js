@@ -63,6 +63,29 @@ describe("toLists", () => {
   it("returns empty lists for empty storage", () => {
     expect(toLists({})).toEqual({ topicsList: [], websitesList: [] });
   });
+
+  // The v2 branch skips anything falsy, so the v1 branch must too: a `null`
+  // entry reaching `updateState` throws where the lists are filtered by
+  // `enabled`, and the read queue then reports it as a storage read failure.
+  it("skips falsy entries in a legacy v1 list", () => {
+    const raw = {
+      state: {
+        topics: { list: [null, { enabled: true, text: "spoilers" }] },
+        websites: {
+          list: [{ addresses: ["reddit.com"], enabled: true }, undefined],
+        },
+      },
+    };
+    expect(toLists(raw)).toEqual({
+      topicsList: [{ enabled: true, text: "spoilers" }],
+      websitesList: [{ addresses: ["reddit.com"], enabled: true }],
+    });
+  });
+
+  it("treats a legacy v1 collection that is missing or malformed as empty", () => {
+    const raw = { state: { topics: null, websites: { list: "not a list" } } };
+    expect(toLists(raw)).toEqual({ topicsList: [], websitesList: [] });
+  });
 });
 
 describe("matchesAddress", () => {
@@ -169,13 +192,24 @@ describe("isCommitted", () => {
 describe("active tab re-evaluation", () => {
   const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+  const SYNC_STORE = {
+    schema: 2,
+    "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+    "w:9": {
+      addresses: ["reddit.com"],
+      enabled: true,
+      id: "9",
+      selectors: [".post"],
+    },
+  };
+
   // Re-evaluate the source against a mock whose active tab is `tab`, then clear
   // the mocks: initialization runs `resetCurrentTab` through the same
   // `tabs.query`, so without this the assertions would pass on the
   // initialization pass alone and never exercise a listener.
   // `localStore` backs `storage.local` and is returned so a test can flip the
   // master switch and then fire the corresponding `onChanged` event.
-  const evaluate = async (tab, localStore = {}) => {
+  const evaluate = async (tab, localStore = {}, syncStore = SYNC_STORE) => {
     const executeScript = jest
       .fn()
       .mockResolvedValue([{ result: { isInstalled: true } }]);
@@ -192,19 +226,7 @@ describe("active tab re-evaluation", () => {
             onChanged = listener;
           },
         },
-        sync: {
-          get: () =>
-            Promise.resolve({
-              schema: 2,
-              "t:1": { enabled: true, id: "1", text: ["spoilers"] },
-              "w:9": {
-                addresses: ["reddit.com"],
-                enabled: true,
-                id: "9",
-                selectors: [".post"],
-              },
-            }),
-        },
+        sync: { get: () => Promise.resolve({ ...syncStore }) },
       },
       tabs: {
         ...chromeMock.tabs,
@@ -573,6 +595,107 @@ describe("active tab re-evaluation", () => {
     expect(executeScript).not.toHaveBeenCalled();
     expect(sendMessage).not.toHaveBeenCalled();
   });
+
+  // `addresses` is iterated without a guard, so one corrupt website would
+  // otherwise abort the match loop and stop filtering on every other one. The
+  // corrupt entries are stored ahead of the working one so a regression cannot
+  // pass by reaching it first.
+  it("keeps filtering the other websites when one is unusable", async () => {
+    const { executeScript, onActivated } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      {
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:1": { enabled: true, id: "1" },
+        "w:2": { addresses: [], enabled: true, id: "2", selectors: [".x"] },
+        "w:9": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          id: "9",
+          selectors: [".post"],
+        },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+  });
+
+  // A v1 blob is read before migration can run, so a corrupt entry in one
+  // reaches `updateState` with nothing in between to have filtered it out.
+  it("keeps filtering when a legacy v1 list holds a corrupt entry", async () => {
+    const { executeScript, onActivated } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      {
+        state: {
+          topics: { list: [null, { enabled: true, text: "spoilers" }] },
+          websites: {
+            list: [
+              null,
+              {
+                addresses: ["reddit.com"],
+                enabled: true,
+                selectors: [".post"],
+              },
+            ],
+          },
+        },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+  });
+
+  // Injecting for it would send `selectors: undefined`, which throws where the
+  // content script iterates it, so the tab is treated as unmatched instead.
+  it("disables a tab that only an unusable website matches", async () => {
+    const { executeScript, onActivated, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://example.org/" },
+      {},
+      {
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:1": { addresses: ["example.org"], enabled: true, id: "1" },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  it("logs a failure inside a tab update rather than leaving it unhandled", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { onActivated, sendMessage } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://example.org/",
+    });
+    // A synchronous throw, as `chrome.tabs` raises on an invalidated extension
+    // context. The inline `.catch()` on the call never sees it, and nothing
+    // awaits `updateTab`, so the rejection has nowhere else to surface.
+    sendMessage.mockImplementation(() => {
+      throw new Error("context invalidated");
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: updateTab() failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
+  });
 });
 
 describe("tabs.onUpdated listener", () => {
@@ -688,6 +811,156 @@ describe("tabs.onUpdated listener", () => {
     await flush();
     expect(executeScript).not.toHaveBeenCalled();
   });
+
+  // This is the higher-traffic of the two `updateTab` call sites, so it needs
+  // its own coverage: the other one passing says nothing about this one.
+  it("logs a failure inside a tab update rather than leaving it unhandled", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    // A synchronous throw, as `chrome.tabs` raises on an invalidated extension
+    // context. The inline `.catch()` on the call never sees it.
+    sendMessage.mockImplementation(() => {
+      throw new Error("context invalidated");
+    });
+
+    onUpdated(
+      1,
+      { status: "complete" },
+      { id: 1, url: "https://example.org/" },
+    );
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: updateTab() failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
+  });
+});
+
+// `chrome.*` raises synchronously on an invalidated extension context. Nothing
+// awaits the handlers that reach `chrome.tabs.query`, so the throw has nowhere
+// to surface on its own, and a `.catch()` chained onto the call is attached too
+// late to see it. Each case drives a different one of those handlers and pins
+// the failure to `tabs.query`, rather than to whichever caller is on the stack.
+describe("a synchronous throw from chrome.tabs.query", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  const evaluateThenBreakQuery = async () => {
+    let onActivated;
+    let onChanged;
+    let onConnect;
+    const query = jest.fn(() => Promise.resolve([]));
+    const mock = {
+      ...chromeMock,
+      runtime: {
+        ...chromeMock.runtime,
+        onConnect: {
+          addListener: (listener) => {
+            onConnect = listener;
+          },
+        },
+      },
+      storage: {
+        ...chromeMock.storage,
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+      },
+      tabs: {
+        ...chromeMock.tabs,
+        onActivated: {
+          addListener: (listener) => {
+            onActivated = listener;
+          },
+        },
+        query,
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+    // Break it only after initialization, which reaches `tabs.query` through
+    // `resetCurrentTab` and would otherwise log once before the case begins.
+    query.mockImplementation(() => {
+      throw new Error("context invalidated");
+    });
+    return { onActivated, onChanged, onConnect };
+  };
+
+  // Named for the call that failed. Reporting it against the caller instead
+  // would blame the read queue's storage catch for a tabs failure.
+  const expectLogged = (consoleError) =>
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: tabs.query() failed:",
+      expect.any(Error),
+    );
+
+  let consoleError;
+
+  beforeEach(() => {
+    consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  it("logs a synchronous throw raised by a tab event", async () => {
+    const { onActivated } = await evaluateThenBreakQuery();
+
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expectLogged(consoleError);
+  });
+
+  // `updateState` calls `resetCurrentTab` from inside the read queue, so a throw
+  // escaping it would land in that chain's catch and be reported as a storage
+  // failure, sending anyone reading the log after the wrong subsystem.
+  it("is not reported as a storage failure when a storage change drives it", async () => {
+    const { onChanged } = await evaluateThenBreakQuery();
+
+    onChanged({}, "sync");
+    await flush();
+
+    expectLogged(consoleError);
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "filter-bubble: storage.get() failed:",
+      expect.anything(),
+    );
+  });
+
+  it("logs a synchronous throw raised by opening the highlight port", async () => {
+    const { onConnect } = await evaluateThenBreakQuery();
+
+    onConnect({ onDisconnect: { addListener: () => {} } });
+    await flush();
+
+    expectLogged(consoleError);
+  });
+
+  it("logs a synchronous throw raised by closing the highlight port", async () => {
+    const { onConnect } = await evaluateThenBreakQuery();
+    let onDisconnect;
+    onConnect({
+      onDisconnect: {
+        addListener: (listener) => {
+          onDisconnect = listener;
+        },
+      },
+    });
+    await flush();
+    consoleError.mockClear();
+
+    onDisconnect();
+    await flush();
+
+    expectLogged(consoleError);
+  });
 });
 
 describe("runtime.onMessage listener", () => {
@@ -729,6 +1002,41 @@ describe("runtime.onMessage listener", () => {
     onMessage({ command: "count", data: { count: 3 } }, {});
 
     expect(setBadgeText).not.toHaveBeenCalled();
+  });
+
+  // Guarding `setBadge` against a throw is pointless if reading the payload can
+  // throw first, in the same listener and one line earlier.
+  it("clears the badge for a count message that carries no payload", () => {
+    expect(() =>
+      onMessage({ command: "count" }, { tab: { id: 7 } }),
+    ).not.toThrow();
+
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 7, text: "" });
+  });
+
+  // `chrome.action` raises synchronously on an invalidated extension context,
+  // where a `.catch()` chained onto the call is attached too late to see it. The
+  // throw would escape the listener itself, which the browser reports on its own
+  // terms rather than through the extension's own logging.
+  it("logs a synchronous throw from setBadgeText rather than escaping", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    setBadgeText.mockImplementation(() => {
+      throw new Error("context invalidated");
+    });
+
+    expect(() =>
+      onMessage({ command: "count", data: { count: 3 } }, { tab: { id: 7 } }),
+    ).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: setBadge() failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
   });
 });
 
