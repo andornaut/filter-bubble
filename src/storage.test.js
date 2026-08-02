@@ -108,6 +108,50 @@ describe("fromStorage", () => {
     expect(lists.websites.list).toHaveLength(1);
   });
 
+  // `default-reddit` ships with unsorted addresses, and v1 identified websites
+  // by the `addresses` array verbatim, so an entry holding the same addresses in
+  // sorted order was not a duplicate there. Both canonicalize onto the default
+  // id, and the blob is dropped right after, so a collision here loses the
+  // overwritten website permanently.
+  it("keeps both websites when two v1 entries claim one default id", async () => {
+    const shipped = ["reddit.com", "old.reddit.com", "www.reddit.com"];
+    get.mockResolvedValue({
+      state: {
+        topics: { list: [] },
+        websites: {
+          list: [
+            {
+              addresses: shipped,
+              createdDate: "2026-01-01T00:00:00.000Z",
+              enabled: true,
+              selectors: [".default"],
+            },
+            {
+              addresses: [...shipped].sort(),
+              createdDate: "2026-01-02T00:00:00.000Z",
+              enabled: true,
+              selectors: [".mine"],
+            },
+          ],
+        },
+      },
+    });
+
+    const lists = await fromStorage();
+
+    expect(lists.websites.list).toHaveLength(2);
+    expect(lists.websites.list.map((w) => w.selectors)).toEqual(
+      expect.arrayContaining([[".default"], [".mine"]]),
+    );
+    // The first entry keeps the fixed default id, so a migrated device and a
+    // freshly seeded one still converge on it.
+    const written = set.mock.calls[0][0];
+    expect(written["w:default-reddit"]).toMatchObject({
+      selectors: [".default"],
+    });
+    expect(remove).toHaveBeenCalledWith("state");
+  });
+
   // A v1 blob can hold a collection this version never wrote, e.g. an export
   // taken before websites existed. An absent collection migrates as empty, and
   // the blob is still dropped.

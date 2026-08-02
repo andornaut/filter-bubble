@@ -112,15 +112,21 @@ const ensureV2 = async (raw) => {
       raw.state.topics,
       (ids, item) => item.id || toItemId(ids, item.createdDate),
     );
-    migrateList(
-      toWrite,
-      WEBSITE_PREFIX,
-      raw.state.websites,
-      (ids, item) =>
-        item.id ||
-        defaultIdByAddresses[canonicalAddresses(item.addresses)] ||
-        toItemId(ids, item.createdDate),
-    );
+    migrateList(toWrite, WEBSITE_PREFIX, raw.state.websites, (ids, item) => {
+      if (item.id) {
+        return item.id;
+      }
+      // Claim a default's fixed id only while it is still free. v1 identified
+      // websites by their `addresses` array verbatim, so two entries whose
+      // addresses differ only in order were not duplicates there and both
+      // canonicalize onto the same default id here. Letting the second reuse it
+      // would overwrite the first in `toWrite` and lose it with the blob.
+      const defaultId =
+        defaultIdByAddresses[canonicalAddresses(item.addresses)];
+      return defaultId && !ids.has(defaultId)
+        ? defaultId
+        : toItemId(ids, item.createdDate);
+    });
   } else if (!alreadyV2) {
     // Fresh install (no schema, no v1 blob): seed the default websites.
     defaultWebsites.list.forEach((website) => {
