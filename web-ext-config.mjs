@@ -3,5 +3,4 @@ export default {
     overwriteDest: true,
   },
   sourceDir: "dist/",
-  verbose: true,
 };
