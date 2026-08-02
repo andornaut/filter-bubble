@@ -91,8 +91,9 @@ describe("popup entry point", () => {
 
     expect(chrome.runtime.connect).not.toHaveBeenCalled();
     // It is still a full UI, so the permission banner is still computed, and
-    // from the state: `checkAllPermissions()` with no argument throws inside
-    // its own `.catch` and turns the banner into an error instead.
+    // from the state: `checkAllPermissions()` with no argument throws on
+    // `state.websites`, which its own `.catch` swallows into a console error,
+    // so the flags are never set and the banner keeps a stale value.
     expect(checkAllPermissions).toHaveBeenCalledWith(expect.any(Object));
   });
 
@@ -113,8 +114,13 @@ describe("popup entry point", () => {
       listeners.find(([type]) => type === "hashchange") || [];
 
     expect(onHashChange).toEqual(expect.any(Function));
+    // Clear first: setting `window.location.hash` in `beforeEach` queues a real
+    // hashchange that lands during `load()`, so the handler has already run and
+    // a bare `toHaveBeenCalled()` would pass for a handler that does nothing.
+    clearAllErrors.mockClear();
     onHashChange();
-    expect(clearAllErrors).toHaveBeenCalled();
+
+    expect(clearAllErrors).toHaveBeenCalledTimes(1);
   });
 
   it("offers a working retry when initialization fails", async () => {
@@ -143,5 +149,29 @@ describe("popup entry point", () => {
     onRetry();
 
     expect(initState).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a retry that lands after initialization but before the port", async () => {
+    initState.mockRejectedValue(new Error("storage unavailable"));
+    await load();
+    const { onRetry } = rendered().props;
+
+    // The retry gets past `initState`, then parks on `isPopup()`. Releasing the
+    // guard when `initState` settles would let a second retry overtake here and
+    // register another hashchange listener and another port.
+    initState.mockResolvedValue(undefined);
+    let releaseIsPopup;
+    isPopup.mockReturnValue(
+      new Promise((resolve) => (releaseIsPopup = resolve)),
+    );
+    onRetry();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    onRetry();
+    releaseIsPopup(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(initState).toHaveBeenCalledTimes(2);
+    expect(chrome.runtime.connect).toHaveBeenCalledTimes(1);
+    expect(listeners.filter(([type]) => type === "hashchange")).toHaveLength(1);
   });
 });

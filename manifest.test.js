@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 const manifest = JSON.parse(
@@ -30,19 +30,25 @@ describe("manifest", () => {
       ? join(__dirname, "src/browser", path.replace(/^js\//, ""))
       : join(__dirname, "static", path);
 
-  const referenced = [
-    manifest.action.default_popup,
-    manifest.options_ui.page,
-    manifest.background.service_worker,
-    ...manifest.background.scripts,
-    ...Object.values(manifest.icons),
-    ...Object.values(manifest.action.default_icon),
-  ];
+  it("ships every file it references", () => {
+    // Collected inside the test: at describe time a dropped key throws a bare
+    // TypeError that collapses the whole file rather than failing here.
+    const referenced = [
+      manifest.action.default_popup,
+      manifest.options_ui.page,
+      manifest.background.service_worker,
+      ...manifest.background.scripts,
+      ...Object.values(manifest.icons),
+      ...Object.values(manifest.action.default_icon),
+    ];
 
-  it.each([...new Set(referenced)])("ships the referenced file %s", (path) => {
     // The manifest is not validated against the build, so a renamed or moved
     // file leaves a reference that only fails once the extension is loaded.
-    expect(() => readFileSync(toSource(path))).not.toThrow();
+    const missing = [...new Set(referenced)].filter(
+      (path) => !existsSync(toSource(path)),
+    );
+
+    expect(missing).toEqual([]);
   });
 });
 
