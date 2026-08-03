@@ -465,6 +465,38 @@ describe("subscribeStorageSync", () => {
     expect(onLists).not.toHaveBeenCalled();
   });
 
+  // The tie-break must be a function of content alone. Picking "mine" on both
+  // devices has each write its own value back over the other's forever, one
+  // `storage.sync` write per round until the quota rejects them. Reachable
+  // without a same-millisecond edit: the shipped defaults carry a frozen
+  // `modifiedDate`, so two releases whose seed data differs collide on it.
+  it("resolves an equal modifiedDate by content, the same way on both sides", async () => {
+    const modifiedDate = "2020-01-01T00:00:00.000Z";
+    const mine = topic("1", ["a"], modifiedDate);
+    const theirs = topic("1", ["b"], modifiedDate);
+
+    // Holding the loser: adopt the winner and stay quiet.
+    await seed({ "t:1": mine });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+    fire({ "t:1": { newValue: theirs } });
+
+    expect(onLists.mock.calls[0][0].topics.list).toEqual([theirs]);
+    expect(set).not.toHaveBeenCalled();
+
+    // Holding the winner: keep it and write it back, and a re-emission of that
+    // write settles instead of bouncing.
+    await seed({ "t:1": theirs });
+    subscribeStorageSync(jest.fn());
+    fire({ "t:1": { newValue: mine } });
+
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set.mock.calls[0][0]).toEqual({ "t:1": theirs });
+    set.mockClear();
+    fire({ "t:1": { newValue: theirs } });
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it("applies a remote toggle that bumped modifiedDate but not sortDate", async () => {
     const sortDate = "2026-01-01T00:00:00.000Z";
     await seed({ "t:1": { ...topic("1", ["a"], sortDate), sortDate } });
