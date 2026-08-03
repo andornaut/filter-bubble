@@ -50,8 +50,13 @@
 
   class FilterBubble {
     constructor() {
-      // This state is reset in `this.disable()`
-      this.count = 0;
+      // This state is reset in `this.disable()`, which reports a count of 0
+      // rather than restoring the `null` below.
+      //
+      // `null` is "nothing reported yet", which is not the same as a count of
+      // 0: a badge the previous document left in this tab is still on it. See
+      // `enable()`.
+      this.count = null;
       this.pending = false;
       this.queued = false;
       this.regex = null;
@@ -90,6 +95,13 @@
         return;
       }
 
+      // Re-report the count for every `enable`, by dropping the cached value
+      // the send is deduplicated against. The background clears the tab's badge
+      // whenever it evaluates the tab as unmatched, and a bfcache restore hands
+      // this same instance back afterwards with its count intact, so a cached
+      // count is no evidence of what the badge currently reads.
+      this.count = null;
+
       // Duplicate calls, where the state hasn't changed, skip the reset and
       // re-observe below, but still re-run filtering: the observer misses
       // characterData and attribute mutations (e.g. the page rewriting
@@ -117,8 +129,15 @@
         return;
       }
 
-      this.regex = regex;
-      this.state = state;
+      // Hold no state for the length of the reset below, and commit the new
+      // state only once the observer is attached. A throw anywhere in between
+      // then leaves an instance that matches no state at all, so the next
+      // `enable` compares unequal whichever state it carries and retries the
+      // reset in full. Holding either state across it would have some `enable`
+      // take the duplicate-state path against an instance whose observer is
+      // disconnected, leaving the tab filtered once and never again.
+      this.regex = null;
+      this.state = {};
 
       // The sequence disconnect, reset, observe avoids duplicate work
       this.observer.disconnect();
@@ -136,6 +155,10 @@
         childList: true,
         subtree: true,
       });
+
+      this.regex = regex;
+      this.state = state;
+
       this._runFiltering();
     }
 
