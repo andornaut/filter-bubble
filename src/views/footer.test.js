@@ -3,7 +3,7 @@ import { getState, setState } from "statezero/src";
 
 import { Footer } from "./footer";
 
-describe("Footer master switch", () => {
+describe("Footer enable/disable toggle", () => {
   const ON_LABEL = "Turn all filtering on in this browser";
   const OFF_LABEL = "Turn all filtering off in this browser";
 
@@ -23,7 +23,7 @@ describe("Footer master switch", () => {
     );
   });
 
-  it("toggles the master switch on click", () => {
+  it("toggles Filter Bubble on click", () => {
     setState("isDisabled", false);
     render(<Footer isDisabled={false} />);
 

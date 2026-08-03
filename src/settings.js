@@ -1,6 +1,6 @@
-// Master on/off switch, stored in `storage.local` rather than `storage.sync`:
-// pausing is meant to apply to this browser only, and a synced flag would turn
-// filtering off on every device.
+// Set while Filter Bubble is disabled. Stored in `storage.local` rather than
+// `storage.sync`: disabling is meant to apply to this browser only, and a
+// synced flag would turn filtering off on every device.
 // Note: This key is duplicated in src/browser/background.js, which cannot
 // import ES modules (it runs as a service worker without bundling).
 const DISABLED_KEY = "disabled";

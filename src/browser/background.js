@@ -4,6 +4,19 @@
 
 const CONTENT_SCRIPT_PATH = "/js/content-script.js";
 const STYLESHEET_PATH = "/css/content-script.css";
+// Toolbar icons. The greyscale set marks Filter Bubble being disabled, which is
+// otherwise only visible by opening the popup. Sizes mirror
+// `action.default_icon` in manifest.json.
+const ICON_PATHS = { 16: "/icons/16.png", 32: "/icons/32.png" };
+const DISABLED_ICON_PATHS = {
+  16: "/icons/16-disabled.png",
+  32: "/icons/32-disabled.png",
+};
+// Toolbar tooltip, which carries the same state as the icons for anyone who
+// can't see the colour. `DEFAULT_TITLE` is what re-enabling restores, so it
+// must match `action.default_title` in manifest.json.
+const DEFAULT_TITLE = "Filter Bubble";
+const DISABLED_TITLE = `${DEFAULT_TITLE} (Disabled)`;
 // Note: This regex is duplicated in src/validation.js because this file
 // cannot import ES modules (it runs as a service worker without bundling).
 const SCHEME_REGEX = /^(https?)?:\/\//;
@@ -11,8 +24,9 @@ const SCHEME_REGEX = /^(https?)?:\/\//;
 // be imported here (service worker, no bundling).
 const TOPIC_PREFIX = "t:";
 const WEBSITE_PREFIX = "w:";
-// Master on/off switch, held in `storage.local` so it applies to this browser
-// only. Duplicated from src/settings.js, which cannot be imported here either.
+// Set while Filter Bubble is disabled, held in `storage.local` so that
+// disabling applies to this browser only. Duplicated from src/settings.js,
+// which cannot be imported here either.
 const DISABLED_KEY = "disabled";
 
 // =============================================================================
@@ -64,6 +78,23 @@ const setBadge = async (tabId, count) => {
     await chrome.action.setBadgeText({ tabId, text });
   } catch (err) {
     console.error("filter-bubble: setBadge() failed:", err);
+  }
+};
+
+// Same `try` rationale as `setBadge`. Both are set globally rather than per
+// tab, because disabling applies to the whole browser.
+const updateAction = async (isDisabled) => {
+  try {
+    await Promise.all([
+      chrome.action.setIcon({
+        path: isDisabled ? DISABLED_ICON_PATHS : ICON_PATHS,
+      }),
+      chrome.action.setTitle({
+        title: isDisabled ? DISABLED_TITLE : DEFAULT_TITLE,
+      }),
+    ]);
+  } catch (err) {
+    console.error("filter-bubble: updateAction() failed:", err);
   }
 };
 
@@ -279,12 +310,13 @@ const updateState = ({
   topicsList = [],
   websitesList = [],
 }) => {
-  // The master switch clears the pattern rather than the website list, which
+  // Disabling clears the pattern rather than the website list, which
   // reuses the existing "filter nothing" path: `updateTab` then disables every
   // tab it evaluates instead of injecting. Per-item `enabled` flags are left
   // untouched, so re-enabling restores the previous configuration.
   state.pattern = isDisabled ? "" : toPattern(topicsList);
   state.websitesList = websitesList.filter((website) => website.enabled);
+  updateAction(isDisabled);
   resetCurrentTab(state);
 };
 
@@ -357,7 +389,7 @@ chrome.storage.onChanged.addListener(
       readState();
       return;
     }
-    // The master switch is the only `storage.local` key we track; ignore the
+    // `DISABLED_KEY` is the only `storage.local` key we track; ignore the
     // other areas ("session" and "managed") entirely.
     if (areaName === "local" && DISABLED_KEY in changes) {
       readState();

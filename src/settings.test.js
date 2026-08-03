@@ -14,7 +14,7 @@ describe("fromLocalStorage", () => {
     await expect(fromLocalStorage()).resolves.toEqual({ isDisabled: false });
   });
 
-  it("reads the stored master switch", async () => {
+  it("reads the stored disabled flag", async () => {
     get.mockResolvedValue({ disabled: true });
 
     await expect(fromLocalStorage()).resolves.toEqual({ isDisabled: true });
@@ -22,7 +22,7 @@ describe("fromLocalStorage", () => {
 });
 
 describe("toLocalStorage", () => {
-  it("writes when the master switch changes", async () => {
+  it("writes when Filter Bubble is disabled", async () => {
     await fromLocalStorage();
 
     await toLocalStorage({ isDisabled: true });
@@ -30,7 +30,7 @@ describe("toLocalStorage", () => {
     expect(set).toHaveBeenCalledWith({ disabled: true });
   });
 
-  it("writes when the master switch is turned back off", async () => {
+  it("writes when Filter Bubble is re-enabled", async () => {
     get.mockResolvedValue({ disabled: true });
     await fromLocalStorage();
 
@@ -39,7 +39,7 @@ describe("toLocalStorage", () => {
     expect(set).toHaveBeenCalledWith({ disabled: false });
   });
 
-  it("does not write when the master switch is unchanged", async () => {
+  it("does not write when the flag is unchanged", async () => {
     await fromLocalStorage();
 
     await toLocalStorage({ isDisabled: false });

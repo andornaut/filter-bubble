@@ -4,7 +4,7 @@ import { join } from "path";
 // `src/browser/*.js` ship unbundled, so they cannot import the modules that own
 // these values and must restate them. Nothing at build or run time notices when
 // a copy drifts: the background would simply read no items, match no URL, or
-// miss the master switch, with no error anywhere. These tests are the only
+// miss the disabled flag, with no error anywhere. These tests are the only
 // thing holding the copies together.
 
 const source = (path) => readFileSync(join(__dirname, path), "utf8");
@@ -55,6 +55,33 @@ describe("runtime asset paths in background.js", () => {
       expect(() => readFileSync(toSource(path), "utf8")).not.toThrow();
     },
   );
+
+  // The toolbar icons are named only here, so manifest.test.js's
+  // ships-every-file check does not reach them. A missing one leaves the
+  // browser showing its own fallback icon with only a console log.
+  it("names icon files that ship", () => {
+    const paths = [...new Set(BACKGROUND.match(/"\/icons\/[^"]+"/g) || [])];
+
+    expect(paths.length).toBeGreaterThan(0);
+    paths.forEach((path) => {
+      expect(() => readFileSync(toSource(JSON.parse(path)))).not.toThrow();
+    });
+  });
+});
+
+describe("toolbar title duplicated into background.js", () => {
+  // Re-enabling Filter Bubble restores this title rather than clearing the
+  // override, so a manifest that says something else would leave the button
+  // permanently labelled with the stale copy here.
+  it("keeps DEFAULT_TITLE in step with the manifest", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(__dirname, "../../manifest.json"), "utf8"),
+    );
+
+    expect(JSON.parse(constant(BACKGROUND, "DEFAULT_TITLE"))).toBe(
+      manifest.action.default_title,
+    );
+  });
 });
 
 describe("content-script classes duplicated into the stylesheet", () => {
