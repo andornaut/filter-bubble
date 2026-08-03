@@ -83,12 +83,19 @@ const defaultIdByAddresses = seededWebsites.reduce((acc, website) => {
 
 // Re-apply the shipped defaults over stored copies the user has never touched,
 // so a corrected selector reaches installs that already seeded the old one.
-// Seeding alone only covers a fresh install.
+// Seeding alone only covers a fresh install. Only a default already stored is
+// updated, so a newly added one still reaches fresh installs only.
 //
-// Carry `enabled` across rather than restoring the shipped value: a selector
-// correction has no business changing whether the user has the site switched
-// on, and the toggle did not stamp `modifiedDate` before the per-item layout,
-// so a default disabled on those releases still satisfies the sentinel.
+// Carry the stored record's own dates across. The shipped pair predates an
+// install-time clock, so writing it would move `modifiedDate` backwards, which
+// hands the merge outright to any device still holding the later value, and
+// would reorder the list, which sorts on `modifiedDate` when `sortDate` is
+// absent.
+//
+// Carry `enabled` across for a different reason: a selector correction has no
+// business changing whether the user has the site switched on, and the toggle
+// did not stamp `modifiedDate` before the per-item layout, so a default
+// disabled on those releases still satisfies the sentinel.
 //
 // A tombstone carries a delete-time `modifiedDate` and no `createdDate`, so a
 // deleted default fails the equality and stays deleted.
@@ -102,7 +109,12 @@ const refreshDefaults = (raw, toWrite) => {
     const key = WEBSITE_PREFIX + website.id;
     const current = toWrite[key] || raw[key];
     if (current && current.modifiedDate === current.createdDate) {
-      toWrite[key] = { ...website, enabled: current.enabled };
+      toWrite[key] = {
+        ...website,
+        createdDate: current.createdDate,
+        enabled: current.enabled,
+        modifiedDate: current.modifiedDate,
+      };
     }
   });
 };

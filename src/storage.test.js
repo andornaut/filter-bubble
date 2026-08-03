@@ -107,61 +107,94 @@ describe("fromStorage", () => {
   // than the value websites.json carries. Recognizing an unedited record by the
   // two dates being equal reaches those installs; comparing against the shipped
   // date would exclude every one of them.
-  const preV2 = (website, overrides) => ({
-    ...website,
-    createdDate: "2025-03-14T09:00:00.000Z",
-    modifiedDate: "2025-03-14T09:00:00.000Z",
+  const INSTALLED_AT = "2025-03-14T09:00:00.000Z";
+  // No `id`: it is derived from the addresses during migration.
+  const preV2 = (overrides) => ({
+    ...shipped,
+    createdDate: INSTALLED_AT,
+    id: undefined,
+    modifiedDate: INSTALLED_AT,
     ...overrides,
   });
+  const v1Blob = (website) => ({
+    state: { topics: { list: [] }, websites: { list: [website] } },
+  });
+  // What the refresh must produce from one: shipped content, the install's own
+  // clocks.
+  const refreshed = {
+    ...shipped,
+    createdDate: INSTALLED_AT,
+    id: shipped.id,
+    modifiedDate: INSTALLED_AT,
+  };
 
   it("refreshes an unedited default seeded before the per-item layout", async () => {
-    get.mockResolvedValue({
-      state: {
-        topics: { list: [] },
-        // No `id`: it is derived from the addresses during migration.
-        websites: { list: [preV2(shipped, { id: undefined, selectors: [] })] },
-      },
-    });
+    get.mockResolvedValue(v1Blob(preV2({ selectors: [] })));
 
     const lists = await fromStorage();
 
-    expect(lists.websites.list).toEqual([shipped]);
+    expect(lists.websites.list).toEqual([refreshed]);
     expect(remove).toHaveBeenCalledWith("state");
+  });
+
+  // The shipped dates predate the install-time clock, so writing them would
+  // move `modifiedDate` backwards: any device still holding the later value
+  // wins the merge outright and reverts the refresh, and the list reorders,
+  // since `toSortDate` falls back to `modifiedDate` when `sortDate` is absent.
+  it("keeps the stored clocks when refreshing a pre-per-item default", async () => {
+    get.mockResolvedValue(v1Blob(preV2({ selectors: [] })));
+
+    await fromStorage();
+
+    const written = set.mock.calls[0][0][shippedKey];
+    expect(written.createdDate).toBe(INSTALLED_AT);
+    expect(written.modifiedDate).toBe(INSTALLED_AT);
+    expect(written.modifiedDate > shipped.modifiedDate).toBe(true);
+  });
+
+  // The carried-over clocks must still satisfy the sentinel, or every load
+  // would rewrite the same record.
+  it("does not rewrite a default it has already refreshed", async () => {
+    get.mockResolvedValue({ schema: 2, [shippedKey]: refreshed });
+
+    await fromStorage();
+
+    expect(set).not.toHaveBeenCalled();
   });
 
   // The toggle did not stamp `modifiedDate` before the per-item layout, so a
   // default disabled on those releases still satisfies the sentinel. Restoring
   // the shipped `enabled` would switch filtering the user turned off back on.
   it("keeps a default switched off while refreshing it", async () => {
-    get.mockResolvedValue({
-      state: {
-        topics: { list: [] },
-        websites: {
-          list: [
-            preV2(shipped, { enabled: false, id: undefined, selectors: [] }),
-          ],
-        },
-      },
-    });
+    get.mockResolvedValue(v1Blob(preV2({ enabled: false, selectors: [] })));
 
     const lists = await fromStorage();
 
-    expect(lists.websites.list).toEqual([{ ...shipped, enabled: false }]);
+    expect(lists.websites.list).toEqual([{ ...refreshed, enabled: false }]);
   });
 
   it("leaves an edited default seeded before the per-item layout alone", async () => {
-    const edited = preV2(shipped, {
-      id: undefined,
+    const edited = preV2({
       modifiedDate: "2026-01-01T00:00:00.000Z",
       selectors: [".mine"],
     });
-    get.mockResolvedValue({
-      state: { topics: { list: [] }, websites: { list: [edited] } },
-    });
+    get.mockResolvedValue(v1Blob(edited));
 
     const lists = await fromStorage();
 
     expect(lists.websites.list).toEqual([{ ...edited, id: shipped.id }]);
+  });
+
+  // Only a default already stored is updated. Seeding a missing one would
+  // resurrect a default whose tombstone has been swept.
+  it("does not seed a default that is absent from an existing install", async () => {
+    const other = defaultWebsites.list[1];
+    get.mockResolvedValue({ schema: 2, [`w:${other.id}`]: seeded(other) });
+
+    const lists = await fromStorage();
+
+    expect(set).not.toHaveBeenCalled();
+    expect(lists.websites.list).toEqual([seeded(other)]);
   });
 
   it("leaves a default the user edited alone", async () => {
