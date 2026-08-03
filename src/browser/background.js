@@ -190,6 +190,13 @@ const updateTab = async (
       `filter-bubble: updateTab() executeScript() failed for ${tabUrl}. Please grant the required "host permissions".`,
       err,
     );
+    // No count on this tab can be attributed to what it now shows, because the
+    // document cannot be reached to report one: a navigation ending on an error
+    // page keeps the matched URL and cannot be scripted, so the count of the
+    // document it replaced would otherwise stay on the badge. The trade is the
+    // reverse case, where a content script injected before site access was
+    // revoked keeps filtering and the badge reads empty over hidden content.
+    setBadge(tabId, 0);
     return;
   }
 
