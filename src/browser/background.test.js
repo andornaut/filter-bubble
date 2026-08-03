@@ -417,6 +417,27 @@ describe("active tab re-evaluation", () => {
     expect(query).toHaveBeenCalledWith({ active: true });
   });
 
+  // A navigation that ends on an error page keeps the matched URL and cannot be
+  // scripted, so the tab matches, nothing is injected into it, and the count
+  // from the document it replaced would stay on the badge.
+  it("clears the badge when the content script cannot be injected", async () => {
+    const consoleWarn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+    const { executeScript, onActivated, setBadgeText } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    executeScript.mockRejectedValue(new Error("showing error page"));
+
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 1, text: "" });
+    consoleWarn.mockRestore();
+  });
+
   // `forceHighlight` is global rather than per tab, so an open popup previews
   // in every window, not only the one it was opened in.
   it("applies the highlight preview to every window's active tab", async () => {
