@@ -210,6 +210,64 @@ describe("FilterBubble failure recovery", () => {
     consoleError.mockRestore();
   });
 
+  // The state is committed only once the observer is attached. Committed
+  // first, a failure to attach would leave the next `enable` carrying the same
+  // state on the duplicate-state path, and the tab would filter its current
+  // content and then never see anything added to it.
+  it("retries the reset when attaching the observer fails", async () => {
+    const observe = jest
+      .spyOn(window.filterBubble.observer, "observe")
+      .mockImplementationOnce(() => {
+        throw new Error("no documentElement");
+      });
+    document.body.innerHTML = `<div class="post">banana</div>`;
+
+    expect(() => enable()).toThrow();
+    enable();
+
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(document.querySelector(".post").classList).toContain(
+      "filter-bubble",
+    );
+    expect(added.classList.contains("filter-bubble")).toBe(true);
+    observe.mockRestore();
+  });
+
+  // The reset holds no state while it runs, so the retry does not depend on
+  // which state the next `enable` carries. A failed attach that left the
+  // previous state in place would send a repeat of it down the duplicate-state
+  // path, against an instance whose observer is disconnected.
+  it("retries the reset when the state repeated after a failed attach is the previous one", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    const observe = jest
+      .spyOn(window.filterBubble.observer, "observe")
+      .mockImplementationOnce(() => {
+        throw new Error("no documentElement");
+      });
+
+    expect(() => enable({ pattern: toPattern("cherry") })).toThrow();
+    // Wait out the first pass's throttle window before the retry: a pass still
+    // queued behind it would filter the node appended below on its own, with or
+    // without an observer attached, and the case would prove nothing.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    enable();
+
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "more banana";
+    document.body.appendChild(added);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(added.classList.contains("filter-bubble")).toBe(true);
+    observe.mockRestore();
+  });
+
   // Badge counts are cosmetic, so a send that fails must not abort the pass
   // that already applied the filters.
   it("logs a synchronous sendMessage throw rather than failing the pass", async () => {
@@ -331,6 +389,53 @@ describe("FilterBubble.disable", () => {
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);
     expect(el.classList.contains("filter-bubble--hide")).toBe(false);
+  });
+});
+
+describe("FilterBubble badge reporting", () => {
+  // Replace the shared instance with a freshly installed one, which is what
+  // every new document gets. `beforeEach` has already disabled the outgoing
+  // instance, so it holds no filters and observes nothing.
+  const reinstall = () => {
+    delete window.filterBubble;
+    new Function("chrome", source)(global.chrome);
+    sendMessage.mockClear();
+  };
+
+  // A tab-scoped badge outlives the document it was set for, so a page that
+  // matches nothing has to report a zero rather than assume the badge is clear,
+  // or the previous page's count stays on the tab.
+  it("reports a zero count on the first pass of a new document", () => {
+    reinstall();
+    document.body.innerHTML = `<div class="post">nothing to see</div>`;
+
+    enable();
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 0 },
+    });
+  });
+
+  // The background clears the badge of any tab it evaluates as unmatched, and a
+  // bfcache restore hands this same instance back afterwards with its count
+  // intact, so a repeat `enable` that finds the same count still has to report
+  // it: the page is filtered but the badge is empty until it does.
+  it("re-reports an unchanged count on a repeat enable", async () => {
+    reinstall();
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    // Wait out the first pass's throttle window, so the repeat pass is not
+    // merely queued behind it.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    sendMessage.mockClear();
+
+    enable();
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 1 },
+    });
   });
 });
 

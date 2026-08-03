@@ -192,21 +192,35 @@ describe("active tab re-evaluation", () => {
     },
   };
 
-  // Re-evaluate the source against a mock whose active tab is `tab`, then clear
-  // the mocks: initialization runs `resetCurrentTab` through the same
-  // `tabs.query`, so without this the assertions would pass on the
-  // initialization pass alone and never exercise a listener.
+  // Re-evaluate the source against a mock whose active tabs are `tabs` (one tab
+  // or a list of them, one per window), then clear the mocks: initialization
+  // runs `resetActiveTabs` through the same `tabs.query`, so without this the
+  // assertions would pass on the initialization pass alone and never exercise a
+  // listener.
   // `localStore` backs `storage.local` and is returned so a test can disable
   // Filter Bubble and then fire the corresponding `onChanged` event.
-  const evaluate = async (tab, localStore = {}, syncStore = SYNC_STORE) => {
+  const evaluate = async (tabs, localStore = {}, syncStore = SYNC_STORE) => {
+    const activeTabs = [].concat(tabs);
     const executeScript = jest
       .fn()
       .mockResolvedValue([{ result: { isInstalled: true } }]);
+    const query = jest.fn(() => Promise.resolve(activeTabs));
     const sendMessage = jest.fn(() => Promise.resolve());
+    const setBadgeText = jest.fn(() => Promise.resolve());
     let onActivated;
     let onChanged;
+    let onConnect;
     const mock = {
       ...chromeMock,
+      action: { ...chromeMock.action, setBadgeText },
+      runtime: {
+        ...chromeMock.runtime,
+        onConnect: {
+          addListener: (listener) => {
+            onConnect = listener;
+          },
+        },
+      },
       scripting: { ...chromeMock.scripting, executeScript },
       storage: {
         local: { get: () => Promise.resolve({ ...localStore }) },
@@ -224,15 +238,26 @@ describe("active tab re-evaluation", () => {
             onActivated = listener;
           },
         },
-        query: () => Promise.resolve([tab]),
+        query,
         sendMessage,
       },
     };
     new Function("chrome", source)(mock);
     await flush();
     executeScript.mockClear();
+    query.mockClear();
     sendMessage.mockClear();
-    return { executeScript, localStore, onActivated, onChanged, sendMessage };
+    setBadgeText.mockClear();
+    return {
+      executeScript,
+      localStore,
+      onActivated,
+      onChanged,
+      onConnect,
+      query,
+      sendMessage,
+      setBadgeText,
+    };
   };
 
   it("onActivated injects the content script for a settled matching tab", async () => {
@@ -324,6 +349,155 @@ describe("active tab re-evaluation", () => {
     onChanged({ disabled: { newValue: true } }, "local");
     await flush();
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  // A tab-scoped badge outlives the document it was set for, so the count from
+  // a filtered page would otherwise follow the tab to the next site, where no
+  // content script runs to report a zero of its own.
+  it("clears the badge for a tab that matches no website", async () => {
+    const { onActivated, setBadgeText } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://example.org/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 1, text: "" });
+  });
+
+  // The deferred disable waits for the `onUpdated` "complete" pass, but the
+  // count belongs to the document the tab is leaving either way.
+  it("clears the badge for an unmatched tab whose disable is deferred", async () => {
+    const { onActivated, sendMessage, setBadgeText } = await evaluate({
+      id: 1,
+      status: "loading",
+      url: "https://example.org/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 1, text: "" });
+  });
+
+  it("clears the badge of a matching tab while Filter Bubble is disabled", async () => {
+    const { onActivated, setBadgeText } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { disabled: true },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(setBadgeText).toHaveBeenCalledWith({ tabId: 1, text: "" });
+  });
+
+  // `tabs.onActivated` fires when the active tab within a window changes, not
+  // when focus moves between windows, so a state change is the only chance
+  // another window's visible tab gets to stop filtering under superseded state.
+  it("re-evaluates the active tab of every window on a state change", async () => {
+    const { onChanged, sendMessage } = await evaluate([
+      { id: 1, status: "complete", url: "https://example.org/" },
+      { id: 2, status: "complete", url: "https://example.net/" },
+    ]);
+    onChanged({}, "sync");
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+    expect(sendMessage).toHaveBeenCalledWith(2, { command: "disable" });
+  });
+
+  // `currentWindow` is the last focused window when a service worker asks, and
+  // nothing at all when no window has focus, which is how a `storage.sync`
+  // change arriving from another browser instance can find no tab to repair.
+  it("queries every window's active tab rather than the focused window's", async () => {
+    const { onChanged, query } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onChanged({}, "sync");
+    await flush();
+    expect(query).toHaveBeenCalledWith({ active: true });
+  });
+
+  // `forceHighlight` is global rather than per tab, so an open popup previews
+  // in every window, not only the one it was opened in.
+  it("applies the highlight preview to every window's active tab", async () => {
+    const { onConnect, sendMessage } = await evaluate([
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { id: 2, status: "complete", url: "https://reddit.com/" },
+    ]);
+    onConnect({ onDisconnect: { addListener: () => {} } });
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ filterMode: "highlight" }),
+      }),
+    );
+  });
+
+  // Every write the popup makes drives a sweep of its own, which must leave the
+  // preview where the port put it rather than narrow it to one window.
+  it("keeps every window's active tab in the preview on a state change", async () => {
+    const { onChanged, onConnect, sendMessage } = await evaluate([
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { id: 2, status: "complete", url: "https://reddit.com/" },
+    ]);
+    onConnect({ onDisconnect: { addListener: () => {} } });
+    await flush();
+    sendMessage.mockClear();
+
+    onChanged({}, "sync");
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ filterMode: "highlight" }),
+      }),
+    );
+  });
+
+  // The preview ends everywhere it was applied. `onActivated` does not fire for
+  // a window the user merely looks at, so nothing else would return that
+  // window's tab to filtering, and by now the focus may have moved to the
+  // window whose click closed the popup.
+  it("returns every window's active tab to filtering when the popup closes", async () => {
+    const { onConnect, sendMessage } = await evaluate([
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { id: 2, status: "complete", url: "https://reddit.com/" },
+    ]);
+    let onDisconnect;
+    onConnect({
+      onDisconnect: {
+        addListener: (listener) => {
+          onDisconnect = listener;
+        },
+      },
+    });
+    await flush();
+    sendMessage.mockClear();
+
+    onDisconnect();
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ filterMode: "remove" }),
+      }),
+    );
+  });
+
+  // The activation itself names the window, so that path stays scoped to it.
+  it("scopes the onActivated re-evaluation to the activated window", async () => {
+    const { onActivated, query } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onActivated({ windowId: 3 });
+    await flush();
+    expect(query).toHaveBeenCalledWith({ active: true, windowId: 3 });
   });
 
   // Two changes landing back to back each trigger a full re-read. If those
@@ -798,7 +972,7 @@ describe("a synchronous throw from chrome.tabs.query", () => {
     new Function("chrome", source)(mock);
     await flush();
     // Break it only after initialization, which reaches `tabs.query` through
-    // `resetCurrentTab` and would otherwise log once before the case begins.
+    // `resetActiveTabs` and would otherwise log once before the case begins.
     query.mockImplementation(() => {
       throw new Error("context invalidated");
     });
@@ -832,7 +1006,7 @@ describe("a synchronous throw from chrome.tabs.query", () => {
     expectLogged(consoleError);
   });
 
-  // `updateState` calls `resetCurrentTab` from inside the read queue, so a throw
+  // `updateState` calls `resetActiveTabs` from inside the read queue, so a throw
   // escaping it would land in that chain's catch and be reported as a storage
   // failure, sending anyone reading the log after the wrong subsystem.
   it("is not reported as a storage failure when a storage change drives it", async () => {
@@ -1031,8 +1205,11 @@ describe("runtime.onMessage listener", () => {
   // throw would escape the listener itself, which the browser reports on its own
   // terms rather than through the extension's own logging.
   it("logs a synchronous throw from setBadgeText rather than escaping", async () => {
-    const consoleError = jest
-      .spyOn(console, "error")
+    // Debug level, because a tab that closed between the id being read and the
+    // call being made is the expected failure, not a fault worth an extension
+    // error.
+    const consoleDebug = jest
+      .spyOn(console, "debug")
       .mockImplementation(() => {});
     setBadgeText.mockImplementation(() => {
       throw new Error("context invalidated");
@@ -1043,12 +1220,12 @@ describe("runtime.onMessage listener", () => {
     ).not.toThrow();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(consoleError).toHaveBeenCalledWith(
+    expect(consoleDebug).toHaveBeenCalledWith(
       "filter-bubble: setBadge() failed:",
       expect.any(Error),
     );
 
-    consoleError.mockRestore();
+    consoleDebug.mockRestore();
   });
 });
 

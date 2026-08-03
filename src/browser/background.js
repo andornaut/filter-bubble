@@ -75,9 +75,14 @@ const setBadge = async (tabId, count) => {
   const text = (count || "").toString(); // Display 0 as empty string
   try {
     // Fails if the tab is closed or otherwise unavailable.
+    //
+    // Log at debug level, as `sendMessage(disable)` does: the tab id comes from
+    // a query result or an event payload, and a tab closed since then is the
+    // expected outcome rather than a fault. Chrome surfaces a service worker's
+    // `console.error` as an extension error, which is not what a closed tab is.
     await chrome.action.setBadgeText({ tabId, text });
   } catch (err) {
-    console.error("filter-bubble: setBadge() failed:", err);
+    console.debug("filter-bubble: setBadge() failed:", err);
   }
 };
 
@@ -149,6 +154,12 @@ const updateTab = async (
   // `pattern` is empty string when the extension is first installed or if all topics are disabled.
   // Exit early to avoid matching against empty string regex, which matches every string.
   if (!website || !pattern) {
+    // A tab-scoped badge outlives the document it was set for, and an unmatched
+    // tab runs no content script to report a count of its own, so the previous
+    // page's count would otherwise follow the tab to the next site. Clear it
+    // whether or not the disable is deferred: the count belongs to the document
+    // the tab is leaving either way.
+    setBadge(tabId, 0);
     if (SCHEME_REGEX.test(tabUrl) && disableWhenUnmatched) {
       // Disable by default: the tab may have been filtered under earlier state
       // (website deleted, selectors changed, topics disabled), and this event
@@ -222,7 +233,16 @@ const updateTabSafely = (...args) =>
     console.error("filter-bubble: updateTab() failed:", err);
   });
 
-// Re-evaluate the active tab matched by `query` against the current state.
+// Re-evaluate the active tabs matched by `query` against the current state.
+//
+// The default query is every window's active tab, not the current window's:
+// `tabs.onActivated` fires when the active tab within a window changes, not when
+// the focus moves between windows, so another window's visible tab would keep
+// filtering under superseded state until it navigated. `currentWindow` is also
+// the last focused window when a service worker asks, which is nothing at all
+// when no window has focus (a `storage.sync` change arriving from another
+// browser instance), so restricting to it can repair no tab whatsoever.
+//
 // `deferDisableWhileLoading` skips the disable for a tab that is still loading,
 // leaving that call to the navigation's `onUpdated` "complete" pass, which is
 // the only pass that disables. A load that never completes therefore never gets
@@ -243,31 +263,30 @@ const updateTabSafely = (...args) =>
 // an invalidated extension context, which a `.catch()` on the returned promise
 // is not in place to see. The query is still issued synchronously, since an
 // async function body runs to its first `await`.
-const resetActiveTab = async (
+const resetActiveTabs = async (
   state,
-  query,
+  query = {},
   deferDisableWhileLoading = false,
 ) => {
-  let tab;
   try {
-    // Only the query and reading its result are inside, so an unrelated throw is
-    // not misreported as a tabs failure.
-    [tab] = await chrome.tabs.query({ active: true, ...query });
+    // Only the query and walking its result are inside, so an unrelated throw
+    // is not misreported as a tabs failure. Nothing in the loop can raise one:
+    // `isCommitted` reads properties, and `updateTabSafely` catches its own.
+    // Nothing awaits this function, so a throw escaping here would be an
+    // unhandled rejection with nowhere to surface.
+    for (const tab of await chrome.tabs.query({ active: true, ...query })) {
+      if (isCommitted(tab)) {
+        updateTabSafely(
+          state,
+          tab,
+          !(deferDisableWhileLoading && tab.status === "loading"),
+        );
+      }
+    }
   } catch (err) {
     console.error("filter-bubble: tabs.query() failed:", err);
-    return;
-  }
-  if (isCommitted(tab)) {
-    updateTabSafely(
-      state,
-      tab,
-      !(deferDisableWhileLoading && tab.status === "loading"),
-    );
   }
 };
-
-const resetCurrentTab = (state) =>
-  resetActiveTab(state, { currentWindow: true });
 
 // =============================================================================
 // State
@@ -317,7 +336,7 @@ const updateState = ({
   state.pattern = isDisabled ? "" : toPattern(topicsList);
   state.websitesList = websitesList.filter((website) => website.enabled);
   updateAction(isDisabled);
-  resetCurrentTab(state);
+  resetActiveTabs(state);
 };
 
 // Serialize reads: `storage.onChanged` can fire again while a read is in flight,
@@ -400,7 +419,13 @@ chrome.storage.onChanged.addListener(
 const setForceHighlight = (forceHighlight) =>
   runWhenStateIsReady(() => {
     state.forceHighlight = forceHighlight;
-    resetCurrentTab(state);
+    // `forceHighlight` is global rather than per tab, and the sweep matches it:
+    // an open popup previews in every window, and closing it returns every
+    // window to filtering. Scoping either direction to one window would leave
+    // the other windows in whichever mode their last tab event happened to
+    // apply, since `onActivated` does not fire for a window the user merely
+    // looks at.
+    resetActiveTabs(state);
   });
 
 // Hide content when the popup is closed; and highlight content when the popup is open.
@@ -436,7 +461,9 @@ chrome.runtime.onMessage.addListener(({ command, data }, sender) => {
 // the likeliest way to read a stale `tab.url`, so the navigation's `onUpdated`
 // "complete" pass makes the call instead.
 chrome.tabs.onActivated.addListener(
-  whenStateIsReady(({ windowId }) => resetActiveTab(state, { windowId }, true)),
+  whenStateIsReady(({ windowId }) =>
+    resetActiveTabs(state, { windowId }, true),
+  ),
 );
 
 // Called when a tab metadata, such as its loading state or URL, changes.
