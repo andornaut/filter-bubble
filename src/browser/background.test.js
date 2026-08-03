@@ -8,7 +8,11 @@ const source = readFileSync(join(__dirname, "background.js"), "utf8");
 
 const noopPromise = () => Promise.resolve();
 const chromeMock = {
-  action: { setBadgeText: noopPromise },
+  action: {
+    setBadgeText: noopPromise,
+    setIcon: noopPromise,
+    setTitle: noopPromise,
+  },
   runtime: {
     onConnect: { addListener: () => {} },
     onMessage: { addListener: () => {} },
@@ -192,8 +196,8 @@ describe("active tab re-evaluation", () => {
   // the mocks: initialization runs `resetCurrentTab` through the same
   // `tabs.query`, so without this the assertions would pass on the
   // initialization pass alone and never exercise a listener.
-  // `localStore` backs `storage.local` and is returned so a test can flip the
-  // master switch and then fire the corresponding `onChanged` event.
+  // `localStore` backs `storage.local` and is returned so a test can disable
+  // Filter Bubble and then fire the corresponding `onChanged` event.
   const evaluate = async (tab, localStore = {}, syncStore = SYNC_STORE) => {
     const executeScript = jest
       .fn()
@@ -299,7 +303,7 @@ describe("active tab re-evaluation", () => {
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
   });
 
-  it("disables a matching tab while the master switch is on", async () => {
+  it("disables a matching tab while Filter Bubble is disabled", async () => {
     const { executeScript, onActivated, sendMessage } = await evaluate(
       { id: 1, status: "complete", url: "https://reddit.com/" },
       { disabled: true },
@@ -310,7 +314,7 @@ describe("active tab re-evaluation", () => {
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
   });
 
-  it("re-reads state when the master switch changes in storage.local", async () => {
+  it("re-reads state when the disabled flag changes in storage.local", async () => {
     const { localStore, onChanged, sendMessage } = await evaluate({
       id: 1,
       status: "complete",
@@ -400,7 +404,7 @@ describe("active tab re-evaluation", () => {
   // `executeScript`, which does not settle while the target renderer is blocked
   // (a modal dialog, say). A queue waiting on it would stop applying storage
   // changes for as long as that tab is stuck, which is every topic edit, every
-  // website edit, and the master switch silently doing nothing.
+  // website edit, and disabling Filter Bubble silently doing nothing.
   it("keeps reading storage while a tab update is stalled", async () => {
     const get = jest.fn(() =>
       Promise.resolve({
@@ -870,6 +874,104 @@ describe("a synchronous throw from chrome.tabs.query", () => {
     await flush();
 
     expectLogged(consoleError);
+  });
+});
+
+describe("toolbar button", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  const DEFAULT_PATH = { 16: "/icons/16.png", 32: "/icons/32.png" };
+  const DISABLED_PATH = {
+    16: "/icons/16-disabled.png",
+    32: "/icons/32-disabled.png",
+  };
+
+  // Re-evaluate the source so the button is set from the initial storage read,
+  // which is the only pass a freshly woken service worker is guaranteed.
+  // `localStore` is returned so a test can re-enable Filter Bubble and then
+  // fire the corresponding `onChanged` event.
+  const evaluate = async (localStore = {}) => {
+    const setIcon = jest.fn(() => Promise.resolve());
+    const setTitle = jest.fn(() => Promise.resolve());
+    let onChanged;
+    const mock = {
+      ...chromeMock,
+      action: { ...chromeMock.action, setIcon, setTitle },
+      storage: {
+        ...chromeMock.storage,
+        local: { get: () => Promise.resolve({ ...localStore }) },
+        onChanged: {
+          addListener: (listener) => {
+            onChanged = listener;
+          },
+        },
+      },
+    };
+    new Function("chrome", source)(mock);
+    await flush();
+    return { localStore, onChanged, setIcon, setTitle };
+  };
+
+  it("greys the icon out while Filter Bubble is disabled", async () => {
+    const { setIcon } = await evaluate({ disabled: true });
+
+    expect(setIcon).toHaveBeenCalledWith({ path: DISABLED_PATH });
+  });
+
+  // Colour is the only channel the icon carries the state on, so the tooltip is
+  // what reaches a reader who cannot see it.
+  it("marks the tooltip while Filter Bubble is disabled", async () => {
+    const { setTitle } = await evaluate({ disabled: true });
+
+    expect(setTitle).toHaveBeenCalledWith({
+      title: "Filter Bubble (Disabled)",
+    });
+  });
+
+  it("uses the colour icon and plain tooltip while filtering is active", async () => {
+    const { setIcon, setTitle } = await evaluate();
+
+    expect(setIcon).toHaveBeenCalledWith({ path: DEFAULT_PATH });
+    expect(setTitle).toHaveBeenCalledWith({ title: "Filter Bubble" });
+  });
+
+  it("restores the icon and tooltip when Filter Bubble is re-enabled", async () => {
+    const { localStore, onChanged, setIcon, setTitle } = await evaluate({
+      disabled: true,
+    });
+    setIcon.mockClear();
+    setTitle.mockClear();
+
+    delete localStore.disabled;
+    onChanged({ disabled: { newValue: false } }, "local");
+    await flush();
+
+    expect(setIcon).toHaveBeenCalledWith({ path: DEFAULT_PATH });
+    expect(setTitle).toHaveBeenCalledWith({ title: "Filter Bubble" });
+  });
+
+  // `chrome.action` raises synchronously on an invalidated extension context.
+  // Nothing awaits `updateAction`, so without the `try` the throw would surface
+  // as an unhandled rejection instead of a logged failure.
+  it("logs a synchronous throw from the action API rather than escaping", async () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const setIcon = jest.fn(() => {
+      throw new Error("context invalidated");
+    });
+    new Function("chrome", source)({
+      ...chromeMock,
+      action: { ...chromeMock.action, setIcon },
+    });
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: updateAction() failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
   });
 });
 

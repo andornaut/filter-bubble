@@ -3,7 +3,7 @@ import { getState, setState } from "statezero/src";
 import { hydrateSettings, toggleDisabled } from "./settings";
 
 describe("hydrateSettings", () => {
-  it("stores the master switch as a boolean", () => {
+  it("stores the disabled flag as a boolean", () => {
     hydrateSettings({ isDisabled: true });
     expect(getState("isDisabled")).toBe(true);
 
@@ -13,7 +13,7 @@ describe("hydrateSettings", () => {
 });
 
 describe("toggleDisabled", () => {
-  it("flips the master switch", () => {
+  it("flips the disabled flag", () => {
     setState("isDisabled", false);
 
     toggleDisabled();
