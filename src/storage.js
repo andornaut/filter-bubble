@@ -57,12 +57,55 @@ const mergeByModified = (a, b) => {
 const canonicalAddresses = (addresses) =>
   toCanonicalArray((addresses || []).join("\n")).toString();
 
+// Seed `modifiedDate` from `createdDate`, so a record this app created and
+// nobody has since edited carries the two dates equal. That equality is the
+// "never edited" sentinel `refreshDefaults` reads: editing an item stamps
+// `modifiedDate` and leaves `createdDate` alone. Releases that seeded defaults
+// before this file did stamped both with the install time, so they satisfy the
+// same equality and stay eligible.
+//
+// Derived rather than a constant of its own, so the invariant holds by
+// construction and there is no `modifiedDate` field in websites.json for a
+// later edit to bump. Bumping it would beat the user's own edit of that website
+// through the last-writer-wins merge, seeded onto their other devices by a
+// fresh install.
+const seededWebsites = defaultWebsites.list.map((website) => ({
+  ...website,
+  modifiedDate: website.createdDate,
+}));
+
 // Map a default website's canonical addresses to its fixed id, so a migrated
 // device and a freshly seeded device converge on the same key for defaults.
-const defaultIdByAddresses = defaultWebsites.list.reduce((acc, website) => {
+const defaultIdByAddresses = seededWebsites.reduce((acc, website) => {
   acc[canonicalAddresses(website.addresses)] = website.id;
   return acc;
 }, {});
+
+// Re-apply the shipped defaults over stored copies the user has never touched,
+// so a corrected selector reaches installs that already seeded the old one.
+// Seeding alone only covers a fresh install.
+//
+// Carry `enabled` across rather than restoring the shipped value: a selector
+// correction has no business changing whether the user has the site switched
+// on, and the toggle did not stamp `modifiedDate` before the per-item layout,
+// so a default disabled on those releases still satisfies the sentinel.
+//
+// A tombstone carries a delete-time `modifiedDate` and no `createdDate`, so a
+// deleted default fails the equality and stays deleted.
+//
+// Accepted cost: a device still on a release carrying the older data can win
+// the merge back (equal `modifiedDate` resolves by content), and this rewrites
+// the new data on the next load. The two settle once both devices run the same
+// release.
+const refreshDefaults = (raw, toWrite) => {
+  seededWebsites.forEach((website) => {
+    const key = WEBSITE_PREFIX + website.id;
+    const current = toWrite[key] || raw[key];
+    if (current && current.modifiedDate === current.createdDate) {
+      toWrite[key] = { ...website, enabled: current.enabled };
+    }
+  });
+};
 
 const toLists = (currentStore) => {
   const topics = [];
@@ -129,7 +172,7 @@ const ensureV2 = async (raw) => {
     });
   } else if (!alreadyV2) {
     // Fresh install (no schema, no v1 blob): seed the default websites.
-    defaultWebsites.list.forEach((website) => {
+    seededWebsites.forEach((website) => {
       toWrite[WEBSITE_PREFIX + website.id] = website;
     });
   }
@@ -141,6 +184,10 @@ const ensureV2 = async (raw) => {
       toWrite[key] = mergeByModified(raw[key], toWrite[key]);
     }
   });
+  // Run after the merge above: both sides carry the same seeded `modifiedDate`,
+  // so that merge resolves the tie by content and keeps the stale copy half the
+  // time.
+  refreshDefaults(raw, toWrite);
 
   // Write only the keys that actually differ from what is already stored, so a
   // lingering v1 blob does not trigger a full rewrite of unchanged items on
