@@ -38,16 +38,14 @@ test.describe("content script edges", () => {
     );
   });
 
-  test("matches text that is in the markup but not on the screen", async ({
+  test("ignores the metadata a real feed attaches to its items", async ({
     page,
   }) => {
-    // `textContent` includes the contents of <script>, so an item whose
-    // visible text says nothing about the topic is filtered on the structured
-    // data a real news site embeds next to it. Pinned as the current
-    // behaviour: it hides more than the reader can see is being matched.
-    await expect(page.locator("#e-metadata")).toHaveClass(
-      /filter-bubble--remove/,
-    );
+    // This item's JSON-LD lists the topic as a keyword; its visible text says
+    // nothing about it. Matching on the metadata would hide a story with
+    // nothing on screen to explain why it vanished.
+    await expect(page.locator("#e-metadata")).not.toHaveClass(/filter-bubble/);
+    await expect(page.locator("#e-metadata")).toBeVisible();
   });
 
   test("keeps an item filtered after its text stops matching", async ({
@@ -89,14 +87,14 @@ test.describe("content script edges", () => {
     extension,
     page,
   }) => {
-    await expect.poll(() => extension.badgeText(page)).toBe("3");
+    await expect.poll(() => extension.badgeText(page)).toBe("2");
 
     // Appending inside a container that is already filtered triggers another
     // pass; the container must not be counted a second time.
     await page.click("#add-inside");
     await page.waitForTimeout(500);
 
-    await expect.poll(() => extension.badgeText(page)).toBe("3");
+    await expect.poll(() => extension.badgeText(page)).toBe("2");
   });
 
   test("stops filtering the whole document when told to disable", async ({

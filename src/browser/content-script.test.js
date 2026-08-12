@@ -179,6 +179,42 @@ describe("FilterBubble.enable", () => {
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);
   });
+
+  // Real feeds attach JSON-LD to every item, so a keyword list nobody can see
+  // would otherwise decide what gets hidden.
+  it("ignores text inside script and style elements", () => {
+    document.body.innerHTML = `
+      <div class="post">
+        <script type="application/ld+json">{"keywords":"banana"}</script>
+        <style>.banana { color: red; }</style>
+        <p>nothing to see</p>
+      </div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+  });
+
+  it("still matches the visible text of a container that holds a script", () => {
+    document.body.innerHTML = `
+      <div class="post">
+        <script type="application/ld+json">{"keywords":"apple"}</script>
+        <p>I love banana bread</p>
+      </div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
+  it("matches across the elements a container's text is split over", () => {
+    document.body.innerHTML = `
+      <div class="post">I love <em>banana</em> bread</div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
 });
 
 describe("FilterBubble failure recovery", () => {

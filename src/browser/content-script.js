@@ -30,6 +30,39 @@
     );
   };
 
+  // Elements whose text content is code rather than prose. `textContent`
+  // includes them, so a feed item carrying JSON-LD metadata (which real news
+  // sites attach to every article) was matched on a keyword list the reader
+  // cannot see, with nothing on screen to explain why the item vanished.
+  const CODE_TAGS = new Set(["SCRIPT", "STYLE"]);
+  const CODE_SELECTOR = "script, style";
+
+  // The container's text with those elements left out.
+  //
+  // Fast path first: most containers hold neither, and `textContent` is one
+  // native call, where the walk below is a call per text node. The lookup that
+  // chooses between them is native too, and only containers that are not
+  // already filtered ever reach here.
+  const toText = (container) => {
+    if (!container.querySelector(CODE_SELECTOR)) {
+      return container.textContent;
+    }
+    // `SHOW_TEXT`, so every node the filter sees is a text node and its parent
+    // is the element that holds it: a `<script>`'s text is its own child, never
+    // a deeper descendant.
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode: ({ parentElement }) =>
+        parentElement && CODE_TAGS.has(parentElement.tagName)
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT,
+    });
+    let text = "";
+    while (walker.nextNode()) {
+      text += walker.currentNode.data;
+    }
+    return text;
+  };
+
   // Count only the outermost filtered elements. Overlapping selectors can match
   // both a container and something inside it (e.g. "article" and ".thing"), but
   // hiding the outer one already takes the inner one out of view, so the pair is
@@ -256,7 +289,7 @@
             matched.add(container);
             continue;
           }
-          if (this.regex.test(container.textContent)) {
+          if (this.regex.test(toText(container))) {
             fn(container);
             matched.add(container);
           }
