@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 const TOPICS = [
   { id: "topic-politics", text: ["politics"] },
@@ -61,7 +61,7 @@ test.describe("several websites", () => {
       ],
     });
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // Pinned, not endorsed: the selectors are not combined, so one of the two
     // configurations silently does nothing on this page. Which one is settled

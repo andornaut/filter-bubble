@@ -1,11 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 // Capability: what the content script does at the awkward edges of a real
 // page - other documents, shadow roots, text nobody can see, and content that
@@ -67,7 +61,7 @@ test.describe("content script edges", () => {
     );
 
     await page.click("#rewrite");
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // Filtering is sticky until a full reset: re-testing a container mid-update
     // would reveal one that is only transiently non-matching, and over-hiding
@@ -102,7 +96,7 @@ test.describe("content script edges", () => {
     // Appending inside a container that is already filtered triggers another
     // pass; the container must not be counted a second time.
     await page.click("#add-inside");
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect.poll(() => extension.badgeText(page)).toBe("2");
   });

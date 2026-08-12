@@ -1,11 +1,5 @@
 import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { SEED } from "../helpers/seed.js";
 
 const layoutAt = async (ui, width) => {
   await ui.setViewportSize({ height: 640, width });

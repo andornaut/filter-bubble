@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 // Only `localhost` and `127.0.0.1` are granted in the build under test (see
 // build-extension.mjs). `127.0.0.2` serves the same fixture pages over
@@ -72,7 +72,7 @@ test.describe("host permissions", () => {
   }) => {
     await extension.seed({ topics: TOPICS, websites: [ungrantedWebsite] });
     await page.goto(server.url("feed.html", UNGRANTED_HOST));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // The website matches, so the background tries to inject - and cannot.
     // Nothing is hidden, and the badge does not claim a count for a document

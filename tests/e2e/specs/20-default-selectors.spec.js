@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 import { ROOT_DIR } from "../helpers/paths.js";
 
 // The selectors under test are the shipped ones, read from the data file rather
@@ -59,7 +59,7 @@ test.describe("the shipped default selectors", () => {
   }) => {
     await seedDefault(extension, "default-hackernews");
     await page.goto(server.url("defaults/hackernews-item.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // `:not(.fatitem *)` is what keeps the story you deliberately clicked
     // through to from being hidden out from under you.
@@ -120,7 +120,7 @@ test.describe("the shipped default selectors", () => {
   }) => {
     await seedDefault(extension, "default-arstechnica");
     await page.goto(server.url("defaults/arstechnica-article.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // Both selectors are scoped to `body.home`. An article page is not a feed,
     // so the story you opened stays put - and so does everything around it,

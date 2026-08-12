@@ -1,11 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 // Capability: the browser-wide off switch wins over the popup's highlight
 // preview. The two are set from different places - the switch from
@@ -25,7 +19,7 @@ test.describe("the off switch and the popup together", () => {
     await expect(page.locator("#a1")).not.toHaveClass(/filter-bubble/);
 
     const closePopup = await extension.connectPopupPort();
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // Off means off: opening the popup previews nothing, because there is
     // nothing being filtered to preview.
@@ -45,7 +39,7 @@ test.describe("the off switch and the popup together", () => {
     await page.goto(server.url("feed.html"));
 
     const closePopup = await extension.connectPopupPort();
-    await page.waitForTimeout(500);
+    await settle(page);
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
 
     // The popup is still open, so re-enabling has to land in highlight mode
@@ -97,7 +91,7 @@ test.describe("the off switch and the popup together", () => {
     // The tab arrives into a browser that is already switched off with the
     // popup already open, which is the one ordering no other test covers.
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
     await expect.poll(() => extension.badgeText(page)).toBe("");

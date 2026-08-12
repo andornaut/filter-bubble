@@ -1,11 +1,5 @@
 import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { SEED } from "../helpers/seed.js";
 
 // Capability: while the browser-action popup is open, filtered content is shown
 // highlighted instead of hidden, so the user can see what their rules catch.

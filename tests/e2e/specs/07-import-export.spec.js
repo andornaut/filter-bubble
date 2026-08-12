@@ -2,13 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { SEED } from "../helpers/seed.js";
 
 // The import page reads a file the user picks, so the file has to exist on disk.
 const writeImportFile = (testInfo, name, data) => {

@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 const TOPICS = [
   { id: "topic-politics", text: ["politics"] },
@@ -74,7 +74,7 @@ test.describe("content filtering", () => {
 
     // Give the content script a chance to run before asserting a negative.
     await expect(page.locator("#feed")).toBeVisible();
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // "Category" and "catalogue" both contain "cat" as a substring only.
     await expect(page.locator("#a4")).not.toHaveClass(/filter-bubble/);
@@ -91,7 +91,7 @@ test.describe("content filtering", () => {
       websites: [website()],
     });
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
 
     await extension.seed({
@@ -99,7 +99,7 @@ test.describe("content filtering", () => {
       websites: [website({ enabled: false })],
     });
     await page.reload();
-    await page.waitForTimeout(500);
+    await settle(page);
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
   });
 
@@ -112,7 +112,7 @@ test.describe("content filtering", () => {
 
     // Same pages, served at an address no configured website matches.
     await page.goto(server.url("feed.html", "127.0.0.1"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
     expect(await displayOf(page, "#a1")).toBe("block");

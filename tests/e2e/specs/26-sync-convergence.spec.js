@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 const SAME_TIME = "2024-03-03T03:03:03.000Z";
 
@@ -128,7 +128,7 @@ test.describe("sync convergence", () => {
       "settings:theme": "dark",
       schema: 2,
     });
-    await ui.waitForTimeout(500);
+    await settle(ui);
 
     await expect(ui.locator(".list__item")).toHaveCount(1);
     await expect(ui.locator(".topics__text")).toHaveText("politics");

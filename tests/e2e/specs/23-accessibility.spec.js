@@ -1,11 +1,5 @@
 import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { SEED } from "../helpers/seed.js";
 
 // Capability: the extension UI can be driven and understood without a mouse or
 // a screen. It is a small surface, which is what makes it worth getting right.

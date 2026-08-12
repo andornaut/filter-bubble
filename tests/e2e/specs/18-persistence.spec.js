@@ -1,25 +1,22 @@
-import { chromium } from "@playwright/test";
 import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { Extension, getExtensionId } from "../helpers/extension.js";
-import { expect, test } from "../helpers/fixtures.js";
-import { EXTENSION_DIR, PROFILES_DIR } from "../helpers/paths.js";
+import { expect, launchBrowser, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 // A browser of this test's own, so it can be closed and started again on the
-// same profile. The shared `context` fixture owns its profile for the length of
-// a test, which is exactly what a restart has to get around.
+// same profile. The shared `context` fixture takes the throwaway profile away
+// with the browser, which is exactly what a restart has to get around - so this
+// is the one place that names a profile directory and cleans it up itself.
 const launch = async (userDataDir) => {
-  const context = await chromium.launchPersistentContext(userDataDir, {
-    args: [
-      `--disable-extensions-except=${EXTENSION_DIR}`,
-      `--load-extension=${EXTENSION_DIR}`,
-    ],
-    headless: false,
-  });
+  const context = await launchBrowser(userDataDir);
   const extension = new Extension(context, await getExtensionId(context));
   return { context, extension, page: context.pages()[0] };
 };
+
+const makeProfileDir = () => mkdtempSync(path.join(tmpdir(), "filter-bubble-"));
 
 // Capability: what the user configured is still there tomorrow, and every
 // window showing the extension UI agrees on what it is.
@@ -27,7 +24,7 @@ test.describe("persistence", () => {
   test("keeps topics, websites and the off switch across a restart", async ({
     server,
   }) => {
-    const userDataDir = mkdtempSync(path.join(PROFILES_DIR, "restart-"));
+    const userDataDir = makeProfileDir();
     try {
       const first = await launch(userDataDir);
       // Seed the defaults the way a fresh install does, then configure on top.
@@ -64,7 +61,7 @@ test.describe("persistence", () => {
 
         // Still switched off, exactly as it was left.
         await second.page.goto(server.url("feed.html"));
-        await second.page.waitForTimeout(500);
+        await settle(second.page);
         await expect(second.page.locator("article.filter-bubble")).toHaveCount(
           0,
         );
@@ -90,16 +87,7 @@ test.describe("persistence", () => {
     page,
     server,
   }) => {
-    await extension.seed({
-      topics: [{ id: "topic-politics", text: ["politics"] }],
-      websites: [
-        {
-          addresses: ["localhost"],
-          id: "site-localhost",
-          selectors: ["article"],
-        },
-      ],
-    });
+    await extension.seed(SEED);
     await page.goto(server.url("feed.html"));
 
     // The options page can sit open in a tab while the popup is used.

@@ -1,11 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 // Capability: filtering follows the tab through the ways a browser actually
 // moves between documents - in-page navigation, history, and several windows.
@@ -133,7 +127,7 @@ test.describe("tab lifecycle", () => {
     await foreground.goto("about:blank");
 
     await extension.seed(SEED);
-    await page.waitForTimeout(500);
+    await settle(page);
 
     // Documented behaviour, not a defect: the background re-evaluates active
     // tabs only, so a tab nobody is looking at keeps its old filtering.

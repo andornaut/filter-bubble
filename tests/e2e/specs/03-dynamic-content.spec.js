@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 const TOPICS = [{ id: "topic-politics", text: ["politics"] }];
 const WEBSITES = [
@@ -54,7 +54,7 @@ test.describe("dynamic content", () => {
     // The observer watches added nodes only, so a page that rewrites className
     // in place reveals the filtered items and nothing notices immediately.
     await page.click("#strip-classes");
-    await page.waitForTimeout(500);
+    await settle(page);
     await expect(page.locator("#a1")).not.toHaveClass(/filter-bubble/);
 
     // Any later tab event re-sends `enable`, which is the repair path: the

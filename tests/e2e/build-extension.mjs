@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 
-import { EXTENSION_DIR, PROFILES_DIR, ROOT_DIR } from "./helpers/paths.js";
+import { EXTENSION_DIR, ROOT_DIR } from "./helpers/paths.js";
 
 // The shipped manifest asks for `<all_urls>` as an *optional* host permission,
 // which a user grants through a native Chrome dialog that no automation can
@@ -46,11 +46,6 @@ export const buildExtension = () => {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   manifest.host_permissions = FIXTURE_ORIGINS;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-  // Each test gets a fresh profile; drop any left behind by an interrupted run
-  // so a stale `storage.sync` cannot leak into a new one.
-  rmSync(PROFILES_DIR, { force: true, recursive: true });
-  mkdirSync(PROFILES_DIR, { recursive: true });
 
   return EXTENSION_DIR;
 };

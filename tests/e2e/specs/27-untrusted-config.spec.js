@@ -1,10 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const WEBSITE = {
-  addresses: ["localhost"],
-  id: "site-localhost",
-  selectors: ["article"],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { LOCALHOST_WEBSITE, POLITICS_TOPIC } from "../helpers/seed.js";
 
 // Capability: configuration that never passed through the add/edit form -
 // synced in from another device, from a release with different rules, or
@@ -22,10 +17,10 @@ test.describe("configuration that never passed the form", () => {
     // website would be filtered - the reader's feeds simply go blank.
     await extension.seed({
       topics: [{ id: "topic-empty", text: [""] }],
-      websites: [WEBSITE],
+      websites: [LOCALHOST_WEBSITE],
     });
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
     await expect(page.locator("#a1")).toBeVisible();
@@ -39,7 +34,7 @@ test.describe("configuration that never passed the form", () => {
   }) => {
     await extension.seed({
       topics: [{ id: "topic-politics", text: ["", "politics"] }],
-      websites: [WEBSITE],
+      websites: [LOCALHOST_WEBSITE],
     });
     await page.goto(server.url("feed.html"));
 
@@ -56,11 +51,8 @@ test.describe("configuration that never passed the form", () => {
     server,
   }) => {
     await extension.seed({
-      topics: [
-        { id: "topic-empty", text: ["", ""] },
-        { id: "topic-politics", text: ["politics"] },
-      ],
-      websites: [WEBSITE],
+      topics: [{ id: "topic-empty", text: ["", ""] }, POLITICS_TOPIC],
+      websites: [LOCALHOST_WEBSITE],
     });
     await page.goto(server.url("feed.html"));
 
@@ -75,19 +67,19 @@ test.describe("configuration that never passed the form", () => {
     server,
   }) => {
     await extension.seed({
-      topics: [{ id: "topic-politics", text: ["politics"] }],
-      websites: [{ ...WEBSITE, selectors: [] }],
+      topics: [POLITICS_TOPIC],
+      websites: [{ ...LOCALHOST_WEBSITE, selectors: [] }],
     });
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
 
     // Giving it a selector afterwards starts filtering, which is the evidence
     // that the empty one left nothing broken behind it.
     await extension.seed({
-      topics: [{ id: "topic-politics", text: ["politics"] }],
-      websites: [WEBSITE],
+      topics: [POLITICS_TOPIC],
+      websites: [LOCALHOST_WEBSITE],
     });
 
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
@@ -99,12 +91,12 @@ test.describe("configuration that never passed the form", () => {
     server,
   }) => {
     await extension.seed({
-      topics: [{ id: "topic-politics", text: ["politics"] }],
+      topics: [POLITICS_TOPIC],
       websites: [
         // An entry with no addresses is checked first and matches no URL, so
         // the entry that does cover this page still governs it.
         { addresses: [], id: "site-nowhere", selectors: [".thing"] },
-        WEBSITE,
+        LOCALHOST_WEBSITE,
       ],
     });
     await page.goto(server.url("feed.html"));

@@ -1,11 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 // Capability: the browser-wide off switch stops all filtering, says so on the
 // toolbar, and stays on this browser rather than syncing to other devices.
@@ -70,7 +64,7 @@ test.describe("the disable switch", () => {
     await extension.setDisabled(true);
 
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
     await expect.poll(() => extension.badgeText(page)).toBe("");

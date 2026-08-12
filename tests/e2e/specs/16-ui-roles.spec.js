@@ -1,11 +1,5 @@
-import { expect, test } from "../helpers/fixtures.js";
-
-const SEED = {
-  topics: [{ id: "topic-politics", text: ["politics"] }],
-  websites: [
-    { addresses: ["localhost"], id: "site-localhost", selectors: ["article"] },
-  ],
-};
+import { expect, settle, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 const importPages = (context) =>
   context.pages().filter((page) => page.url().endsWith("#import"));
@@ -57,7 +51,7 @@ test.describe("the extension UI's roles", () => {
     // already open instead of leaving a trail of them.
     await ui.getByRole("link", { name: "Import" }).click();
     await ui.getByRole("link", { name: "Import" }).click();
-    await ui.waitForTimeout(500);
+    await settle(ui);
 
     expect(importPages(context)).toHaveLength(1);
     const [imported] = importPages(context);
@@ -78,7 +72,7 @@ test.describe("the extension UI's roles", () => {
     // filtered page would sit highlighted instead of filtered.
     const ui = await extension.openWindow();
     await expect(ui.locator(".app")).toBeVisible();
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
     await expect(page.locator("#a1")).not.toHaveClass(

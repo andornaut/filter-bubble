@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 const TOPICS = [{ id: "topic-politics", text: ["politics"] }];
 
@@ -28,7 +28,7 @@ test.describe("website matching", () => {
     // Access to it is granted, so an unfiltered page here can only mean the
     // address did not match.
     await page.goto(server.url("feed.html", "127.0.0.11"));
-    await page.waitForTimeout(500);
+    await settle(page);
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
 
     await page.goto(server.url("feed.html", "127.0.0.1"));
@@ -90,7 +90,7 @@ test.describe("website matching", () => {
       websites: [website({ selectors: [".nothing-here"] })],
     });
     await page.goto(server.url("feed.html"));
-    await page.waitForTimeout(500);
+    await settle(page);
 
     await expect(page.locator("article.filter-bubble")).toHaveCount(0);
     await expect.poll(() => extension.badgeText(page)).toBe("");

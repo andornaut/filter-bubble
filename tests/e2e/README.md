@@ -17,12 +17,13 @@ npm run test:e2e -- 02-filtering    # one spec
 PW_WORKERS=1 npm run test:e2e       # serialize, e.g. when debugging
 ```
 
-Extensions load only into a headed browser (the headless shell ships no
-extension support), so `test:e2e` wraps Playwright in `xvfb-run`. On a desktop
-with a display, `npx playwright test` works directly.
+All it needs is Chromium at the build Playwright expects (`npx playwright
+install chromium`). No display and no Xvfb: the suite runs headless.
 
-Needs Chromium at the build Playwright expects (`npx playwright install
-chromium`) and `xvfb` on headless machines.
+Extensions do need two things, both set in `helpers/fixtures.js`. They load
+only into a persistent context, so every browser here has a profile; and they
+load only into the full Chromium build, not the headless shell, which is what
+`channel: "chromium"` selects.
 
 CI runs the suite on every push and pull request, as the `e2e` job in
 [`ci.yml`](../../.github/workflows/ci.yml). A failing run uploads the traces and
@@ -30,16 +31,15 @@ screenshots Playwright kept for whatever failed, as the `e2e-results` artifact.
 
 ## Layout
 
-| Path                  | What it is                                                         |
-| --------------------- | ------------------------------------------------------------------ |
-| `build-extension.mjs` | Builds `dist/` and copies it to `.artifacts/extension` for loading |
-| `global-setup.mjs`    | Runs that build once per suite                                     |
-| `helpers/`            | Playwright fixtures, the fixture web server, extension driver      |
-| `site/`               | The pages served as the website under test                         |
-| `specs/`              | One file per capability                                            |
+| Path                  | What it is                                                          |
+| --------------------- | ------------------------------------------------------------------- |
+| `build-extension.mjs` | Builds `dist/` to `.artifacts/extension`; the suite's `globalSetup` |
+| `helpers/`            | Playwright fixtures, the fixture web server, extension driver       |
+| `site/`               | The pages served as the website under test                          |
+| `specs/`              | One file per capability                                             |
 
-Each test gets a fresh browser profile, so `storage.sync` and `storage.local`
-start empty and nothing leaks between tests.
+Each test gets a throwaway profile that Playwright creates and removes, so
+`storage.sync` and `storage.local` start empty and nothing leaks between tests.
 
 ## Deliberate deviations from a real install
 
@@ -95,20 +95,16 @@ test sees exactly the events it would in the field - `extension.seed(...)`, for
 instance, writes to `storage.sync`, which is what a sync from another device
 looks like to the background.
 
+`helpers/seed.js` holds the configuration most tests want - hide "politics"
+inside an `<article>` on the fixture site - so a spec only writes out the parts
+it is actually about.
+
 ```js
 import { expect, test } from "../helpers/fixtures.js";
+import { SEED } from "../helpers/seed.js";
 
 test("filters a matching item", async ({ extension, page, server }) => {
-  await extension.seed({
-    topics: [{ id: "topic-politics", text: ["politics"] }],
-    websites: [
-      {
-        addresses: ["localhost"],
-        id: "site-localhost",
-        selectors: ["article"],
-      },
-    ],
-  });
+  await extension.seed(SEED);
   await page.goto(server.url("feed.html"));
 
   await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
@@ -119,5 +115,7 @@ Assert on what the user would see (`toBeHidden`, computed styles, the badge
 text) rather than only on the classes the content script adds.
 
 Negative assertions need care: filtering is asynchronous and throttled to one
-pass per 200ms, so "still not filtered" has to be given time to be wrong. The
-existing specs settle first with a short wait, then assert.
+pass per 200ms, so "still not filtered" has to be given time to be wrong.
+`settle(page)` from `helpers/fixtures.js` is that wait; use it rather than a
+bare `waitForTimeout`, which should mean "this test needs its own wait, for a
+reason it states".

@@ -1,29 +1,47 @@
 import { test as base, chromium } from "@playwright/test";
-import { mkdtempSync, rmSync } from "node:fs";
-import path from "node:path";
 
 import { Extension, getExtensionId } from "./extension.js";
-import { EXTENSION_DIR, PROFILES_DIR } from "./paths.js";
+import { EXTENSION_DIR } from "./paths.js";
 import { startServer } from "./server.js";
 
-// Extensions only load into a persistent context, and only in a headed browser
-// (the headless shell ships no extension support), so the suite runs under
-// Xvfb - see `npm run test:e2e`.
+// How the browser under test is launched. Shared with `18-persistence`, which
+// drives a browser of its own so it can restart one.
+//
+// `channel: "chromium"` is the part that matters: it selects the full Chromium
+// build rather than the headless shell, and only the full build carries
+// extension support. With it, extensions load headless - no display and no
+// Xvfb. Extensions still need a persistent context, so every browser here has
+// a profile.
+//
+// An empty `userDataDir` asks Playwright for a throwaway profile it creates
+// and removes itself, so each test still starts with `storage.sync` and
+// `storage.local` empty and nothing leaks between tests.
+const launchOptions = {
+  args: [
+    `--disable-extensions-except=${EXTENSION_DIR}`,
+    `--load-extension=${EXTENSION_DIR}`,
+  ],
+  channel: "chromium",
+};
+
+export const launchBrowser = (userDataDir = "") =>
+  chromium.launchPersistentContext(userDataDir, launchOptions);
+
+// Filtering is asynchronous and throttled to one pass per 200ms, so "still not
+// filtered" has to be given time to be wrong before it is asserted. Waiting
+// through here rather than inline keeps the number explained in one place, and
+// keeps a bare `waitForTimeout` in a spec meaning "this test needs its own
+// wait, for a reason it states".
+const SETTLE_MS = 500;
+export const settle = (page) => page.waitForTimeout(SETTLE_MS);
+
 export const test = base.extend({
   context: async ({}, use) => {
-    const userDataDir = mkdtempSync(path.join(PROFILES_DIR, "profile-"));
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      args: [
-        `--disable-extensions-except=${EXTENSION_DIR}`,
-        `--load-extension=${EXTENSION_DIR}`,
-      ],
-      headless: false,
-    });
+    const context = await launchBrowser();
     try {
       await use(context);
     } finally {
       await context.close();
-      rmSync(userDataDir, { force: true, recursive: true });
     }
   },
 
