@@ -34,6 +34,26 @@ const toWebsite = ({
   sortDate: SEED_DATE,
 });
 
+// Resolve to the extension's service worker, waiting for it to register if it
+// has not done so yet.
+//
+// Subscribe before reading the current list, not after. A worker that registers
+// between a `serviceWorkers()` that came back empty and a `waitForEvent` that
+// starts listening afterwards is missed by both, and the wait then hangs for an
+// event that has already fired - which surfaces as a test timing out in fixture
+// setup, and only when the machine is loaded enough to widen the gap.
+export const waitForServiceWorker = async (context) => {
+  const registered = context
+    .waitForEvent("serviceworker", { timeout: 30_000 })
+    .catch(() => null);
+  const [existing] = context.serviceWorkers();
+  const worker = existing || (await registered);
+  if (!worker) {
+    throw new Error("The extension's service worker did not start");
+  }
+  return worker;
+};
+
 // Drives the real extension from the outside: everything here goes through the
 // extension's own APIs in its own service worker, so the code under test sees
 // the same events it would from the popup or from a sync from another device.
@@ -46,8 +66,7 @@ export class Extension {
   // MV3 service workers are torn down when idle, so never hold on to the
   // worker handle - look it up (and wait for a restart) at each use.
   async worker() {
-    const [existing] = this.context.serviceWorkers();
-    return existing || this.context.waitForEvent("serviceworker");
+    return waitForServiceWorker(this.context);
   }
 
   async evaluate(fn, arg) {
@@ -172,7 +191,6 @@ export class Extension {
 }
 
 export const getExtensionId = async (context) => {
-  const [existing] = context.serviceWorkers();
-  const worker = existing || (await context.waitForEvent("serviceworker"));
+  const worker = await waitForServiceWorker(context);
   return new URL(worker.url()).host;
 };
