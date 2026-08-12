@@ -43,7 +43,7 @@ const storedWebsite = async (extension, id) =>
 // Open the UI on the websites tab, which is what runs the read that folds the
 // shipped defaults back in.
 const openWebsites = async (extension) => {
-  const ui = await extension.newWindow(await extension.popupUrl("#websites"));
+  const ui = await extension.newWindow(extension.popupUrl("#websites"));
   await ui.waitForSelector("#root *");
   return ui;
 };

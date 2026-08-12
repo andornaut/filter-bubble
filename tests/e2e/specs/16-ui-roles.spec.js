@@ -10,7 +10,7 @@ test.describe("the extension UI's roles", () => {
   test("opens the tab named in the URL fragment", async ({ extension }) => {
     await extension.seed(SEED);
 
-    const ui = await extension.newWindow(await extension.popupUrl("#websites"));
+    const ui = await extension.newWindow(extension.popupUrl("#websites"));
     await ui.waitForSelector("#root *");
 
     await expect(ui.locator(".app__tab--active")).toHaveText("Websites");

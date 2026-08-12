@@ -42,7 +42,7 @@ const toWebsite = ({
 // starts listening afterwards is missed by both, and the wait then hangs for an
 // event that has already fired - which surfaces as a test timing out in fixture
 // setup, and only when the machine is loaded enough to widen the gap.
-export const waitForServiceWorker = async (context) => {
+const waitForServiceWorker = async (context) => {
   const registered = context
     .waitForEvent("serviceworker", { timeout: 30_000 })
     .catch(() => null);
@@ -80,6 +80,16 @@ const waitForExtensionApis = async (worker) => {
     }
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
+};
+
+// Which of popup.html's roles to open: "options" is what `options_ui` opens,
+// "import" the #import page. The browser-action popup itself cannot be opened
+// by automation - see `connectPopupPort`.
+const toRoleHash = (role) => (role === "import" ? "#import" : "");
+
+const waitForApp = async (page) => {
+  await page.waitForSelector("#root *");
+  return page;
 };
 
 // Drives the real extension from the outside: everything here goes through the
@@ -171,7 +181,7 @@ export class Extension {
     return this.evaluate(() => chrome.action.getTitle({}));
   }
 
-  async popupUrl(hash = "") {
+  popupUrl(hash = "") {
     return `chrome-extension://${this.id}/popup.html${hash}`;
   }
 
@@ -184,9 +194,8 @@ export class Extension {
   // `connectPopupPort`.
   async openPage(role = "options") {
     const page = await this.context.newPage();
-    await page.goto(await this.popupUrl(role === "import" ? "#import" : ""));
-    await page.waitForSelector("#root *");
-    return page;
+    await page.goto(this.popupUrl(toRoleHash(role)));
+    return waitForApp(page);
   }
 
   // Open `url` in a browser window of its own, and resolve to its page. A
@@ -203,11 +212,8 @@ export class Extension {
   // The extension UI in a window of its own, which is the closest an automated
   // browser gets to the browser-action popup floating over the current tab.
   async openWindow(role = "options") {
-    const page = await this.newWindow(
-      await this.popupUrl(role === "import" ? "#import" : ""),
-    );
-    await page.waitForSelector("#root *");
-    return page;
+    const page = await this.newWindow(this.popupUrl(toRoleHash(role)));
+    return waitForApp(page);
   }
 
   // Reproduce the one thing the browser-action popup does that an options tab
