@@ -144,34 +144,52 @@ const toPattern = (topicsList) => {
 // Tab Management
 // =============================================================================
 
-const updateTab = async (
+// What `state` says about one tab, read at the moment of the call. `state` is
+// rewritten in place by `updateState`, so this is a reading rather than a
+// snapshot: taking it twice around an `await` is how `updateTab` avoids sending
+// a decision the state has already moved past.
+const toDecision = (
   { forceHighlight = false, pattern = "", websitesList = [] },
+  tabUrl,
+) => ({
+  forceHighlight,
+  pattern,
+  website: matchedWebsite(websitesList, tabUrl),
+});
+
+const updateTab = async (
+  state,
   { id: tabId, url: tabUrl },
   disableWhenUnmatched = true,
 ) => {
-  const website = matchedWebsite(websitesList, tabUrl);
+  // A tab-scoped badge outlives the document it was set for, and an unmatched
+  // tab runs no content script to report a count of its own, so the previous
+  // page's count would otherwise follow the tab to the next site. Clear it
+  // whether or not the disable is deferred: the count belongs to the document
+  // the tab is leaving either way.
+  const disableTab = () => {
+    setBadge(tabId, 0);
+    if (!SCHEME_REGEX.test(tabUrl) || !disableWhenUnmatched) {
+      return;
+    }
+    // Disable by default: the tab may have been filtered under earlier state
+    // (website deleted, selectors changed, topics disabled), and this event
+    // may be its only repair opportunity. Callers that will get a later event
+    // for the same navigation can defer the disable to it.
+    //
+    // Log at debug level: most tabs have no content script installed, so
+    // "Could not establish connection" is the expected outcome here.
+    chrome.tabs.sendMessage(tabId, { command: "disable" }).catch((err) => {
+      console.debug("filter-bubble: sendMessage(disable) failed:", err);
+    });
+  };
+
+  const { pattern, website } = toDecision(state, tabUrl);
 
   // `pattern` is empty string when the extension is first installed or if all topics are disabled.
   // Exit early to avoid matching against empty string regex, which matches every string.
   if (!website || !pattern) {
-    // A tab-scoped badge outlives the document it was set for, and an unmatched
-    // tab runs no content script to report a count of its own, so the previous
-    // page's count would otherwise follow the tab to the next site. Clear it
-    // whether or not the disable is deferred: the count belongs to the document
-    // the tab is leaving either way.
-    setBadge(tabId, 0);
-    if (SCHEME_REGEX.test(tabUrl) && disableWhenUnmatched) {
-      // Disable by default: the tab may have been filtered under earlier state
-      // (website deleted, selectors changed, topics disabled), and this event
-      // may be its only repair opportunity. Callers that will get a later event
-      // for the same navigation can defer the disable to it.
-      //
-      // Log at debug level: most tabs have no content script installed, so
-      // "Could not establish connection" is the expected outcome here.
-      chrome.tabs.sendMessage(tabId, { command: "disable" }).catch((err) => {
-        console.debug("filter-bubble: sendMessage(disable) failed:", err);
-      });
-    }
+    disableTab();
     return;
   }
 
@@ -214,9 +232,24 @@ const updateTab = async (
       });
   }
 
-  const { hideInsteadOfRemove, selectors } = website;
+  // Read `state` again rather than reusing the reading from the top: the
+  // `executeScript` above can span any number of storage changes, and the one
+  // that arrives during it has already sent this tab a message of its own.
+  // Sending what the state said before that would deliver the two in the order
+  // they were not decided in, and the tab would be left filtering by a topic
+  // that has since been deleted with no further event due to repair it.
+  //
+  // Nothing between here and the send awaits, so no change can slip in behind
+  // this reading either.
+  const current = toDecision(state, tabUrl);
+  if (!current.website || !current.pattern) {
+    disableTab();
+    return;
+  }
+
+  const { hideInsteadOfRemove, selectors } = current.website;
   let filterMode = hideInsteadOfRemove ? "hide" : "remove";
-  if (forceHighlight) {
+  if (current.forceHighlight) {
     filterMode = "highlight";
   }
 
@@ -225,7 +258,7 @@ const updateTab = async (
       command: "enable",
       // Keep this key order stable: the content script detects an unchanged
       // state by comparing the serialized payload.
-      data: { filterMode, pattern, selectors },
+      data: { filterMode, pattern: current.pattern, selectors },
     })
     .catch((err) => {
       console.error("filter-bubble: sendMessage(enable) failed:", err);
