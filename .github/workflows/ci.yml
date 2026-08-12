@@ -69,18 +69,30 @@ jobs:
   # nothing else in this workflow does, and it runs for minutes where the rest
   # runs for seconds, so pairing them would hold the release artifact behind the
   # slower half for no reason.
-  #
-  # One step, and it is the same command a developer runs. The image carries the
-  # Node this project pins, the browser build Playwright expects and the
-  # libraries it links against, so there is no runner setup to keep in step with
-  # what the suite needs - and a failure here is reproducible locally by
-  # definition rather than by resemblance.
   e2e:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Chromium at the build Playwright expects, plus the system libraries it
+      # links against. The version comes from the installed `@playwright/test`
+      # rather than from anything named here, so there is nothing to keep in
+      # step by hand. This installs the full Chromium as well as the headless
+      # shell; the suite asks for the former by channel, because only it carries
+      # extension support. Nothing here needs a display.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Run end-to-end tests
         run: npm run test:e2e

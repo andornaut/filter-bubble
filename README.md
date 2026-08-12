@@ -28,7 +28,7 @@ npm start
 
 `npm test`, `npm run lint`, and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
 
-`npm run test:e2e` runs the end-to-end suite: a real Chromium with the built extension loaded, driven by [Playwright](https://playwright.dev/) in a container, which is what CI runs too. Docker is the only prerequisite. See [`tests/e2e/README.md`](./tests/e2e/README.md).
+`npm run test:e2e` runs the end-to-end suite: a real Chromium with the built extension loaded, driven by [Playwright](https://playwright.dev/). Run `npx playwright install chromium` once first. See [`tests/e2e/README.md`](./tests/e2e/README.md).
 
 ### Android
 

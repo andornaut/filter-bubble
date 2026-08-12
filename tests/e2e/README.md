@@ -11,39 +11,37 @@ cross-context messaging, the toolbar badge, and the CSS that hides content.
 
 ## Running
 
+Once, to fetch the browser:
+
+```bash
+npx playwright install chromium
+```
+
+The version it fetches is the one the installed `@playwright/test` expects, so
+a dependency bump brings its own browser and there is nothing to keep in step
+by hand. On Linux, add `--with-deps` to install the system libraries Chromium
+links against, which is what CI does.
+
+Then:
+
 ```bash
 npm run test:e2e                    # whole suite
 npm run test:e2e -- 02-filtering    # one spec
 PW_WORKERS=1 npm run test:e2e       # serialize, e.g. when debugging
 ```
 
-That runs `docker compose run --rm --build e2e`, so Docker is the only thing
-you need installed. The image is built from [`Dockerfile`](../../Dockerfile) and
-carries the Node this project pins, the browser build Playwright expects, and
-the libraries it links against. CI runs the same command against the same
-image, so a failure there reproduces here by definition rather than by
-resemblance.
+Nothing reaches the network - the fixture server and the browser are both
+local - and nothing needs a display: extensions load headless, given the full
+Chromium build rather than the headless shell, which is what
+`channel: "chromium"` in `helpers/fixtures.js` selects. They do need a
+persistent context, so every browser here has a profile.
 
-The working tree is mounted into the container, so an edit to a spec or to the
-extension runs without rebuilding the image. Only `node_modules` is not: the
-suite uses the image's, installed from the lockfile for the platform it runs on.
-
-Nothing reaches the network - the service sets `network_mode: none` - and
-nothing needs a display: extensions load headless, given the full Chromium
-build rather than the headless shell, which is what `channel: "chromium"` in
-`helpers/fixtures.js` selects. They do need a persistent context, so every
-browser here has a profile.
+Two workers by default, because each test launches a whole Chromium. Raising
+`PW_WORKERS` past one worker per two cores starts timing the service worker
+out in fixture setup rather than finding anything.
 
 A failing CI run uploads the traces and screenshots Playwright kept, as the
 `e2e-results` artifact.
-
-To run without Docker - on a machine that already has the right Chromium
-(`npx playwright install chromium`) - `npm run test:e2e:direct` is the suite
-itself, which is what runs inside the container.
-
-On Linux, the container writes `dist/` and `tests/e2e/.artifacts/` as root,
-because that is who it runs as. Both are ignored by git; `sudo rm -rf` them if
-they get in the way of a later host-side build.
 
 ## Layout
 
