@@ -60,9 +60,17 @@ test.describe("list order and selection", () => {
       "middle",
       "oldest",
     ]);
-    const stored = (await extension.syncStorage())["t:topic-oldest"];
-    expect(stored.sortDate).toBe(DATES.oldest);
-    expect(stored.modifiedDate.localeCompare(DATES.newest)).toBe(1);
+    // The toggle's label follows the store, which flips before the write it
+    // triggers has landed, so poll for the stored item rather than reading it
+    // once.
+    const storedOldest = () =>
+      extension.syncStorage().then((raw) => raw["t:topic-oldest"]);
+    await expect
+      .poll(async () =>
+        (await storedOldest()).modifiedDate.localeCompare(DATES.newest),
+      )
+      .toBe(1);
+    expect((await storedOldest()).sortDate).toBe(DATES.oldest);
   });
 
   test("moves an item to the top when it is edited or added", async ({

@@ -46,10 +46,12 @@ test.describe("the disable switch", () => {
     await ui.locator(".footer__status-link").click();
     await expect(ui.locator(".footer__status-link")).toHaveText("Disabled");
 
-    // Disabling is meant to apply to this browser only.
-    expect(
-      await extension.evaluate(() => chrome.storage.local.get(null)),
-    ).toMatchObject({ disabled: true });
+    // Disabling is meant to apply to this browser only. The label follows the
+    // store, which flips before the write it triggers has landed, so poll for
+    // the stored value rather than reading it once.
+    await expect
+      .poll(() => extension.evaluate(() => chrome.storage.local.get(null)))
+      .toMatchObject({ disabled: true });
     expect(Object.keys(await extension.syncStorage())).not.toContain(
       "disabled",
     );
