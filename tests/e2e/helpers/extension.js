@@ -1,0 +1,170 @@
+const SCHEMA_KEY = "schema";
+const SCHEMA_VERSION = 2;
+const TOPIC_PREFIX = "t:";
+const WEBSITE_PREFIX = "w:";
+const DISABLED_KEY = "disabled";
+
+// A date far enough in the past that seeded items never tie with anything the
+// app writes during a test, and stable so runs are reproducible.
+const SEED_DATE = "2020-01-01T00:00:00.000Z";
+
+const toTopic = ({ enabled = true, id, text }) => ({
+  createdDate: SEED_DATE,
+  enabled,
+  id,
+  modifiedDate: SEED_DATE,
+  sortDate: SEED_DATE,
+  text: Array.isArray(text) ? text : [text],
+});
+
+const toWebsite = ({
+  addresses,
+  enabled = true,
+  hideInsteadOfRemove = false,
+  id,
+  selectors,
+}) => ({
+  addresses,
+  createdDate: SEED_DATE,
+  enabled,
+  hideInsteadOfRemove,
+  id,
+  modifiedDate: SEED_DATE,
+  selectors,
+  sortDate: SEED_DATE,
+});
+
+// Drives the real extension from the outside: everything here goes through the
+// extension's own APIs in its own service worker, so the code under test sees
+// the same events it would from the popup or from a sync from another device.
+export class Extension {
+  constructor(context, id) {
+    this.context = context;
+    this.id = id;
+  }
+
+  // MV3 service workers are torn down when idle, so never hold on to the
+  // worker handle - look it up (and wait for a restart) at each use.
+  async worker() {
+    const [existing] = this.context.serviceWorkers();
+    return existing || this.context.waitForEvent("serviceworker");
+  }
+
+  async evaluate(fn, arg) {
+    const worker = await this.worker();
+    return worker.evaluate(fn, arg);
+  }
+
+  // Write straight to `storage.sync`, which is what a sync from another device
+  // looks like to the background: it wakes on `storage.onChanged`, rebuilds its
+  // pattern and website list, and re-evaluates the active tabs.
+  //
+  // Writing `schema` marks the store as already migrated, so the popup seeds no
+  // default websites over the top of the fixture data.
+  async seed({ topics = [], websites = [] } = {}) {
+    const items = { [SCHEMA_KEY]: SCHEMA_VERSION };
+    topics.forEach((topic) => {
+      items[TOPIC_PREFIX + topic.id] = toTopic(topic);
+    });
+    websites.forEach((website) => {
+      items[WEBSITE_PREFIX + website.id] = toWebsite(website);
+    });
+    await this.evaluate((values) => chrome.storage.sync.set(values), items);
+  }
+
+  async syncStorage() {
+    return this.evaluate(() => chrome.storage.sync.get(null));
+  }
+
+  async setSyncStorage(values) {
+    return this.evaluate((v) => chrome.storage.sync.set(v), values);
+  }
+
+  async clearSyncStorage() {
+    return this.evaluate(() => chrome.storage.sync.clear());
+  }
+
+  // The browser-wide off switch the popup's toggle writes to.
+  async setDisabled(isDisabled) {
+    return this.evaluate(
+      ({ key, value }) => chrome.storage.local.set({ [key]: value }),
+      { key: DISABLED_KEY, value: isDisabled },
+    );
+  }
+
+  async tabIdFor(page) {
+    const url = page.url();
+    return this.evaluate(
+      (u) => chrome.tabs.query({ url: u }).then((tabs) => tabs[0]?.id ?? null),
+      url,
+    );
+  }
+
+  // Toolbar badge text for the tab showing `page`, which is where the content
+  // script's filtered-element count surfaces.
+  async badgeText(page) {
+    const tabId = await this.tabIdFor(page);
+    if (tabId === null) {
+      throw new Error(`No tab found for ${page.url()}`);
+    }
+    return this.evaluate(
+      (id) => chrome.action.getBadgeText({ tabId: id }),
+      tabId,
+    );
+  }
+
+  async actionTitle() {
+    return this.evaluate(() => chrome.action.getTitle({}));
+  }
+
+  async popupUrl(hash = "") {
+    return `chrome-extension://${this.id}/popup.html${hash}`;
+  }
+
+  // Open the extension UI as a page. `role` picks which of the three roles
+  // popup.html serves:
+  //   - "options": what `options_ui` opens (a normal tab)
+  //   - "import":  the #import page
+  // The real browser-action popup cannot be opened by automation, so tests that
+  // need popup-only behaviour (highlight mode) connect its port explicitly; see
+  // `connectPopupPort`.
+  async openPage(role = "options") {
+    const page = await this.context.newPage();
+    await page.goto(await this.popupUrl(role === "import" ? "#import" : ""));
+    await page.waitForSelector("#root *");
+    return page;
+  }
+
+  // Same, but in a window of its own. The real browser-action popup floats over
+  // the tab the user is on, leaving that tab the active one in its window;
+  // opening the UI as a tab in the same window would instead make the page
+  // under test inactive, and the background only re-evaluates active tabs.
+  async openWindow(role = "options") {
+    const url = await this.popupUrl(role === "import" ? "#import" : "");
+    const opened = this.context.waitForEvent("page");
+    await this.evaluate((u) => chrome.windows.create({ url: u }), url);
+    const page = await opened;
+    await page.waitForSelector("#root *");
+    return page;
+  }
+
+  // Reproduce the one thing the browser-action popup does that an options tab
+  // does not: hold a `runtime.connect` port open for as long as it is on
+  // screen. The background turns on highlight mode while any port is open.
+  // Returns a function that closes the port again.
+  async connectPopupPort() {
+    const page = await this.openWindow();
+    await page.evaluate(() => {
+      window.__testPort = chrome.runtime.connect();
+    });
+    return async () => {
+      await page.close();
+    };
+  }
+}
+
+export const getExtensionId = async (context) => {
+  const [existing] = context.serviceWorkers();
+  const worker = existing || (await context.waitForEvent("serviceworker"));
+  return new URL(worker.url()).host;
+};

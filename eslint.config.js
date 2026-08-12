@@ -8,7 +8,12 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "web-ext-artifacts/**"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "tests/e2e/.artifacts/**",
+      "web-ext-artifacts/**",
+    ],
   },
   js.configs.recommended,
   // Source files (React)
@@ -112,6 +117,28 @@ export default [
     rules: {
       "max-len": ["error", { code: 120 }],
       "no-restricted-syntax": ["error", "WithStatement"],
+      "sort-keys": "off",
+    },
+  },
+  // End-to-end tests: Node-side Playwright code that also evaluates snippets in
+  // the page and in the extension's service worker, so it needs all three sets
+  // of globals.
+  {
+    files: ["playwright.config.mjs", "tests/e2e/**/*.{js,mjs}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.serviceworker,
+        ...globals.webextensions,
+      },
+      sourceType: "module",
+    },
+    rules: {
+      // `async ({}, use) => {}` is how Playwright fixtures that take no other
+      // fixture are declared.
+      "no-empty-pattern": "off",
       "sort-keys": "off",
     },
   },
