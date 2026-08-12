@@ -22,7 +22,12 @@ body {
   line-height: calc(1.1em + 0.5vw);
   margin: 0 auto;
   max-width: 600px;
-  min-width: 500px;
+  /* Keep the 500px floor wherever there is room for it, but never let the floor
+     exceed the space available: a plain `min-width: 500px` forced a horizontal
+     scrollbar on any viewport narrower than that, which is what the add-on
+     settings screen on Firefox for Android is. Above 500px this resolves to
+     500px, so the desktop popup is unaffected. */
+  min-width: min(500px, 100%);
   width: 100%;
 }
 
