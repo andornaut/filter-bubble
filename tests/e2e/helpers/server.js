@@ -73,7 +73,17 @@ export const startServer = async () => {
   const { port } = server.address();
 
   return {
-    close: () => new Promise((resolve) => server.close(resolve)),
+    // `close()` stops the server accepting new connections but waits for the
+    // open ones to end, and a browser keeps its sockets alive for reuse rather
+    // than closing them after a response. This server is worker-scoped, so
+    // closing it means the worker's last test is done and nothing is in
+    // flight: drop the sockets rather than hold the worker's teardown open for
+    // the length of a keep-alive timeout.
+    close: () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
     origin: (host = "localhost") => `http://${host}:${port}`,
     port,
     url: (pathname, host = "localhost") =>
