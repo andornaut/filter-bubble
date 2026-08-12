@@ -75,6 +75,23 @@ describe("toLists", () => {
       websitesList: [],
     });
   });
+
+  // This walk covers every key in `storage.sync`, and it runs inside the read
+  // that every state change depends on. A throw here leaves the background
+  // holding whatever state it had, with no way back.
+  it("skips a value that is not an object and keeps the rest", () => {
+    const raw = {
+      schema: 2,
+      "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+      "t:junk": null,
+      "w:junk": 42,
+      "w:9": { addresses: ["reddit.com"], enabled: true, id: "9" },
+    };
+    expect(toLists(raw)).toEqual({
+      topicsList: [{ enabled: true, id: "1", text: ["spoilers"] }],
+      websitesList: [{ addresses: ["reddit.com"], enabled: true, id: "9" }],
+    });
+  });
 });
 
 describe("matchesAddress", () => {

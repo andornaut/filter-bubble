@@ -319,7 +319,12 @@ const toLists = (raw) => {
   const websitesList = [];
   Object.keys(raw).forEach((key) => {
     const value = raw[key];
-    if (value.deleted) {
+    // Skip anything that is not an object before touching a property of it.
+    // `storage.sync` is a namespace anything can write to, and this walk covers
+    // all of it: a throw here rejects the read, which leaves `state` holding
+    // whatever it had and stops every later change being applied. Mirrors
+    // `isItemValue` in src/storage.js, which cannot be imported here.
+    if (!value || typeof value !== "object" || value.deleted) {
       return;
     }
     if (key.startsWith(TOPIC_PREFIX)) {

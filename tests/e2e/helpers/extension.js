@@ -103,6 +103,13 @@ export class Extension {
     return this.evaluate(() => chrome.storage.sync.clear());
   }
 
+  // Drop keys outright, which is what a device running a release that predates
+  // tombstones does when it deletes an item: the key is gone rather than
+  // replaced with a `deleted` marker.
+  async removeSyncStorage(keys) {
+    return this.evaluate((k) => chrome.storage.sync.remove(k), keys);
+  }
+
   // The browser-wide off switch the popup's toggle writes to.
   async setDisabled(isDisabled) {
     return this.evaluate(

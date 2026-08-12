@@ -16,6 +16,15 @@ let store = {};
 const isItemKey = (key) =>
   key.startsWith(TOPIC_PREFIX) || key.startsWith(WEBSITE_PREFIX);
 
+// `storage.sync` is one flat namespace that anything holding this extension id
+// can write to - another release, a botched import, a hand-edited store - and
+// every read walks all of it. A value that is not an object at all throws on
+// the first property access, which takes down the whole read: the popup renders
+// its failure page, the background keeps the state it happened to hold, and no
+// later change to any other key can be applied. Drop the value instead, so one
+// key nobody can make sense of costs only that key.
+const isItemValue = (value) => Boolean(value) && typeof value === "object";
+
 // Serialize with object keys sorted so comparisons are independent of key
 // order (array order is preserved). Prevents spurious writes and write-back
 // loops when the browser hands back values whose keys are ordered differently.
@@ -268,7 +277,7 @@ export const fromStorage = async () => {
   const v2 = await ensureV2(raw);
   store = {};
   Object.keys(v2).forEach((key) => {
-    if (isItemKey(key)) {
+    if (isItemKey(key) && isItemValue(v2[key])) {
       store[key] = v2[key];
     }
   });
@@ -341,6 +350,11 @@ export const subscribeStorageSync = (onLists) => {
           delete store[key];
           changed = true;
         }
+        return;
+      }
+      // Same reasoning as `fromStorage`: never take a value into `store` that
+      // the writers there would then throw on.
+      if (!isItemValue(incoming)) {
         return;
       }
       const winner = mergeByModified(store[key], incoming);

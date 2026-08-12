@@ -513,6 +513,25 @@ describe("fromStorage", () => {
 
     expect(remove).not.toHaveBeenCalled();
   });
+
+  // Rejecting here rejects `initState`, which renders the popup's failure page
+  // instead of the app - so one key nobody can make sense of would take the
+  // whole configuration away from the user rather than just itself.
+  it("drops a value that is not an object rather than failing the read", async () => {
+    get.mockResolvedValue({
+      schema: 2,
+      "t:1": topic("1", ["spoilers"], "2026-01-01T00:00:00.000Z"),
+      "t:junk": null,
+      "w:junk": "not an item",
+    });
+
+    const lists = await fromStorage();
+
+    expect(lists.topics.list).toEqual([
+      topic("1", ["spoilers"], "2026-01-01T00:00:00.000Z"),
+    ]);
+    expect(lists.websites.list).toEqual([]);
+  });
 });
 
 // Seed the module store via a v2 read, then clear the write mocks.
@@ -619,6 +638,18 @@ describe("subscribeStorageSync", () => {
 
     expect(onLists).toHaveBeenCalledTimes(1);
     expect(onLists.mock.calls[0][0].topics.list[0].text).toEqual(["b"]);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("ignores an incoming value that is not an object", async () => {
+    await seed({ "t:1": topic("1", ["a"], "2026-01-01T00:00:00.000Z") });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({ "t:junk": { newValue: null } });
+
+    // Taking it into the store would only move the throw to the next write.
+    expect(onLists).not.toHaveBeenCalled();
     expect(set).not.toHaveBeenCalled();
   });
 
