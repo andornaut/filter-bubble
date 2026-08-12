@@ -149,7 +149,7 @@ test.describe("editing a website", () => {
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
   });
 
-  test("rejects an edit that duplicates another website", async ({
+  test("rejects an edit onto a domain another website already covers", async ({
     extension,
   }) => {
     await extension.seed({
@@ -169,13 +169,81 @@ test.describe("editing a website", () => {
       .locator(".list__item", { hasText: "127.0.0.1" })
       .locator(".list__content")
       .click();
-    await ui.locator('form input[name="addresses"]').fill("localhost");
+
+    // Sharing one domain name of several is enough: only one website can
+    // govern a page, so the other would sit there doing nothing.
+    await ui
+      .locator('form input[name="addresses"]')
+      .fill("127.0.0.1, localhost");
     await ui.getByRole("button", { name: "Save" }).click();
 
-    await expect(ui.locator(".errors")).toContainText("Duplicate item");
+    await expect(ui.locator(".errors")).toContainText(
+      "Already covered by another website: localhost",
+    );
     expect((await extension.syncStorage())["w:site-ip"].addresses).toEqual([
       "127.0.0.1",
     ]);
+  });
+
+  test("lets a website keep its own domains when edited", async ({
+    extension,
+    page,
+    server,
+  }) => {
+    await extension.seed({
+      topics: TOPICS,
+      websites: [
+        website(),
+        website({ addresses: ["127.0.0.1"], id: "site-ip" }),
+      ],
+    });
+    await page.goto(server.url("feed.html"));
+
+    // Editing anything else about a website must not have it collide with
+    // itself over the addresses it already holds.
+    const ui = await extension.openWindow();
+    await ui
+      .locator(".app__nav")
+      .getByRole("link", { name: "Websites" })
+      .click();
+    await ui
+      .locator(".list__item", { hasText: "localhost" })
+      .locator(".list__content")
+      .click();
+    await ui.locator('form input[name="selectors"]').fill("#a1");
+    await ui.getByRole("button", { name: "Save" }).click();
+
+    await expect(ui.locator(".errors")).toHaveCount(0);
+    await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
+  });
+
+  test("frees a domain for another website once it is given up", async ({
+    extension,
+  }) => {
+    await extension.seed({
+      topics: TOPICS,
+      websites: [website({ addresses: ["127.0.0.1", "localhost"] })],
+    });
+
+    const ui = await extension.openWindow();
+    await ui
+      .locator(".app__nav")
+      .getByRole("link", { name: "Websites" })
+      .click();
+
+    // Moving a domain to a website of its own: take it off the first entry...
+    await ui.locator(".list__content").click();
+    await ui.locator('form input[name="addresses"]').fill("127.0.0.1");
+    await ui.getByRole("button", { name: "Save" }).click();
+    await expect(ui.locator(".errors")).toHaveCount(0);
+
+    // ...then it is free to add.
+    await ui.locator('form input[name="addresses"]').fill("localhost");
+    await ui.locator('form input[name="selectors"]').fill("#a1");
+    await ui.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(ui.locator(".errors")).toHaveCount(0);
+    await expect(ui.locator(".list__item")).toHaveCount(2);
   });
 
   test("keeps an edit out of the store until it is saved", async ({

@@ -15,17 +15,30 @@ export const createToContentKey = (field) => (item) =>
 
 const findIndexById = (list, id) => list.findIndex((item) => item.id === id);
 
-const hasContentKey = (toContentKey, list, contentKey, exceptId) =>
-  list.some(
-    (item) => item.id !== exceptId && toContentKey(item) === contentKey,
-  );
+// A collection's collision rule: given the current list and the item being
+// added or edited, return the message to refuse it with, or "" to accept it.
+// `exceptId` is the item being edited, which must not collide with itself.
+//
+// The default rule is exact content equality, which is all a topic needs: two
+// topics listing the same phrases are the same topic. A collection whose items
+// can overlap without being equal passes its own rule to
+// `createCollectionActions` - see `findAddressConflict` in ./websites.
+export const createDuplicateConflict =
+  (toContentKey) => (list, data, exceptId) => {
+    const contentKey = toContentKey(data);
+    return list.some(
+      (item) => item.id !== exceptId && toContentKey(item) === contentKey,
+    )
+      ? `Duplicate item: ${contentKey}`
+      : "";
+  };
 
-export const createAddItem = (toRoot, toContentKey) =>
+export const createAddItem = (toRoot, findConflict) =>
   action(({ commit, state }, data) => {
     const { list } = toRoot(state);
-    const contentKey = toContentKey(data);
-    if (hasContentKey(toContentKey, list, contentKey)) {
-      throw new Error(`Duplicate item: ${contentKey}`);
+    const conflict = findConflict(list, data);
+    if (conflict) {
+      throw new Error(conflict);
     }
     const now = new Date().toJSON();
     const id = toItemId(new Set(list.map((item) => item.id)), now);
@@ -51,16 +64,16 @@ export const createDeleteItem = (toRoot) =>
     commit(state);
   });
 
-export const createEditItem = (toRoot, toContentKey) =>
+export const createEditItem = (toRoot, findConflict) =>
   action(({ commit, state }, id, data) => {
     const { list } = toRoot(state);
     const index = findIndexById(list, id);
     if (index < 0) {
       throw new Error(`Item not found: ${id}`);
     }
-    const contentKey = toContentKey(data);
-    if (hasContentKey(toContentKey, list, contentKey, id)) {
-      throw new Error(`Duplicate item: ${contentKey}`);
+    const conflict = findConflict(list, data, id);
+    if (conflict) {
+      throw new Error(conflict);
     }
     const now = new Date().toJSON();
     list[index] = {
@@ -92,15 +105,22 @@ export const createToggleEnabled = (toRoot) =>
   });
 
 // Build the full pre-bound action set for one collection (`topics` or
-// `websites`): the statezero root key and the duplicate-detection content field
-// are the only differences between the two.
-export const createCollectionActions = (rootKey, contentField) => {
+// `websites`): the statezero root key, the duplicate-detection content field,
+// and optionally a collision rule of the collection's own are the only
+// differences between the two.
+export const createCollectionActions = (
+  rootKey,
+  contentField,
+  findConflict,
+) => {
   const toRoot = (state) => state[rootKey];
   const toItemContentKey = createToContentKey(contentField);
+  const conflictRule =
+    findConflict || createDuplicateConflict(toItemContentKey);
   return {
-    addItem: createAddItem(toRoot, toItemContentKey),
+    addItem: createAddItem(toRoot, conflictRule),
     deleteItem: createDeleteItem(toRoot),
-    editItem: createEditItem(toRoot, toItemContentKey),
+    editItem: createEditItem(toRoot, conflictRule),
     hydrate: action(({ commit, state }, lists) => {
       const root = lists[rootKey] || {};
       root.list = root.list || [];

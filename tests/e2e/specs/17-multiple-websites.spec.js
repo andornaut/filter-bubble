@@ -8,14 +8,43 @@ const TOPICS = [
 // Capability: several configured websites coexist, including the shipped
 // defaults, and the right one governs each page.
 test.describe("several websites", () => {
+  test("refuses to configure two websites over the same domain", async ({
+    extension,
+  }) => {
+    await extension.seed({
+      topics: TOPICS,
+      websites: [
+        { addresses: ["localhost"], id: "site-a", selectors: ["#a1"] },
+      ],
+    });
+
+    const ui = await extension.openWindow();
+    await ui
+      .locator(".app__nav")
+      .getByRole("link", { name: "Websites" })
+      .click();
+    await ui
+      .locator('form input[name="addresses"]')
+      .fill("localhost, news.localhost");
+    await ui.locator('form input[name="selectors"]').fill("#a3");
+    await ui.getByRole("button", { name: "Add", exact: true }).click();
+
+    // Only one website can govern a page, so a second one covering the same
+    // domain would sit in the list looking configured while doing nothing.
+    await expect(ui.locator(".errors")).toContainText(
+      "Already covered by another website: localhost",
+    );
+    await expect(ui.locator(".list__item")).toHaveCount(1);
+  });
+
   test("applies only the rules of the website it matched", async ({
     extension,
     page,
     server,
   }) => {
-    // Two websites cover the same address with different selectors. They are
-    // not duplicates - the app keys duplicate detection on the addresses array
-    // - but only one of them can govern the page.
+    // The UI refuses to create this, but sync from a device on an older
+    // release, or an imported backup, can still deliver it: two websites
+    // covering one address with different selectors.
     await extension.seed({
       topics: TOPICS,
       websites: [

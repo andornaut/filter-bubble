@@ -2,6 +2,7 @@ import { sortByDateDesc } from "../helpers";
 import {
   createAddItem,
   createDeleteItem,
+  createDuplicateConflict,
   createEditItem,
   createToContentKey,
   createToggleEnabled,
@@ -36,7 +37,7 @@ describe("createAddItem", () => {
     state = { items: { list: [] } };
     toRoot = () => state.items;
     toContentKey = (item) => item.name;
-    addItem = createAddItem(toRoot, toContentKey);
+    addItem = createAddItem(toRoot, createDuplicateConflict(toContentKey));
   });
 
   it("adds item with a generated id and metadata", () => {
@@ -120,7 +121,7 @@ describe("createEditItem", () => {
     };
     toRoot = () => state.items;
     toContentKey = (item) => item.name;
-    editItem = createEditItem(toRoot, toContentKey);
+    editItem = createEditItem(toRoot, createDuplicateConflict(toContentKey));
   });
 
   it("updates content, keeps id and createdDate, bumps modifiedDate", () => {
