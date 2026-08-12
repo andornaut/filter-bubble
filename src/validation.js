@@ -28,7 +28,16 @@ export const canonicalizeAddresses = (value) =>
   Array.from(
     new Set(
       toCanonicalArray(toInput(value)).map((address) => {
-        const domainName = address.toLowerCase().replace(SCHEME_REGEX, "");
+        // Drop one trailing "/" along with the scheme. Copying a site's
+        // address out of the browser gives "https://example.com/", so
+        // stripping the scheme but not the slash left the commonest way of
+        // getting an address in hand rejected as an invalid domain name. Only
+        // a trailing slash, not a path: "example.com/some/article" is a
+        // different request, and the field asks for the domain alone.
+        const domainName = address
+          .toLowerCase()
+          .replace(SCHEME_REGEX, "")
+          .replace(/\/$/, "");
         if (!domainName.match(DOMAIN_NAME_REGEX)) {
           throw new Error(`"${address}" isn't a valid domain name`);
         }

@@ -1,4 +1,8 @@
-import { DOMAIN_NAME_REGEX, SCHEME_REGEX } from "./validation";
+import {
+  canonicalizeAddresses,
+  DOMAIN_NAME_REGEX,
+  SCHEME_REGEX,
+} from "./validation";
 
 describe("domain name validation", () => {
   const isValidDomain = (domain) => DOMAIN_NAME_REGEX.test(domain);
@@ -42,5 +46,36 @@ describe("scheme regex", () => {
     ["example.com", "example.com"], // no scheme is left untouched
   ])("strips the scheme from %s", (url, expected) => {
     expect(url.replace(SCHEME_REGEX, "")).toBe(expected);
+  });
+});
+
+describe("canonicalizeAddresses", () => {
+  it.each([
+    ["example.com", ["example.com"]],
+    ["https://example.com", ["example.com"]],
+    // A URL copied out of the browser's address bar carries a trailing slash.
+    ["https://example.com/", ["example.com"]],
+    ["EXAMPLE.com/", ["example.com"]],
+    ["example.com/", ["example.com"]],
+    // Trimmed, lowercased, de-duplicated and sorted.
+    [" B.com , https://a.com/ , A.COM ", ["a.com", "b.com"]],
+    [
+      ["https://b.com/", "a.com"],
+      ["a.com", "b.com"],
+    ],
+  ])("canonicalizes %p", (value, expected) => {
+    expect(canonicalizeAddresses(value)).toEqual(expected);
+  });
+
+  it.each([
+    "example.com/path",
+    "https://example.com/path/",
+    "http://example.com:8080",
+    "not a domain",
+    "example.com//",
+  ])("rejects %s", (value) => {
+    expect(() => canonicalizeAddresses(value)).toThrow(
+      "isn't a valid domain name",
+    );
   });
 });
