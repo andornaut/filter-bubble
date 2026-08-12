@@ -18,7 +18,10 @@ import { EXTENSION_DIR, PROFILES_DIR, ROOT_DIR } from "./helpers/paths.js";
 // shipped manifest verbatim, so the permission-gated code paths still run; they
 // just find the grant already in place, exactly as they would after a user had
 // clicked "Allow".
-const FIXTURE_ORIGINS = ["http://localhost/*", "http://127.0.0.1/*"];
+// Any-scheme patterns, matching what the extension asks for: it derives
+// `*://<address>/*` from each website, and `permissions.contains` honors
+// subsumption, so a narrower `http://` grant would read as not granted.
+const FIXTURE_ORIGINS = ["*://localhost/*", "*://127.0.0.1/*"];
 
 // Build `dist/` and copy it to a scratch directory with the fixture host
 // permission pre-granted. Returns the directory Chrome should load.

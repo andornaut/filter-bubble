@@ -21,12 +21,8 @@ Extensions load only into a headed browser (the headless shell ships no
 extension support), so `test:e2e` wraps Playwright in `xvfb-run`. On a desktop
 with a display, `npx playwright test` works directly.
 
-In a container:
-
-```bash
-docker build -f tests/e2e/Dockerfile -t filter-bubble-e2e .
-docker run --rm --ipc=host filter-bubble-e2e
-```
+Needs Chromium at the build Playwright expects (`npx playwright install
+chromium`) and `xvfb` on headless machines.
 
 ## Layout
 
@@ -48,13 +44,16 @@ Everything else is the shipped extension, unmodified.
 1. **Host permissions.** The shipped manifest asks for `<all_urls>` as an
    _optional_ host permission, which a user grants through a native Chrome
    dialog that no automation can click. `build-extension.mjs` therefore adds
-   `http://localhost/*` and `http://127.0.0.1/*` as required `host_permissions`
+   `*://localhost/*` and `*://127.0.0.1/*` as required `host_permissions`
    in the copy under test, and leaves everything else - including
    `optional_host_permissions` - as shipped. The permission-gated code paths
    still run; they just find the grant already in place, as they would after a
-   user had clicked "Allow". The consequence is that the grant flow itself
-   (the banner, the ⚠️ per-website warning, `permissions.request`) is not
-   covered here.
+   user had clicked "Allow". `127.0.0.2` serves the same fixture pages over
+   loopback and is deliberately _not_ granted, which is how `09-permissions`
+   covers the ungranted side: the banner, the ⚠️ per-website warning, and a
+   matched website that cannot be injected into. The one thing left uncovered
+   is the click on Chrome's own dialog, i.e. `permissions.request` returning
+   true.
 
 2. **The popup window.** Automation cannot open a browser-action popup. Tests
    that need popup-only behaviour open `popup.html` in a window of their own -

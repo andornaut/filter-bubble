@@ -135,15 +135,23 @@ export class Extension {
     return page;
   }
 
-  // Same, but in a window of its own. The real browser-action popup floats over
-  // the tab the user is on, leaving that tab the active one in its window;
-  // opening the UI as a tab in the same window would instead make the page
-  // under test inactive, and the background only re-evaluates active tabs.
-  async openWindow(role = "options") {
-    const url = await this.popupUrl(role === "import" ? "#import" : "");
+  // Open `url` in a browser window of its own, and resolve to its page. A
+  // window rather than a tab, so the page already under test stays the active
+  // tab of its own window: the background only re-evaluates active tabs.
+  async newWindow(url) {
     const opened = this.context.waitForEvent("page");
     await this.evaluate((u) => chrome.windows.create({ url: u }), url);
     const page = await opened;
+    await page.waitForLoadState("domcontentloaded");
+    return page;
+  }
+
+  // The extension UI in a window of its own, which is the closest an automated
+  // browser gets to the browser-action popup floating over the current tab.
+  async openWindow(role = "options") {
+    const page = await this.newWindow(
+      await this.popupUrl(role === "import" ? "#import" : ""),
+    );
     await page.waitForSelector("#root *");
     return page;
   }

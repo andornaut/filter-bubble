@@ -28,6 +28,7 @@
       <button id="append" type="button">Add one more</button>
       <button id="replace-body" type="button">Rebuild the page</button>
       <button id="strip-classes" type="button">Reset all class names</button>
+      <button id="spa-navigate" type="button">Go to page two</button>
     </p>
     <script>
       let counter = 4;
@@ -50,6 +51,17 @@
           "<h2>Rebuilt</h2><p>Fresh politics coverage.</p>" +
           "</article></main>";
         document.body.replaceWith(body);
+      });
+
+      // Navigate the way a single-page app does: change the URL and swap the
+      // content, without ever loading a document.
+      document.getElementById("spa-navigate").addEventListener("click", () => {
+        history.pushState({}, "", "?view=2");
+        document.getElementById("feed").innerHTML =
+          '<article id="page-two-match">' +
+          "<h2>Page two</h2><p>Still more politics.</p></article>" +
+          '<article id="page-two-plain"><h2>Page two</h2>' +
+          "<p>Tomatoes, basil, and when to plant them.</p></article>";
       });
 
       // Rewrite className on every article, which strips the filter classes
