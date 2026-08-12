@@ -93,8 +93,11 @@ test.describe("persistence", () => {
     // The options page can sit open in a tab while the popup is used.
     const first = await extension.openWindow();
     const second = await extension.openWindow();
-    await expect(first.locator(".topics__text")).toHaveText("politics");
-    await expect(second.locator(".topics__text")).toHaveText("politics");
+    // Arrays rather than bare strings for every assertion on this list: the
+    // string form does not retry past a strict-mode violation, so it cannot
+    // wait for a list to shrink. See "Writing a test" in ../README.md.
+    await expect(first.locator(".topics__text")).toHaveText(["politics"]);
+    await expect(second.locator(".topics__text")).toHaveText(["politics"]);
 
     await first.locator('form input[name="text"]').fill("sports");
     await first.getByRole("button", { name: "Add", exact: true }).click();
@@ -113,7 +116,7 @@ test.describe("persistence", () => {
       .click();
     await second.getByRole("button", { name: "Delete" }).click();
 
-    await expect(first.locator(".topics__text")).toHaveText("sports");
+    await expect(first.locator(".topics__text")).toHaveText(["sports"]);
     await expect(page.locator("#a1")).not.toHaveClass(/filter-bubble/);
     await expect(page.locator("#a3")).toHaveClass(/filter-bubble--remove/);
   });

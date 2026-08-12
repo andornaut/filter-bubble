@@ -135,3 +135,20 @@ pass per 200ms, so "still not filtered" has to be given time to be wrong.
 `settle(page)` from `helpers/fixtures.js` is that wait; use it rather than a
 bare `waitForTimeout`, which should mean "this test needs its own wait, for a
 reason it states".
+
+Assert on a list with an array, never a bare string, even where you expect one
+item:
+
+```js
+await expect(ui.locator(".topics__text")).toHaveText(["sports"]); // waits
+await expect(ui.locator(".topics__text")).toHaveText("sports"); // does not
+```
+
+`toHaveText` given a string asserts against a single element, and a locator
+matching more than one is a strict-mode violation, which it reports rather than
+retries. Waiting for a list to shrink is therefore the one thing the string form
+cannot do: it fails immediately, on exactly the state it was supposed to wait
+out. The array form asserts the whole list and retries to the timeout like every
+other web-first assertion. This cost a real afternoon - the failure reads
+"resolved to 2 elements", which looks like a bug in the code under test rather
+than in the assertion.
