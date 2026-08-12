@@ -13,7 +13,7 @@ fix demands it, and say so when you do.
 
 - 151 end-to-end tests across 28 spec files, driving a real Chromium with the
   real built extension. `tests/e2e/README.md` is the reference and is current.
-- 344 unit tests, lint clean.
+- 345 unit tests, lint clean.
 - CI runs lint/unit/size/package (`build`) and the suite (`e2e`) on every
   branch.
 - The intermittent failure this file used to open with is fixed - see below.
@@ -47,6 +47,14 @@ commit messages and the code comments, and the durable lesson is in
   instead of retrying, so it failed instantly on the two-item state it was
   waiting to leave. The array form waits. 2 of 48 before, 0 of 48 after, both
   under deliberate contention.
+
+Both are pinned now. The background ordering has a unit test that holds
+`executeScript` open by hand and fails against the previous code - the
+end-to-end test that found it only reproduces about 1 run in 30, which is not a
+regression test. The assertion trap is swept: every other single-element
+assertion in the suite sits on a list that cannot grow past one item, so
+`18-persistence` was the only real instance. `tests/e2e/README.md` carries the
+rule for new ones.
 
 Worth keeping from the diagnosis: the background, the content script and
 `storage.js` each pushed timestamped entries to a per-context array, dumped and
@@ -93,9 +101,6 @@ If it goes: remove `Dockerfile`, `docker-compose.yml`, `.dockerignore`, restore
   the container. If it ever shows up at 2, that is a real bug and worth chasing
   - the suspicion is a worker that registers and is torn down as idle before the
     fixture looks, with nothing left to wake it.
-- `tests/e2e/helpers/server.js` never calls `closeAllConnections()`, so a
-  keep-alive socket could in principle stall a worker's teardown. Nothing has
-  hung; hardening, not a fix.
 - `build:prod` runs twice in CI (`npm run size`, then `npm run package` ->
   `lint:ext`). Real duplication, but ~0s and 3s in practice.
 - Three things remain out of reach for this harness and are documented as such
