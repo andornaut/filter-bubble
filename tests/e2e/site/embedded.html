@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fixture feed with embedded content</title>
+  </head>
+  <body>
+    <h1>Embedded content</h1>
+    <main id="feed">
+      <article id="e-visible">
+        <h2>Straightforward</h2>
+        <p>A long read about politics and the campaign trail.</p>
+      </article>
+      <article id="e-metadata">
+        <h2>Gardening in spring</h2>
+        <!-- Visible text says nothing about the topic, but the structured
+             data a real news site embeds does. -->
+        <script type="application/ld+json">
+          { "headline": "Gardening in spring", "keywords": "politics, budget" }
+        </script>
+        <p>Tomatoes, basil, and when to plant them.</p>
+      </article>
+      <article id="e-mutable">
+        <h2>Breaking</h2>
+        <p id="e-mutable-text">Early politics coverage.</p>
+      </article>
+      <article id="e-shadow-host">
+        <h2>Widget</h2>
+      </article>
+    </main>
+
+    <!-- Same content again, one document down: the content script is injected
+         into the top frame only. -->
+    <iframe id="embedded" src="feed.html" title="Embedded feed"></iframe>
+
+    <p>
+      <button id="rewrite" type="button">Change the wording</button>
+      <button id="add-inside" type="button">Add to the first item</button>
+    </p>
+
+    <script>
+      // A widget in a shadow root, which document.querySelectorAll does not
+      // reach into.
+      document
+        .getElementById("e-shadow-host")
+        .attachShadow({ mode: "open" })
+        .append(
+          Object.assign(document.createElement("article"), {
+            id: "e-shadow-item",
+            textContent: "Sponsored politics content.",
+          }),
+        );
+
+      document.getElementById("rewrite").addEventListener("click", () => {
+        document.getElementById("e-mutable-text").textContent =
+          "Correction: this story was about tomatoes.";
+      });
+
+      document.getElementById("add-inside").addEventListener("click", () => {
+        const paragraph = document.createElement("p");
+        paragraph.id = "e-added-inside";
+        paragraph.textContent = "A later addition to the same item.";
+        document.getElementById("e-visible").append(paragraph);
+      });
+    </script>
+  </body>
+</html>
