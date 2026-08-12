@@ -72,12 +72,16 @@ test.describe("topics", () => {
 
     // Canonicalized on the way in: trimmed, lowercased, de-duplicated, sorted.
     await expect(ui.locator(".topics__text")).toHaveText("politics, sports");
-    await expect
-      .poll(async () => (await extension.syncStorage())["t:topic-politics"])
-      .toBeUndefined();
-    const [stored] = Object.entries(await extension.syncStorage())
-      .filter(([key]) => key.startsWith("t:"))
-      .map(([, value]) => value);
+    // Both phrases belong to one topic, not one topic each. Ids derive from
+    // `createdDate`, so there is no content-derived key to wait for: poll for
+    // the single stored topic, then read it.
+    const storedTopics = async () =>
+      Object.entries(await extension.syncStorage())
+        .filter(([key]) => key.startsWith("t:"))
+        .map(([, value]) => value);
+    await expect.poll(async () => (await storedTopics()).length).toBe(1);
+
+    const [stored] = await storedTopics();
     expect(stored.text).toEqual(["politics", "sports"]);
 
     // Both phrases filter.

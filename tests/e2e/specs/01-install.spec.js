@@ -1,4 +1,4 @@
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 
 // Capability: a fresh install comes up - the background service worker
 // registers, the extension UI renders, and the shipped default websites are
@@ -79,6 +79,10 @@ test.describe("installation", () => {
 
     const page = await extension.openPage();
     await expect(page.locator(".app")).toBeVisible();
+    // Seeding is decided before the app renders but written afterwards, so a
+    // re-seed would still be in flight here: give it time to land before
+    // asserting it never happened.
+    await settle(page);
 
     const stored = await extension.syncStorage();
     expect(Object.keys(stored).filter((key) => key.startsWith("w:"))).toEqual([

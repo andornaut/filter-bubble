@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { expect, test } from "../helpers/fixtures.js";
+import { expect, settle, test } from "../helpers/fixtures.js";
 import { SEED } from "../helpers/seed.js";
 
 // The import page reads a file the user picks, so the file has to exist on disk.
@@ -137,6 +137,10 @@ test.describe("import and export", () => {
     await importFile(ui, filePath);
     await expect(ui.locator(".import__status--success")).toBeVisible();
     await importFile(ui, filePath);
+    // The second import reports the same success as the first, so there is
+    // nothing in the UI that distinguishes it: the duplicate this test is about
+    // has to be given time to be written before it is asserted absent.
+    await settle(ui);
 
     const stored = await extension.syncStorage();
     expect(Object.keys(stored).filter((key) => key.startsWith("t:"))).toEqual([
