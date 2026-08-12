@@ -30,29 +30,36 @@
     );
   };
 
-  // Elements whose text content is code rather than prose. `textContent`
-  // includes them, so a feed item carrying JSON-LD metadata (which real news
-  // sites attach to every article) was matched on a keyword list the reader
-  // cannot see, with nothing on screen to explain why the item vanished.
-  const CODE_TAGS = new Set(["SCRIPT", "STYLE"]);
-  const CODE_SELECTOR = "script, style";
+  // Elements the browser never renders to a reader of this page. `textContent`
+  // includes them all the same, so a feed item was matched on words that are
+  // nowhere on screen, and vanished with nothing to explain why.
+  //
+  // `<script>` and `<style>` hold code: real news sites attach JSON-LD to every
+  // article, which routinely names the very topics a keyword list is made of.
+  // `<noscript>` holds prose, but prose for a browser that is not running this
+  // extension at all - scripting is on wherever the content script runs, which
+  // is exactly when the browser hides it.
+  const UNRENDERED_TAGS = new Set(["NOSCRIPT", "SCRIPT", "STYLE"]);
+  const UNRENDERED_SELECTOR = "noscript, script, style";
 
   // The container's text with those elements left out.
   //
-  // Fast path first: most containers hold neither, and `textContent` is one
-  // native call, where the walk below is a call per text node. The lookup that
-  // chooses between them is native too, and only containers that are not
+  // Fast path first: most containers hold none of them, and `textContent` is
+  // one native call, where the walk below is a call per text node. The lookup
+  // that chooses between them is native too, and only containers that are not
   // already filtered ever reach here.
   const toText = (container) => {
-    if (!container.querySelector(CODE_SELECTOR)) {
+    if (!container.querySelector(UNRENDERED_SELECTOR)) {
       return container.textContent;
     }
     // `SHOW_TEXT`, so every node the filter sees is a text node and its parent
-    // is the element that holds it: a `<script>`'s text is its own child, never
-    // a deeper descendant.
+    // is the element that holds it: the content of all three is parsed as raw
+    // text, so it is their own child and never a deeper descendant.
+    // (`<noscript>` is raw text only while scripting is enabled, which it is
+    // wherever this runs.)
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
       acceptNode: ({ parentElement }) =>
-        parentElement && CODE_TAGS.has(parentElement.tagName)
+        parentElement && UNRENDERED_TAGS.has(parentElement.tagName)
           ? NodeFilter.FILTER_REJECT
           : NodeFilter.FILTER_ACCEPT,
     });

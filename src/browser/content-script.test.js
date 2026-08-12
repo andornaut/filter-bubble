@@ -207,6 +207,20 @@ describe("FilterBubble.enable", () => {
     expect(el.classList.contains("filter-bubble")).toBe(true);
   });
 
+  // The browser hides `<noscript>` from everyone who is running scripts, which
+  // is everyone the content script is running for.
+  it("ignores the fallback text meant for a browser without JavaScript", () => {
+    document.body.innerHTML = `
+      <div class="post">
+        <noscript>Turn on JavaScript to read about banana futures</noscript>
+        <p>nothing to see</p>
+      </div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+  });
+
   it("matches across the elements a container's text is split over", () => {
     document.body.innerHTML = `
       <div class="post">I love <em>banana</em> bread</div>`;

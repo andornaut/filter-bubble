@@ -48,6 +48,16 @@ test.describe("content script edges", () => {
     await expect(page.locator("#e-metadata")).toBeVisible();
   });
 
+  test("ignores the fallback meant for a browser without JavaScript", async ({
+    page,
+  }) => {
+    // Same defect as the metadata above, from the other direction: `<noscript>`
+    // holds prose rather than code, but the browser renders it only when
+    // scripts are off - which is never, wherever the content script is running.
+    await expect(page.locator("#e-noscript")).not.toHaveClass(/filter-bubble/);
+    await expect(page.locator("#e-noscript")).toBeVisible();
+  });
+
   test("keeps an item filtered after its text stops matching", async ({
     extension,
     page,
