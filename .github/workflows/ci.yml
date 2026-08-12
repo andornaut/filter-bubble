@@ -1,8 +1,13 @@
 name: Release
 
+# Every branch, not just main and pull requests, for the reason the AI
+# attributions workflow gives: work lands on main directly as often as it
+# arrives through one, so a check that only runs on main is a check that runs
+# after the fact. The release job below is guarded separately and still
+# publishes from main and tags alone.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     tags: ["v*"]
   pull_request:
     branches: [main]
@@ -51,10 +56,10 @@ jobs:
           name: extension-package
           path: web-ext-artifacts/filter_bubble-*.zip
 
-  # A job of its own rather than more steps on `build`: it needs a browser and a
-  # virtual display that nothing else in this workflow does, and it runs for
-  # minutes where the rest runs for seconds, so pairing them would hold the
-  # release artifact behind the slower half for no reason.
+  # A job of its own rather than more steps on `build`: it needs a browser that
+  # nothing else in this workflow does, and it runs for minutes where the rest
+  # runs for seconds, so pairing them would hold the release artifact behind the
+  # slower half for no reason.
   e2e:
     runs-on: ubuntu-latest
 
@@ -72,9 +77,9 @@ jobs:
         run: npm ci
 
       # Chromium at the build Playwright expects, plus the system libraries it
-      # links against. Extensions load only into a headed browser, so this is
-      # the full Chromium rather than the headless shell, and `npm run test:e2e`
-      # wraps it in Xvfb.
+      # links against. This installs the full Chromium as well as the headless
+      # shell; the suite asks for the former by channel, because only it carries
+      # extension support. Nothing here needs a display.
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
