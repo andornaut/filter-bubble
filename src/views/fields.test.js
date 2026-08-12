@@ -32,6 +32,15 @@ describe("textField", () => {
     render(textField({ label: "Name", name: "name", value: "" }));
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
+
+  // The visible label has to be announced with the field, not merely sit above
+  // it, or a screen reader reaches an unlabelled edit box.
+  it("associates the visible label with the input", () => {
+    render(textField({ label: "Domain names", name: "addresses", value: "" }));
+    expect(screen.getByLabelText("Domain names")).toBe(
+      screen.getByRole("textbox"),
+    );
+  });
 });
 
 describe("checkboxField", () => {
@@ -58,5 +67,20 @@ describe("checkboxField", () => {
       }),
     );
     expect(screen.getByText("Toggle this option")).toBeInTheDocument();
+  });
+
+  // Labelled by wrapping the input rather than by id, which is why this file
+  // covers both shapes.
+  it("associates the visible label with the input", () => {
+    render(
+      checkboxField({
+        label: "Hide instead of remove",
+        name: "hide",
+        value: false,
+      }),
+    );
+    expect(screen.getByLabelText("Hide instead of remove")).toBe(
+      screen.getByRole("checkbox"),
+    );
   });
 });
