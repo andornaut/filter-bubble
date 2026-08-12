@@ -21,7 +21,17 @@ import { EXTENSION_DIR, PROFILES_DIR, ROOT_DIR } from "./helpers/paths.js";
 // Any-scheme patterns, matching what the extension asks for: it derives
 // `*://<address>/*` from each website, and `permissions.contains` honors
 // subsumption, so a narrower `http://` grant would read as not granted.
-const FIXTURE_ORIGINS = ["*://localhost/*", "*://127.0.0.1/*"];
+//
+// `127.0.0.11` is granted but never configured as a website: it is the host the
+// address-matching tests visit to prove that "127.0.0.1" does not match
+// "127.0.0.11". Granting it keeps "not filtered" attributable to the address
+// check rather than to a missing permission. `127.0.0.2` is deliberately left
+// out - see 09-permissions.
+const FIXTURE_ORIGINS = [
+  "*://localhost/*",
+  "*://127.0.0.1/*",
+  "*://127.0.0.11/*",
+];
 
 // Build `dist/` and copy it to a scratch directory with the fixture host
 // permission pre-granted. Returns the directory Chrome should load.

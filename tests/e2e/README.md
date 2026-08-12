@@ -37,7 +37,7 @@ chromium`) and `xvfb` on headless machines.
 Each test gets a fresh browser profile, so `storage.sync` and `storage.local`
 start empty and nothing leaks between tests.
 
-## Two deliberate deviations from a real install
+## Deliberate deviations from a real install
 
 Everything else is the shipped extension, unmodified.
 
@@ -62,6 +62,25 @@ Everything else is the shipped extension, unmodified.
    active tabs. Highlight mode is keyed off the `runtime.connect` port the
    popup holds while it is open, so `Extension.connectPopupPort` opens that
    port explicitly; `src/index.js` opens it only when `isPopup()` is true.
+
+## Out of reach for this harness
+
+Worth knowing before adding a test for one of these and finding out the hard
+way.
+
+- **The service worker's lifecycle.** Playwright keeps a debugger attached to
+  the extension's service worker, which stops it from ever being torn down when
+  idle: it was still alive after 60s of no activity, where Chrome would
+  normally stop it after 30. So the paths that matter when an event wakes a
+  stopped worker - `readStatePromise` gating the handlers, state re-read from
+  storage - always run against a worker that is already warm here.
+  `chrome.runtime.reload()` does not help either: under `--load-extension` the
+  worker never comes back, and the extension has no say in that.
+- **Chrome's own permission dialog**, i.e. `permissions.request` resolving
+  true. The ungranted side is covered (see above); the click is not.
+- **Firefox.** Playwright cannot load a Gecko add-on, and `web-ext run` offers
+  no automation driver, so the `browser_specific_settings` build is not
+  exercised here at all.
 
 ## Writing a test
 

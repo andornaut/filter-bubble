@@ -100,6 +100,25 @@ test.describe("tab lifecycle", () => {
     await expect(second.locator("#a1")).toHaveClass(/filter-bubble--remove/);
   });
 
+  test("counts each tab separately on the toolbar", async ({
+    extension,
+    page,
+    server,
+  }) => {
+    await extension.seed(SEED);
+    await page.goto(server.url("feed.html"));
+    const second = await extension.newWindow(server.url("nested.html"));
+
+    // The badge is per tab, so two tabs of the same website showing different
+    // pages must not report each other's counts.
+    await expect.poll(() => extension.badgeText(page)).toBe("1");
+    await expect.poll(() => extension.badgeText(second)).toBe("1");
+
+    await page.click("#append");
+    await expect.poll(() => extension.badgeText(page)).toBe("2");
+    await expect.poll(() => extension.badgeText(second)).toBe("1");
+  });
+
   test("reaches a background tab when it is next activated", async ({
     context,
     extension,
