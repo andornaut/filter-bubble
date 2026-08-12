@@ -268,6 +268,9 @@ describe("active tab re-evaluation", () => {
     return {
       executeScript,
       localStore,
+      // The mock itself, so a test can swap one of its functions out after
+      // initialization: `background.js` reaches through `chrome` at each call.
+      mock,
       onActivated,
       onChanged,
       onConnect,
@@ -299,6 +302,49 @@ describe("active tab re-evaluation", () => {
     onActivated({ windowId: 1 });
     await flush();
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  // `updateTab` awaits `executeScript` between deciding what to send and
+  // sending it, and a storage change arriving in that window runs `updateTab`
+  // again for the same tab. The second call takes the unmatched path, which
+  // sends `disable` with nothing to await in front of it, so the first call
+  // must not follow it with the `enable` it decided on earlier: the tab would
+  // be left filtering on a topic that no longer exists, with no further event
+  // due to repair it. Held open by hand here because the real window is a
+  // millisecond wide - it reproduced roughly 1 end-to-end run in 30.
+  it("does not send an enable it decided before a change that has since disabled the tab", async () => {
+    const syncStore = { ...SYNC_STORE };
+    const { mock, onActivated, onChanged, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      syncStore,
+    );
+
+    let injected;
+    mock.scripting.executeScript = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          injected = () => resolve([{ result: { isInstalled: true } }]);
+        }),
+    );
+
+    onActivated({ windowId: 1 });
+    await flush();
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    // The only topic is deleted while that injection is still outstanding.
+    delete syncStore["t:1"];
+    onChanged({ "t:1": {} }, "sync");
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+
+    sendMessage.mockClear();
+    injected();
+    await flush();
+    expect(sendMessage).not.toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ command: "enable" }),
+    );
   });
 
   // `tab.url` can still hold the outgoing document's URL while a tab is
