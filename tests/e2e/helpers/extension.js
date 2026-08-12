@@ -54,6 +54,34 @@ export const waitForServiceWorker = async (context) => {
   return worker;
 };
 
+// Playwright reports the worker as soon as its execution context exists, which
+// can be fractionally before Chrome has bound the extension APIs onto it.
+// Evaluating in that window sees a `chrome` with no `storage` on it, so the
+// first thing a test does - seeding - fails with a TypeError raised inside the
+// worker, and only under enough load to widen the gap.
+//
+// Poll from here rather than inside the worker. A worker that is still coming
+// up does not reliably have `setTimeout` either, so a polling loop evaluated in
+// it trades a rare TypeError for a reliable ReferenceError.
+//
+// Called once per browser, from `getExtensionId`, which is the first thing the
+// `extension` fixture does: every later `evaluate` is behind it.
+const waitForExtensionApis = async (worker) => {
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    const ready = await worker
+      .evaluate(() => Boolean(globalThis.chrome?.storage?.sync))
+      .catch(() => false);
+    if (ready) {
+      return;
+    }
+    if (Date.now() > deadline) {
+      throw new Error("chrome.storage never appeared on the service worker");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+};
+
 // Drives the real extension from the outside: everything here goes through the
 // extension's own APIs in its own service worker, so the code under test sees
 // the same events it would from the popup or from a sync from another device.
@@ -199,5 +227,6 @@ export class Extension {
 
 export const getExtensionId = async (context) => {
   const worker = await waitForServiceWorker(context);
+  await waitForExtensionApis(worker);
   return new URL(worker.url()).host;
 };
