@@ -1,0 +1,8 @@
+# The image installs dependencies itself, and a host `node_modules` is both the
+# largest thing in the tree and the one most likely to be built for another
+# platform.
+node_modules
+dist
+web-ext-artifacts
+tests/e2e/.artifacts
+.git

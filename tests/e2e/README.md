@@ -12,22 +12,38 @@ cross-context messaging, the toolbar badge, and the CSS that hides content.
 ## Running
 
 ```bash
-npm run test:e2e             # whole suite
+npm run test:e2e                    # whole suite
 npm run test:e2e -- 02-filtering    # one spec
 PW_WORKERS=1 npm run test:e2e       # serialize, e.g. when debugging
 ```
 
-All it needs is Chromium at the build Playwright expects (`npx playwright
-install chromium`). No display and no Xvfb: the suite runs headless.
+That runs `docker compose run --rm --build e2e`, so Docker is the only thing
+you need installed. The image is built from [`Dockerfile`](../../Dockerfile) and
+carries the Node this project pins, the browser build Playwright expects, and
+the libraries it links against. CI runs the same command against the same
+image, so a failure there reproduces here by definition rather than by
+resemblance.
 
-Extensions do need two things, both set in `helpers/fixtures.js`. They load
-only into a persistent context, so every browser here has a profile; and they
-load only into the full Chromium build, not the headless shell, which is what
-`channel: "chromium"` selects.
+The working tree is mounted into the container, so an edit to a spec or to the
+extension runs without rebuilding the image. Only `node_modules` is not: the
+suite uses the image's, installed from the lockfile for the platform it runs on.
 
-CI runs the suite on every push and pull request, as the `e2e` job in
-[`ci.yml`](../../.github/workflows/ci.yml). A failing run uploads the traces and
-screenshots Playwright kept for whatever failed, as the `e2e-results` artifact.
+Nothing reaches the network - the service sets `network_mode: none` - and
+nothing needs a display: extensions load headless, given the full Chromium
+build rather than the headless shell, which is what `channel: "chromium"` in
+`helpers/fixtures.js` selects. They do need a persistent context, so every
+browser here has a profile.
+
+A failing CI run uploads the traces and screenshots Playwright kept, as the
+`e2e-results` artifact.
+
+To run without Docker - on a machine that already has the right Chromium
+(`npx playwright install chromium`) - `npm run test:e2e:direct` is the suite
+itself, which is what runs inside the container.
+
+On Linux, the container writes `dist/` and `tests/e2e/.artifacts/` as root,
+because that is who it runs as. Both are ignored by git; `sudo rm -rf` them if
+they get in the way of a later host-side build.
 
 ## Layout
 
