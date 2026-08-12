@@ -51,8 +51,48 @@ jobs:
           name: extension-package
           path: web-ext-artifacts/filter_bubble-*.zip
 
+  # A job of its own rather than more steps on `build`: it needs a browser and a
+  # virtual display that nothing else in this workflow does, and it runs for
+  # minutes where the rest runs for seconds, so pairing them would hold the
+  # release artifact behind the slower half for no reason.
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Chromium at the build Playwright expects, plus the system libraries it
+      # links against. Extensions load only into a headed browser, so this is
+      # the full Chromium rather than the headless shell, and `npm run test:e2e`
+      # wraps it in Xvfb.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      # Traces and screenshots for whatever failed, which is the only way to see
+      # what the browser was doing on a runner nobody can attach to.
+      - name: Upload end-to-end artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: tests/e2e/.artifacts/results
+          retention-days: 7
+
   release:
-    needs: build
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
 

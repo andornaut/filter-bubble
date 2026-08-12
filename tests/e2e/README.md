@@ -24,6 +24,10 @@ with a display, `npx playwright test` works directly.
 Needs Chromium at the build Playwright expects (`npx playwright install
 chromium`) and `xvfb` on headless machines.
 
+CI runs the suite on every push and pull request, as the `e2e` job in
+[`ci.yml`](../../.github/workflows/ci.yml). A failing run uploads the traces and
+screenshots Playwright kept for whatever failed, as the `e2e-results` artifact.
+
 ## Layout
 
 | Path                  | What it is                                                         |
