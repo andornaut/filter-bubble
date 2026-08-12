@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 
@@ -10,6 +10,21 @@ const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
 };
+
+// Pages under `site/csp/` are served with a policy that forbids inline styles,
+// which is the case the extension injects its stylesheet through
+// `chrome.scripting.insertCSS` for: a content script adding a <style> of its
+// own would be blocked here.
+const CSP_PREFIX = "/csp/";
+const CSP = "default-src 'self'; style-src 'self'";
+
+// Pages under `site/slow/` are sent in two parts: everything up to the marker,
+// then the rest after a pause. The content script is injected as soon as the
+// navigation commits, so it starts against a document that has a
+// documentElement but no body yet.
+const SLOW_PREFIX = "/slow/";
+const SLOW_MARKER = "<!--LATER-->";
+const SLOW_DELAY_MS = 600;
 
 // Serve `tests/e2e/site` over HTTP. The extension matches websites by address,
 // so the fixture pages have to be reachable at a real host name rather than
@@ -25,15 +40,28 @@ export const startServer = async () => {
       return;
     }
     stat(filePath)
-      .then((stats) => {
+      .then(async (stats) => {
         if (!stats.isFile()) {
           throw new Error("Not a file");
         }
-        res.writeHead(200, {
+        const headers = {
           "cache-control": "no-store",
           "content-type":
             CONTENT_TYPES[path.extname(filePath)] || "application/octet-stream",
-        });
+        };
+        if (url.pathname.startsWith(CSP_PREFIX)) {
+          headers["content-security-policy"] = CSP;
+        }
+        res.writeHead(200, headers);
+
+        if (url.pathname.startsWith(SLOW_PREFIX)) {
+          const [head, rest = ""] = (await readFile(filePath, "utf8")).split(
+            SLOW_MARKER,
+          );
+          res.write(head);
+          setTimeout(() => res.end(rest), SLOW_DELAY_MS);
+          return;
+        }
         createReadStream(filePath).pipe(res);
       })
       .catch(() => {
