@@ -162,9 +162,11 @@ const updateTab = async (
   { id: tabId, url: tabUrl },
   disableWhenUnmatched = true,
 ) => {
-  // A tab-scoped badge outlives the document it was set for, and an unmatched
-  // tab runs no content script to report a count of its own, so the previous
-  // page's count would otherwise follow the tab to the next site. Clear it
+  // A tab-scoped badge belongs to the tab rather than to the document, and an
+  // unmatched tab runs no content script to report a count of its own. Chrome
+  // resets the badge itself when a new document commits, so what this covers is
+  // a tab that keeps its document: a same-document navigation carries the count
+  // across, and no other browser is promised to reset anything. Clear it
   // whether or not the disable is deferred: the count belongs to the document
   // the tab is leaving either way.
   const disableTab = () => {
@@ -209,10 +211,11 @@ const updateTab = async (
       err,
     );
     // No count on this tab can be attributed to what it now shows, because the
-    // document cannot be reached to report one: a navigation ending on an error
-    // page keeps the matched URL and cannot be scripted, so the count of the
-    // document it replaced would otherwise stay on the badge. The trade is the
-    // reverse case, where a content script injected before site access was
+    // document cannot be reached to report one. Chrome resets the badge when a
+    // new document commits, so a navigation that ends on an error page is
+    // already covered there; this covers a tab that becomes unreachable without
+    // a new document committing, e.g. once site access is revoked. The trade is
+    // the reverse case, where a content script injected before site access was
     // revoked keeps filtering and the badge reads empty over hidden content.
     setBadge(tabId, 0);
     return;

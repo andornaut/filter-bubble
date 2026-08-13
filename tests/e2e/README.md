@@ -134,6 +134,12 @@ test("filters a matching item", async ({ extension, page, server }) => {
 Assert on what the user would see (`toBeHidden`, computed styles, the badge
 text) rather than only on the classes the content script adds.
 
+An empty badge after a navigation is not evidence of anything the extension
+did. Chrome resets a tab-scoped badge when a new document commits, so that
+assertion holds with the background's clearing removed altogether; it is the
+same-document cases that show whether the extension clears. Check a mutation
+fails the test before trusting one of these.
+
 Negative assertions need care: filtering is asynchronous and throttled to one
 pass per 200ms, so "still not filtered" has to be given time to be wrong.
 `settle(page)` from `helpers/fixtures.js` is that wait; use it rather than a
