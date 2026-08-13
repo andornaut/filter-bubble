@@ -1,32 +1,28 @@
 name: Release
 
-# Every branch, not just main and pull requests, for the reason the AI
-# attributions workflow gives: work lands on main directly as often as it
-# arrives through one, so a check that only runs on main is a check that runs
-# after the fact. The release job below is guarded separately and still
-# publishes from main and tags alone.
+# Every branch, not just main and pull requests: work lands on main directly as
+# often as it arrives through one, so a check that only runs on main is a check
+# that runs after the fact.
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
+    # Release versions only, the same set protect-release-tags guards.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
-# Read is all `build` needs. Only `release` publishes, and it asks for write
-# itself, so a change to the build job cannot reach the repository.
+# Write access is granted only to the jobs that create releases
 permissions:
   contents: read
 
-# Key the group on the branch, not the ref, so that the push event and the pull
-# request event for the same branch land in one group instead of two. Otherwise
-# every pull request from a branch in this repository - which is every
-# Dependabot one - builds and tests twice over, once per event. Keyed on the ref
-# they read as different work; keyed on the branch the second to start
-# supersedes the first, which is what `cancel-in-progress` is already relied on
-# to do for two pushes in a row.
+# Keyed on the branch rather than the ref, so the push event and the pull
+# request event for one branch share a group instead of running the same checks
+# twice. Qualified by the repository the branch lives in, since a fork names its
+# branches itself: a pull request from a fork's main would otherwise share a
+# group with a push to this one and cancel it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -40,6 +36,7 @@ jobs:
     uses: ./.github/workflows/ai-attributions.yml
 
   build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -72,7 +69,7 @@ jobs:
         run: npm run package
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: extension-package
           path: web-ext-artifacts/filter_bubble-*.zip
@@ -90,7 +87,7 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Download release artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           name: extension-package
           path: artifacts
