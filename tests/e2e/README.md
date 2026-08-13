@@ -96,6 +96,12 @@ way.
   worker never comes back, and the extension has no say in that.
 - **Chrome's own permission dialog**, i.e. `permissions.request` resolving
   true. The ungranted side is covered (see above); the click is not.
+- **A storage read that rejects.** There are two ways into the failure UI. A
+  render that throws is covered by `31-failure-ui`, which stores a value the
+  views cannot handle. The other is `initState` rejecting, which `src/index.js`
+  catches and renders itself, with a retry that re-runs init rather than
+  re-rendering; reaching it needs `storage.sync.get` to fail, which nothing here
+  can make it do.
 - **Firefox.** Playwright cannot load a Gecko add-on, and `web-ext run` offers
   no automation driver, so the `browser_specific_settings` build is not
   exercised here at all.
