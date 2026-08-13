@@ -56,8 +56,9 @@ jobs:
         run: npm run size
 
       # `npm run package` builds, lints that build, then zips it, so `build:prod`
-      # runs here as well as inside `npm run size` above. The second build takes
-      # about 3s, which is cheaper than wiring the two steps to share one.
+      # runs here as well as inside `npm run size` above. The build itself is a
+      # fraction of a second, so the repeat costs less than wiring the two steps
+      # to share one output would; `web-ext lint` is what the time goes on.
       - name: Package extension
         run: npm run package
 
