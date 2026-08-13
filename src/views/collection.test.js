@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { Collection } from "./collection";
+import { textField } from "./fields";
 
 // `Collection` is the scaffold both tabs configure, so these cover the wiring it
 // owns: which form is shown, and what selecting, deleting and cancelling do to
@@ -15,16 +16,20 @@ const renderCollection = ({ list = [ITEM], ...actions } = {}) => {
     toggleEnabled: jest.fn(),
     ...actions,
   };
-  const view = render(
+  const element = (items) => (
     <Collection
       actions={{ ...props, toId: (item) => item.id }}
-      fields={() => null}
+      // The edit form is handed the selected item, so rendering it here is what
+      // makes a stale selection visible.
+      fields={(selected) => <p>editing: {selected?.text.join(", ")}</p>}
       itemDetails={({ text }) => text.join(", ")}
-      list={list}
+      list={items}
       transform={(data) => data}
-    />,
+    />
   );
-  return { ...props, view };
+  const view = render(element(list));
+  // Stands in for a sync from another device rewriting the collection.
+  return { ...props, rerender: (items) => view.rerender(element(items)) };
 };
 
 const selectItem = () =>
@@ -81,57 +86,106 @@ describe("Collection", () => {
   });
 
   // `useSelection` derives the item from `list` by id rather than snapshotting
-  // it, so an item rewritten on another device stays selected under its new
-  // content instead of the selection jumping off it or holding a stale copy.
+  // it, so the selection follows a rewrite and cannot outlive a removal.
   it("follows the selected item when another device rewrites it", () => {
-    const { view } = renderCollection();
+    const { rerender } = renderCollection();
     selectItem();
 
-    view.rerender(
-      <Collection
-        actions={{
-          addItem: jest.fn(),
-          deleteItem: jest.fn(),
-          editItem: jest.fn(),
-          toId: (item) => item.id,
-          toggleEnabled: jest.fn(),
-        }}
-        fields={() => null}
-        itemDetails={({ text }) => text.join(", ")}
-        list={[{ id: "1", text: ["rewritten elsewhere"] }]}
-        transform={(data) => data}
-      />,
-    );
+    rerender([{ id: "1", text: ["rewritten elsewhere"] }]);
 
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    // `fields` is handed the current list entry rather than the copy that was
+    // there when the item was picked. What a field does with it belongs to
+    // fields.js: a mounted `textField` keeps the value it rendered with, so
+    // this is not evidence that the real edit form adopts a rewrite.
+    expect(screen.getByText("editing: rewritten elsewhere")).toBeVisible();
     expect(
       screen.getByRole("button", { name: /rewritten elsewhere/ }),
     ).toHaveAttribute("aria-current", "true");
   });
 
   it("collapses the selection when the item leaves the list", () => {
-    // `useSelection` derives the item from `list` rather than snapshotting it,
-    // so an item removed by a sync from another device cannot stay selected.
-    const { view } = renderCollection();
+    const { rerender } = renderCollection();
     selectItem();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
 
-    view.rerender(
+    rerender([]);
+
+    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+  });
+});
+
+// The real `textField` rather than a stub: its inputs are uncontrolled, so what
+// a rewrite does to an open form is a property of the DOM's dirty-value flag
+// rather than of what `Collection` passes down.
+describe("Collection edit form under a synced rewrite", () => {
+  const dated = (text, modifiedDate) => ({ id: "1", modifiedDate, text });
+  const ORIGINAL = [dated(["spoilers"], "2026-01-01T00:00:00.000Z")];
+  const REWRITTEN = [
+    dated(["rewritten elsewhere"], "2026-06-01T00:00:00.000Z"),
+  ];
+
+  let editItem;
+
+  const setup = () => {
+    editItem = jest.fn();
+    const element = (items) => (
       <Collection
         actions={{
           addItem: jest.fn(),
           deleteItem: jest.fn(),
-          editItem: jest.fn(),
+          editItem,
           toId: (item) => item.id,
           toggleEnabled: jest.fn(),
         }}
-        fields={() => null}
+        fields={(selected) =>
+          textField({
+            label: "Topics",
+            name: "text",
+            value: (selected?.text || []).join(", "),
+          })
+        }
         itemDetails={({ text }) => text.join(", ")}
-        list={[]}
+        list={items}
         transform={(data) => data}
-      />,
+      />
     );
+    const view = render(element(ORIGINAL));
+    fireEvent.click(screen.getByRole("button", { name: /spoilers/ }));
+    return () => view.rerender(element(REWRITTEN));
+  };
 
-    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+  const input = () => screen.getByLabelText("Topics");
+  const save = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+  it("shows the rewritten values in a form nobody has typed into", () => {
+    const rewrite = setup();
+    expect(input().value).toBe("spoilers");
+
+    rewrite();
+
+    expect(input().value).toBe("rewritten elsewhere");
+  });
+
+  // The silent case: without the reset, Save writes the values the form still
+  // showed, under a newer clock, and the rewrite is reverted on both devices.
+  it("saves the rewritten values, not the ones it was opened with", () => {
+    const rewrite = setup();
+
+    rewrite();
+    save();
+
+    expect(editItem).toHaveBeenCalledWith("1", { text: "rewritten elsewhere" });
+  });
+
+  it("keeps what the user typed when the rewrite lands mid-edit", () => {
+    const rewrite = setup();
+    fireEvent.input(input(), { target: { value: "my own edit" } });
+
+    rewrite();
+
+    expect(input().value).toBe("my own edit");
+    save();
+    expect(editItem).toHaveBeenCalledWith("1", { text: "my own edit" });
   });
 });
