@@ -185,12 +185,34 @@ describe("FilterBubble.enable", () => {
     expect(el.classList.contains("filter-bubble")).toBe(true);
   });
 
-  it("ignores an invalid selector and still applies valid ones", () => {
-    document.body.innerHTML = `<div class="post">banana</div>`;
+  // Selectors are typed by hand and synced verbatim, so one that will not parse
+  // is expected. `querySelectorAll` throws on it, and the bad one is listed
+  // first here: a pass that let the throw escape would abandon the selectors
+  // behind it and filter nothing at all.
+  it("ignores an invalid selector and still applies the ones behind it", () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    document.body.innerHTML = `
+      <div class="post">banana</div>
+      <div class="post">nothing to see</div>`;
+
     enable({ selectors: ["::::bad", ".post"] });
 
-    const el = document.querySelector(".post");
-    expect(el.classList.contains("filter-bubble")).toBe(true);
+    const [match, miss] = document.querySelectorAll(".post");
+    expect(match.classList.contains("filter-bubble")).toBe(true);
+    expect(miss.classList.contains("filter-bubble")).toBe(false);
+    // The bad selector contributes no matches of its own, so the count is the
+    // valid selector's alone.
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 1 },
+    });
+    // Named, so the log says which of a website's selectors to go and fix.
+    expect(warn).toHaveBeenCalledWith(
+      'filter-bubble: Error applying selector "::::bad"',
+      expect.any(Error),
+    );
+
+    warn.mockRestore();
   });
 
   it("only matches whole words", () => {

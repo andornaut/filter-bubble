@@ -15,8 +15,8 @@ const fields = (topic = { text: "" }) =>
 
 const transform = (data) => {
   data.text = canonicalizeText(data.text);
-  // The form allows submission of whitespace-only values. We .trim() after submission, therefore we must
-  // validate this case.
+  // `formToJson` drops a field only when it is empty, and whitespace is not, so
+  // " " reaches here and canonicalizes to no phrases at all. Refuse it.
   if (!data.text.length) {
     throw new Error('Please fill in the "Text" field');
   }

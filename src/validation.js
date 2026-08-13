@@ -5,7 +5,8 @@ import { toCanonicalArray } from "./helpers";
 export const DOMAIN_NAME_REGEX =
   /^[a-z\d]([a-z\d-]{0,61}[a-z\d])?(\.[a-z\d]([a-z\d-]{0,61}[a-z\d])?)*$/i;
 
-// Matches http:// or https:// scheme prefix
+// The scheme is optional, so this strips one where there is one and matches
+// nothing where there is not.
 // Note: This regex is duplicated in src/browser/background.js because that file
 // cannot import ES modules (it runs as a service worker without bundling).
 export const SCHEME_REGEX = /^(https?)?:\/\//;

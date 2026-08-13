@@ -271,7 +271,9 @@ const sweepTombstones = async () => {
   });
 };
 
-// `window.chrome` works on both Chrome and Firefox
+// Read `storage.sync` whole, bring it to the v2 layout, and return the item
+// lists. Every read walks the entire namespace, so this is also where a value
+// that is not an item is dropped and an expired tombstone is swept.
 export const fromStorage = async () => {
   const raw = (await chrome.storage.sync.get(null)) || {};
   const v2 = await ensureV2(raw);

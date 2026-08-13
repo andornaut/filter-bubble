@@ -4,9 +4,10 @@
     return { isInstalled: true };
   }
 
-  const THROTTLE_DELAY_MS = 200; // Throttle DOM updates to once per this interval
+  // A busy feed mutates continuously, so passes are throttled to one per
+  // interval rather than run per mutation.
+  const THROTTLE_DELAY_MS = 200;
 
-  // CSS class constants
   const CSS_BLOCK = "filter-bubble";
   const CSS_HIDE_MODIFIER = "filter-bubble--hide";
   const CSS_HIGHLIGHT_MODIFIER = "filter-bubble--highlight";
@@ -203,7 +204,8 @@
     }
 
     _runFiltering() {
-      // Throttle updates to once per THROTTLE_DELAY_MS.
+      // Coalesce into the trailing pass the timer below runs, so a burst of
+      // mutations costs one pass rather than one each.
       if (this.pending) {
         this.queued = true;
         return;

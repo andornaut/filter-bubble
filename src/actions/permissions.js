@@ -18,5 +18,6 @@ export const setUnpermissionedWebsiteIds = action(({ commit, state }, ids) => {
   commit(state);
 });
 
-// Avoid initial flash of request-permission button, this will be updated later.
+// Assume granted until the first sweep answers, so the banner does not flash on
+// every open of a fully permissioned install.
 export const hydratePermissions = () => setHasPermissions(true);

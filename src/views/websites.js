@@ -42,7 +42,8 @@ const transform = (data) => {
   data.addresses = canonicalizeAddresses(data.addresses);
   data.selectors = canonicalizeSelectors(data.selectors);
 
-  // The following can be true if a user submits eg. " " or ","
+  // `formToJson` drops a field only when it is empty, so input that is not
+  // empty but canonicalizes to nothing (" ", ",") reaches here. Refuse it.
   if (data.addresses.length === 0) {
     throw new Error('Please fill in the "Domain names" field');
   }

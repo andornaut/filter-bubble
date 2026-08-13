@@ -69,12 +69,11 @@ const bootstrap = async () => {
     return;
   }
 
-  /**
-   * Workaround a bug in Chrome that prevents using .sendMessage() in a window "unload" event handler:
-   *  https://bugs.chromium.org/p/chromium/issues/detail?id=31262
-   *  https://stackoverflow.com/a/39756934
-   * Create a port to the background page. This will be used to detect opening/closing of the popup.
-   */
+  // WORKAROUND: Chrome drops a `sendMessage()` issued from a window "unload"
+  // handler, so the popup cannot announce its own close. A port does it
+  // instead: the background sees `onDisconnect` when this page goes away.
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=31262
+  // https://stackoverflow.com/a/39756934
   chrome.runtime.connect();
 };
 

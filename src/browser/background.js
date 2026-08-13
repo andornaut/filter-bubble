@@ -133,8 +133,8 @@ const toPattern = (topicsList) => {
         // An empty phrase would compile to an alternative that matches
         // everywhere, blanking every page. Never emit one.
         .filter(Boolean)
-        // Escape special characters (edited to avoid an unnecessary "\" escape character):
-        // https://stackoverflow.com/a/17886301
+        // Escape regex metacharacters, so a phrase matches as the literal text
+        // it is: https://stackoverflow.com/a/17886301
         .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
     ),
   );

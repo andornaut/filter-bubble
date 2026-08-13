@@ -81,15 +81,63 @@ describe("App permission banner", () => {
     ).toBeNull();
   });
 
-  it("requests access for every configured website when asked", () => {
-    renderApp("", { hasPermissions: false });
+  // The banner is the one control that covers the whole configuration, so it
+  // asks for every address of every website in one request rather than for the
+  // first, or one website's worth. Several websites, one of them holding more
+  // than a single address, or a request built from either first would pass.
+  it("requests access for every address of every configured website", () => {
+    renderApp("", {
+      hasPermissions: false,
+      websites: {
+        list: [
+          WEBSITE,
+          {
+            ...WEBSITE,
+            addresses: ["second.example", "third.example"],
+            id: "site-second",
+          },
+        ],
+      },
+    });
 
     fireEvent.click(
       screen.getByRole("button", { name: /request required permissions/ }),
     );
 
     expect(chrome.permissions.request).toHaveBeenCalledWith({
-      origins: ["*://example.com/*"],
+      origins: [
+        "*://example.com/*",
+        "*://second.example/*",
+        "*://third.example/*",
+      ],
+    });
+  });
+
+  // Disabled websites are excluded from the flags, but not from the request:
+  // the banner asks for the whole configuration at once, so enabling one later
+  // does not need a second trip through the browser's permission dialog.
+  it("includes a disabled website in what it asks for", () => {
+    renderApp("", {
+      hasPermissions: false,
+      websites: {
+        list: [
+          WEBSITE,
+          {
+            ...WEBSITE,
+            addresses: ["off.example"],
+            enabled: false,
+            id: "site-off",
+          },
+        ],
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /request required permissions/ }),
+    );
+
+    expect(chrome.permissions.request).toHaveBeenCalledWith({
+      origins: ["*://example.com/*", "*://off.example/*"],
     });
   });
 

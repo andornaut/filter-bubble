@@ -56,7 +56,7 @@ npm start
 
 ### Publishing
 
-Tagged releases (`v*`) build a packaged extension via [GitHub Actions](.github/workflows/ci.yml):
+Tagged releases (`v*`) build a packaged extension via [GitHub Actions](.github/workflows/release.yml):
 
 1. Match `version` in [`package.json`](./package.json) and [`manifest.json`](./manifest.json).
 1. Commit, then tag and push:

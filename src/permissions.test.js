@@ -93,15 +93,28 @@ describe("checkAllPermissions", () => {
     expect(getState().hasPermissions).toBe(true);
   });
 
+  // Callers fire and forget, so a rejection has nowhere to surface. Swallowing
+  // it also means the flags keep whatever they last held rather than reporting
+  // a sweep that never ran.
   it("logs and does not throw when contains fails", async () => {
-    setState(undefined, { websites: { list: [website("1", ["a.com"])] } });
+    setState(undefined, {
+      hasPermissions: true,
+      unpermissionedWebsiteIds: [],
+      websites: { list: [website("1", ["a.com"])] },
+    });
     global.chrome = {
       permissions: { contains: jest.fn().mockRejectedValue(new Error("boom")) },
     };
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(checkAllPermissions(getState())).resolves.toBeUndefined();
-    expect(error).toHaveBeenCalled();
+
+    expect(error).toHaveBeenCalledWith(
+      "filter-bubble: permission check failed:",
+      expect.any(Error),
+    );
+    expect(getState().hasPermissions).toBe(true);
+    expect(getState().unpermissionedWebsiteIds).toEqual([]);
 
     error.mockRestore();
   });

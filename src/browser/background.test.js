@@ -631,17 +631,30 @@ describe("active tab re-evaluation", () => {
     const consoleWarn = jest
       .spyOn(console, "warn")
       .mockImplementation(() => {});
-    const { executeScript, onActivated, setBadgeText } = await evaluate({
-      id: 1,
-      status: "complete",
-      url: "https://reddit.com/",
-    });
+    const { executeScript, onActivated, sendMessage, setBadgeText } =
+      await evaluate({
+        id: 1,
+        status: "complete",
+        url: "https://reddit.com/",
+      });
     executeScript.mockRejectedValue(new Error("showing error page"));
 
     onActivated({ windowId: 1 });
     await flush();
 
     expect(setBadgeText).toHaveBeenCalledWith({ tabId: 1, text: "" });
+    // Nothing is said to the tab either way. An `enable` would be addressed to
+    // a content script that was never installed, and a `disable` would strip a
+    // still-filtering script installed before site access was revoked, which is
+    // the accepted cost of not sending one.
+    expect(sendMessage).not.toHaveBeenCalled();
+    // The commonest cause is a host permission that was never granted, and
+    // nothing in the UI says so, so the log has to.
+    expect(consoleWarn).toHaveBeenCalledWith(
+      expect.stringContaining("host permissions"),
+      expect.any(Error),
+    );
+
     consoleWarn.mockRestore();
   });
 
