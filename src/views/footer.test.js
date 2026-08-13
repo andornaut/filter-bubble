@@ -33,6 +33,40 @@ describe("Footer enable/disable toggle", () => {
   });
 });
 
+describe("Footer help", () => {
+  beforeEach(() => {
+    // jsdom implements no layout, so it has no `scrollIntoView` for the effect
+    // that brings the opened help into view to call.
+    Element.prototype.scrollIntoView = jest.fn();
+  });
+
+  const help = () => document.querySelector(".help__content");
+
+  it("shows and hides the help text, naming the action either way", () => {
+    const { container } = render(<Footer isDisabled={false} />);
+    expect(help()).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: "Show help" }));
+
+    expect(help()).toBeVisible();
+    expect(container).toHaveTextContent("CSS selectors");
+    expect(screen.queryByRole("link", { name: "Show help" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: "Hide help" }));
+
+    expect(help()).toBeNull();
+    expect(screen.getByRole("link", { name: "Show help" })).toBeVisible();
+  });
+
+  it("brings the help it just opened into view", () => {
+    render(<Footer isDisabled={false} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Show help" }));
+
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+});
+
 describe("Footer import link", () => {
   const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 

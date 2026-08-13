@@ -36,11 +36,18 @@ describe("useHash", () => {
     expect(screen.getByTestId("hash")).toHaveTextContent("#topics");
   });
 
+  // The popup mounts this on every open, so a subscription left behind is a
+  // listener per open on a window that outlives them all.
   it("stops listening once unmounted", () => {
+    const removeEventListener = jest.spyOn(window, "removeEventListener");
     const { unmount } = render(<Probe />);
+
     unmount();
 
-    // Nothing is left subscribed to update a tree that is gone.
-    expect(() => setHash("#websites")).not.toThrow();
+    expect(removeEventListener).toHaveBeenCalledWith(
+      "hashchange",
+      expect.any(Function),
+    );
+    removeEventListener.mockRestore();
   });
 });

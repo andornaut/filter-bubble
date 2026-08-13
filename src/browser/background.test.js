@@ -352,8 +352,8 @@ describe("active tab re-evaluation", () => {
   // sends `disable` with nothing to await in front of it, so the first call
   // must not follow it with the `enable` it decided on earlier: the tab would
   // be left filtering on a topic that no longer exists, with no further event
-  // due to repair it. Held open by hand here because the real window is a
-  // millisecond wide - it reproduced roughly 1 end-to-end run in 30.
+  // due to repair it. The real window is a millisecond wide, so hold the
+  // injection open by hand rather than trying to land a change inside it.
   it("does not send an enable it decided before a change that has since disabled the tab", async () => {
     const syncStore = { ...SYNC_STORE };
     const { mock, onActivated, onChanged, sendMessage } = await evaluate(

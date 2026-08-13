@@ -11,8 +11,12 @@ const selectorsFor = (id) => {
   return website.selectors;
 };
 
-// The ids the content script would consider, which is the union of the
+// The elements the content script would consider, which is the union of the
 // website's selectors applied to this document.
+//
+// Collected as elements and labelled afterwards, not keyed on `id`: keying on
+// it folds every id-less match into one entry, so a fixture that forgets an id
+// would report fewer over-matches than it found.
 const targeted = (id, { bodyClass = "", html }) => {
   document.body.className = bodyClass;
   document.body.innerHTML = html;
@@ -20,9 +24,11 @@ const targeted = (id, { bodyClass = "", html }) => {
   selectorsFor(id).forEach((selector) => {
     document
       .querySelectorAll(selector)
-      .forEach((element) => matched.add(element.id));
+      .forEach((element) => matched.add(element));
   });
-  return Array.from(matched).sort();
+  return Array.from(matched)
+    .map((element) => element.id || `<${element.tagName.toLowerCase()}>`)
+    .sort();
 };
 
 describe("the shipped default selectors", () => {
