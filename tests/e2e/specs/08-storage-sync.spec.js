@@ -157,7 +157,7 @@ test.describe("storage migration and sync", () => {
     });
 
     // The open UI picks it up without a reload, and so does the open tab.
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
   });
 
@@ -172,7 +172,7 @@ test.describe("storage migration and sync", () => {
       }),
     });
     const ui = await extension.openWindow();
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
 
     // A device that has been offline pushes its stale copy.
     await extension.setSyncStorage({
@@ -189,7 +189,7 @@ test.describe("storage migration and sync", () => {
         async () => (await extension.syncStorage())["t:topic-politics"].text,
       )
       .toEqual(["politics"]);
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
   });
 
   test("propagates a delete as a tombstone that survives a stale re-send", async ({

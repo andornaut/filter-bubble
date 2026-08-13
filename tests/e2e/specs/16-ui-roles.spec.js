@@ -20,7 +20,7 @@ test.describe("the extension UI's roles", () => {
     await ui.locator(".app__nav").getByRole("link", { name: "Topics" }).click();
     await expect(ui).toHaveURL(/#topics$/);
     await expect(ui.locator(".app__tab--active")).toHaveText("Topics");
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
   });
 
   test("renders the import page rather than the app at #import", async ({

@@ -107,7 +107,7 @@ test.describe("topics in other languages", () => {
     // sorted, with the lowercasing following each script's own rules. The sort
     // is by code unit rather than by locale, which is what keeps the stored
     // order - and so duplicate detection - the same on every device.
-    await expect(ui.locator(".topics__text")).toHaveText("élection, выборы");
+    await expect(ui.locator(".topics__text")).toHaveText(["élection, выборы"]);
     await expect(page.locator("#i-cyrillic")).toHaveClass(
       /filter-bubble--remove/,
     );

@@ -71,7 +71,7 @@ test.describe("topics", () => {
     await addTopic(ui, " Politics , sports , politics ");
 
     // Canonicalized on the way in: trimmed, lowercased, de-duplicated, sorted.
-    await expect(ui.locator(".topics__text")).toHaveText("politics, sports");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics, sports"]);
     // Both phrases belong to one topic, not one topic each. Ids derive from
     // `createdDate`, so there is no content-derived key to wait for: poll for
     // the single stored topic, then read it.
@@ -107,7 +107,7 @@ test.describe("topics", () => {
     await ui.locator('form input[name="text"]').fill("sports");
     await ui.getByRole("button", { name: "Save" }).click();
 
-    await expect(ui.locator(".topics__text")).toHaveText("sports");
+    await expect(ui.locator(".topics__text")).toHaveText(["sports"]);
     // The old phrase stops filtering and the new one starts, with no reload.
     await expect(page.locator("#a1")).not.toHaveClass(/filter-bubble/);
     await expect(page.locator("#a3")).toHaveClass(/filter-bubble--remove/);

@@ -131,7 +131,7 @@ test.describe("sync convergence", () => {
     await settle(ui);
 
     await expect(ui.locator(".list__item")).toHaveCount(1);
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
   });
 
@@ -158,7 +158,7 @@ test.describe("sync convergence", () => {
 
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
     const ui = await extension.openWindow();
-    await expect(ui.locator(".topics__text")).toHaveText("politics");
+    await expect(ui.locator(".topics__text")).toHaveText(["politics"]);
 
     // And a later change still lands, which is what a wedged read would stop.
     await extension.setSyncStorage({
