@@ -56,7 +56,14 @@ Two workers by default, because each test launches a whole Chromium. Raising
 out in fixture setup rather than finding anything.
 
 A failing CI run uploads the traces and screenshots Playwright kept, as the
-`e2e-results` artifact.
+`e2e-results` artifact. Locally they land in `tests/e2e/.artifacts/results`,
+which the next run empties before it starts. Copy that directory before
+re-running anything, or a failure that does not reproduce leaves nothing to
+diagnose:
+
+```bash
+cp -r tests/e2e/.artifacts/results /tmp/failed-e2e
+```
 
 ## Layout
 
