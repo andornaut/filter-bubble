@@ -36,15 +36,51 @@ test.describe("tab lifecycle", () => {
     await page.goto(server.url("feed.html"));
     await expect.poll(() => extension.badgeText(page)).toBe("1");
 
+    // Mark the document, so a restore can be told from a fresh load: only a
+    // restore brings this back with it.
+    await page.evaluate(() => {
+      window.filterBubbleTestMark = true;
+    });
+
     await page.goto(server.url("feed.html", "127.0.0.1"));
     await expect.poll(() => extension.badgeText(page)).toBe("");
 
-    // Going back can hand the same content-script instance back from the
-    // back-forward cache, with the badge already cleared behind it.
-    await page.goBack();
+    // Going back hands the same document, and with it the same content-script
+    // instance, back from the back-forward cache - with the badge cleared
+    // behind it. Stop at the commit: a restored document fires no load event,
+    // so waiting for one waits for good.
+    await page.goBack({ waitUntil: "commit" });
 
+    expect(await page.evaluate(() => window.filterBubbleTestMark)).toBe(true);
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
     await expect.poll(() => extension.badgeText(page)).toBe("1");
+  });
+
+  test("unfilters a restored page whose website is gone", async ({
+    extension,
+    page,
+    server,
+  }) => {
+    await extension.seed(SEED);
+    await page.goto(server.url("feed.html"));
+    await expect(page.locator("#a1")).toHaveClass(/filter-bubble--remove/);
+    await page.evaluate(() => {
+      window.filterBubbleTestMark = true;
+    });
+
+    await page.goto(server.url("feed.html", "127.0.0.1"));
+
+    // The user deletes the website while looking at something else, then goes
+    // back. The restored document comes back exactly as it was left, with the
+    // content still hidden, so the repair has to arrive from the background:
+    // nothing in the page itself knows the rules have changed.
+    await extension.removeSyncStorage(["w:site-localhost"]);
+    await page.goBack({ waitUntil: "commit" });
+
+    expect(await page.evaluate(() => window.filterBubbleTestMark)).toBe(true);
+    await expect(page.locator("#a1")).not.toHaveClass(/filter-bubble/);
+    await expect(page.locator("#a1")).toBeVisible();
+    await expect.poll(() => extension.badgeText(page)).toBe("");
   });
 
   test("applies changed rules on the next navigation in the same tab", async ({

@@ -22,6 +22,12 @@ const launchOptions = {
     `--load-extension=${EXTENSION_DIR}`,
   ],
   channel: "chromium",
+  // Playwright turns the back-forward cache off by default. Leave it on: a real
+  // browser restores a page the user goes back to, handing the same document
+  // and the same content-script instance back, and the extension has code that
+  // exists for exactly that. With the cache off, going back loads a new
+  // document, which is a case that tests itself.
+  ignoreDefaultArgs: ["--disable-back-forward-cache"],
 };
 
 export const launchBrowser = (userDataDir = "") =>

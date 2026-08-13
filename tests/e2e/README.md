@@ -36,6 +36,21 @@ Chromium build rather than the headless shell, which is what
 `channel: "chromium"` in `helpers/fixtures.js` selects. They do need a
 persistent context, so every browser here has a profile.
 
+The back-forward cache stays on, which Playwright turns off by default. A real
+browser restores a page the user goes back to, handing back the same document
+and the same content-script instance with the filtering it already applied, and
+the extension has code for exactly that: the content script drops its cached
+count on every `enable`, and the background's "complete" pass is what repairs a
+restored page whose rules changed while it was away. Both are unpinned with the
+cache off, because going back then loads a new document instead.
+
+The cost is that `page.goBack()` has to stop at the commit - a restored document
+fires no load event, so the default wait never returns:
+
+```js
+await page.goBack({ waitUntil: "commit" });
+```
+
 Two workers by default, because each test launches a whole Chromium. Raising
 `PW_WORKERS` past one worker per two cores starts timing the service worker
 out in fixture setup rather than finding anything.
