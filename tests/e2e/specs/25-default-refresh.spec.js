@@ -146,8 +146,7 @@ test.describe("the shipped defaults on an existing install", () => {
       //
       // Dated relative to now rather than fixed: tombstones are swept once they
       // are past the retention window, so a hard-coded date quietly stops being
-      // a tombstone at all once enough time has passed - which is how this test
-      // first passed for the wrong reason.
+      // a tombstone at all once enough time has passed.
       "w:default-reddit": {
         deleted: true,
         id: "default-reddit",

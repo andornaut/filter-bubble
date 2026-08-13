@@ -46,6 +46,12 @@ const matchesAddress = (url, address) => {
   return url.length === address.length || "/:?#".includes(url[address.length]);
 };
 
+// The first website with a matching address governs the page, and its selectors
+// are used alone rather than combined with every other website covering the
+// address. The list is built by walking `storage.sync.get(null)`, whose keys
+// come back sorted, so the order is by id: a user-created id is epoch
+// milliseconds and sorts ahead of a shipped default's `default-*`, which is what
+// lets a user configure a site the extension already ships selectors for.
 const matchedWebsite = (websitesList, url) => {
   url = url.toLowerCase().replace(SCHEME_REGEX, "");
 
@@ -197,6 +203,8 @@ const updateTab = async (
 
   let response;
   try {
+    // Top frame only (no `allFrames`), so a feed embedded in an iframe is not
+    // filtered.
     response = await chrome.scripting.executeScript({
       files: [CONTENT_SCRIPT_PATH],
       injectImmediately: true,
@@ -382,6 +390,9 @@ const updateState = ({
   // tab it evaluates instead of injecting. Per-item `enabled` flags are left
   // untouched, so re-enabling restores the previous configuration.
   state.pattern = isDisabled ? "" : toPattern(topicsList);
+  // Drop disabled websites here rather than skipping them in `matchedWebsite`,
+  // so a disabled website cannot shadow an enabled one covering the same
+  // address by merely sorting ahead of it.
   state.websitesList = websitesList.filter((website) => website.enabled);
   updateAction(isDisabled);
   resetActiveTabs(state);

@@ -270,6 +270,10 @@
       // Collect into a Set so an element matched by more than one selector is
       // filtered and counted once: the badge reports filtered elements, not
       // selector hits.
+      //
+      // `querySelectorAll` reaches this document only: it does not pierce a
+      // shadow root, and the background injects into the top frame, so content
+      // in either is left alone.
       const matched = new Set();
       for (const selector of selectors) {
         let containers;

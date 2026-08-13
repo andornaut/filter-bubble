@@ -156,11 +156,16 @@ test("filters a matching item", async ({ extension, page, server }) => {
 Assert on what the user would see (`toBeHidden`, computed styles, the badge
 text) rather than only on the classes the content script adds.
 
+Each spec opens with a `// Capability:` comment stating what the file is about
+in the user's terms. Write one for a new spec, and check an existing one before
+adding a test to a file: a test that does not serve the stated capability
+belongs in another file.
+
 Before trusting a new test, break the behaviour it is about and watch it fail.
 A test that passes with the code it covers removed is pinning the browser, or
 nothing at all, and both read exactly like coverage from here. Then measure the
-change against the whole suite rather than the test it targets: a fix that
-passes its own test by breaking something two files away has happened here.
+change against the whole suite rather than the test it targets, so a fix that
+passes its own test by breaking something two files away is caught.
 
 An empty badge after a navigation is one to check that way. Chrome resets a
 tab-scoped badge when a new document commits, so that assertion holds with the
@@ -196,7 +201,9 @@ await expect(ui.locator(".topics__text")).toHaveText("sports"); // does not
 matching more than one is a strict-mode violation, which it reports rather than
 retries. Waiting for a list to shrink is therefore the one thing the string form
 cannot do: it fails immediately, on exactly the state it was supposed to wait
-out. The array form asserts the whole list and retries to the timeout like every
-other web-first assertion. This cost a real afternoon - the failure reads
-"resolved to 2 elements", which looks like a bug in the code under test rather
-than in the assertion.
+out, and reports "resolved to 2 elements", which reads as a bug in the code
+under test rather than in the assertion. The array form asserts the whole list
+and retries to the timeout like every other web-first assertion.
+
+The string form is right where the locator is genuinely one element, or is
+scoped to one with `.nth()` or a `hasText` filter.
