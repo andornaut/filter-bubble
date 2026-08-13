@@ -80,6 +80,35 @@ describe("Collection", () => {
     expect(editItem).not.toHaveBeenCalled();
   });
 
+  // `useSelection` derives the item from `list` by id rather than snapshotting
+  // it, so an item rewritten on another device stays selected under its new
+  // content instead of the selection jumping off it or holding a stale copy.
+  it("follows the selected item when another device rewrites it", () => {
+    const { view } = renderCollection();
+    selectItem();
+
+    view.rerender(
+      <Collection
+        actions={{
+          addItem: jest.fn(),
+          deleteItem: jest.fn(),
+          editItem: jest.fn(),
+          toId: (item) => item.id,
+          toggleEnabled: jest.fn(),
+        }}
+        fields={() => null}
+        itemDetails={({ text }) => text.join(", ")}
+        list={[{ id: "1", text: ["rewritten elsewhere"] }]}
+        transform={(data) => data}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /rewritten elsewhere/ }),
+    ).toHaveAttribute("aria-current", "true");
+  });
+
   it("collapses the selection when the item leaves the list", () => {
     // `useSelection` derives the item from `list` rather than snapshotting it,
     // so an item removed by a sync from another device cannot stay selected.

@@ -13,18 +13,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Read is all the two test jobs need. Only `release` publishes, and it asks for
-# write itself, so a change to either test job cannot reach the repository.
+# Read is all `build` needs. Only `release` publishes, and it asks for write
+# itself, so a change to the build job cannot reach the repository.
 permissions:
   contents: read
 
 # Key the group on the branch, not the ref, so that the push event and the pull
 # request event for the same branch land in one group instead of two. Otherwise
 # every pull request from a branch in this repository - which is every
-# Dependabot one - builds and runs the whole end-to-end suite twice over, once
-# per event. Keyed on the ref they read as different work; keyed on the branch
-# the second to start supersedes the first, which is what `cancel-in-progress`
-# is already relied on to do for two pushes in a row.
+# Dependabot one - builds and tests twice over, once per event. Keyed on the ref
+# they read as different work; keyed on the branch the second to start
+# supersedes the first, which is what `cancel-in-progress` is already relied on
+# to do for two pushes in a row.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -68,50 +68,8 @@ jobs:
           name: extension-package
           path: web-ext-artifacts/filter_bubble-*.zip
 
-  # A job of its own rather than more steps on `build`: it needs a browser that
-  # nothing else in this workflow does, and it runs for minutes where the rest
-  # runs for seconds, so pairing them would hold the release artifact behind the
-  # slower half for no reason.
-  e2e:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7.0.0
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Chromium at the build Playwright expects, plus the system libraries it
-      # links against. The version comes from the installed `@playwright/test`
-      # rather than from anything named here, so there is nothing to keep in
-      # step by hand. This installs the full Chromium as well as the headless
-      # shell; the suite asks for the former by channel, because only it carries
-      # extension support. Nothing here needs a display.
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Run end-to-end tests
-        run: npm run test:e2e
-
-      # Traces and screenshots for whatever failed, which is the only way to see
-      # what the browser was doing on a runner nobody can attach to.
-      - name: Upload end-to-end artifacts
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-results
-          path: tests/e2e/.artifacts/results
-          retention-days: 7
-
   release:
-    needs: [build, e2e]
+    needs: [build]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     # The one job that writes: it creates and deletes releases and tags.

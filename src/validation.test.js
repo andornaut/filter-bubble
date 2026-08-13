@@ -1,5 +1,7 @@
 import {
   canonicalizeAddresses,
+  canonicalizeSelectors,
+  canonicalizeText,
   DOMAIN_NAME_REGEX,
   SCHEME_REGEX,
 } from "./validation";
@@ -77,5 +79,44 @@ describe("canonicalizeAddresses", () => {
     expect(() => canonicalizeAddresses(value)).toThrow(
       "isn't a valid domain name",
     );
+  });
+});
+
+// Topic matching is case-insensitive, so the stored phrases are lowercased and
+// the pattern is compiled with the `i` flag. Both paths into the store, the
+// add/edit form and import, run through here.
+describe("canonicalizeText", () => {
+  it.each([
+    [" Politics , sports , politics ", ["politics", "sports"]],
+    ["Politics\nSports", ["politics", "sports"]],
+    [
+      ["Sports", "politics"],
+      ["politics", "sports"],
+    ],
+    ["", []],
+    [" , ", []],
+    [undefined, []],
+    // Lowercasing follows each script's own rules.
+    ["Выборы, ÉLECTION", ["élection", "выборы"]],
+  ])("canonicalizes %p", (value, expected) => {
+    expect(canonicalizeText(value)).toEqual(expected);
+  });
+
+  // The sort is by code unit rather than by locale, which keeps the stored
+  // order, and so duplicate detection, the same on every device.
+  it("sorts by code unit rather than by locale", () => {
+    expect(canonicalizeText("z, é, a")).toEqual(["a", "z", "é"]);
+  });
+});
+
+// Selectors are case-sensitive: `#A1` and `#a1` are different elements.
+describe("canonicalizeSelectors", () => {
+  it.each([
+    [" article , .Thing ", [".Thing", "article"]],
+    ["article\n.thing", [".thing", "article"]],
+    ["article, article", ["article"]],
+    ["", []],
+  ])("canonicalizes %p", (value, expected) => {
+    expect(canonicalizeSelectors(value)).toEqual(expected);
   });
 });

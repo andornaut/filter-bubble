@@ -641,6 +641,32 @@ describe("subscribeStorageSync", () => {
     expect(set).not.toHaveBeenCalled();
   });
 
+  // A release that predates tombstones deletes by removing the key, so the
+  // change arrives with no `newValue` at all rather than as a marker.
+  it("drops an item whose change carries no new value", async () => {
+    await seed({ "t:1": topic("1", ["a"], "2026-01-01T00:00:00.000Z") });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({
+      "t:1": { oldValue: topic("1", ["a"], "2026-01-01T00:00:00.000Z") },
+    });
+
+    expect(onLists).toHaveBeenCalledTimes(1);
+    expect(onLists.mock.calls[0][0].topics.list).toEqual([]);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("ignores a removal of a key it does not hold", async () => {
+    await seed({ "t:1": topic("1", ["a"], "2026-01-01T00:00:00.000Z") });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({ "t:gone": {} });
+
+    expect(onLists).not.toHaveBeenCalled();
+  });
+
   it("ignores an incoming value that is not an object", async () => {
     await seed({ "t:1": topic("1", ["a"], "2026-01-01T00:00:00.000Z") });
     const onLists = jest.fn();

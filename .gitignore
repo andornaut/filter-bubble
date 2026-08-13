@@ -1,4 +1,3 @@
 dist
 node_modules
-tests/e2e/.artifacts
 web-ext-artifacts

@@ -92,6 +92,22 @@ describe("toLists", () => {
       websitesList: [{ addresses: ["reddit.com"], enabled: true, id: "9" }],
     });
   });
+
+  // `matchedWebsite` takes the first website covering an address, so the order
+  // this produces decides which one governs a page. It is the order the keys
+  // arrive in, which `storage.sync.get(null)` sorts: a user-created id is epoch
+  // milliseconds and sorts ahead of a shipped default's `default-*`.
+  it("keeps websites in the order the storage keys arrived in", () => {
+    const raw = {
+      schema: 2,
+      "w:1700000000000": { addresses: ["reddit.com"], id: "1700000000000" },
+      "w:default-reddit": { addresses: ["reddit.com"], id: "default-reddit" },
+    };
+    expect(toLists(raw).websitesList.map(({ id }) => id)).toEqual([
+      "1700000000000",
+      "default-reddit",
+    ]);
+  });
 });
 
 describe("matchesAddress", () => {
@@ -164,6 +180,32 @@ describe("matchedWebsite", () => {
     expect(
       matchedWebsite(websitesList, "https://reddit.companyx.com"),
     ).toBeNull();
+  });
+
+  // A page is filtered with one website's selectors, never with the union of
+  // every website covering the address, so the first match settles it and the
+  // rest of the list does nothing on that page.
+  it("returns the first of several websites covering one address", () => {
+    const overlapping = [
+      { addresses: ["reddit.com"], selectors: [".first"] },
+      { addresses: ["reddit.com"], selectors: [".second"] },
+    ];
+    expect(matchedWebsite(overlapping, "https://reddit.com/r/all")).toEqual({
+      selectors: [".first"],
+    });
+  });
+
+  // Sync and import can deliver a website with no addresses. It is checked
+  // first like any other and matches no URL, so the entry behind it still
+  // governs the page rather than being shadowed by one that covers nothing.
+  it("skips a website with no addresses and keeps looking", () => {
+    const withEmpty = [
+      { addresses: [], selectors: [".nowhere"] },
+      { addresses: ["reddit.com"], selectors: [".post"] },
+    ];
+    expect(matchedWebsite(withEmpty, "https://reddit.com")).toEqual({
+      selectors: [".post"],
+    });
   });
 });
 
@@ -400,6 +442,107 @@ describe("active tab re-evaluation", () => {
     await flush();
     expect(executeScript).not.toHaveBeenCalled();
     expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+  });
+
+  // The off switch is not a preview setting: it clears the pattern, and an
+  // empty pattern disables the tab whatever mode the popup is asking for.
+  it("disables a matching tab while disabled, even with the popup open", async () => {
+    const { onActivated, onConnect, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      { disabled: true },
+    );
+    onConnect({ onDisconnect: { addListener: () => {} } });
+    await flush();
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledWith(1, { command: "disable" });
+    expect(sendMessage).not.toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ command: "enable" }),
+    );
+  });
+
+  // Disabled websites are dropped before matching rather than skipped during
+  // it, so one cannot shadow an enabled website covering the same address by
+  // merely sorting ahead of it.
+  it("filters with an enabled website that a disabled one sorts ahead of", async () => {
+    const { onActivated, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      {
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:1": {
+          addresses: ["reddit.com"],
+          enabled: false,
+          id: "1",
+          selectors: [".disabled-site"],
+        },
+        "w:2": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          id: "2",
+          selectors: [".enabled-site"],
+        },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+
+    const [, message] = sendMessage.mock.calls.at(-1);
+    expect(message.data.selectors).toEqual([".enabled-site"]);
+  });
+
+  // The useful side of first-match-wins: a user-created id is epoch
+  // milliseconds and sorts ahead of `default-*`, so configuring a site yourself
+  // overrides the selectors Filter Bubble ships for it.
+  it("filters with a user-created website over a shipped default", async () => {
+    const { onActivated, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      {
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:1700000000000": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          id: "1700000000000",
+          selectors: [".mine"],
+        },
+        "w:default-reddit": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          id: "default-reddit",
+          selectors: [".shipped"],
+        },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+
+    const [, message] = sendMessage.mock.calls.at(-1);
+    expect(message.data.selectors).toEqual([".mine"]);
+  });
+
+  // The content script tells a repeat call from a real change by comparing the
+  // serialized payload, so a reordered payload downgrades every repeat to a
+  // full reset, releasing content whose text has since stopped matching.
+  it("builds the enable payload with a stable key order", async () => {
+    const { onActivated, sendMessage } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+
+    const [, message] = sendMessage.mock.calls.at(-1);
+    expect(Object.keys(message.data)).toEqual([
+      "filterMode",
+      "pattern",
+      "selectors",
+    ]);
   });
 
   it("re-reads state when the disabled flag changes in storage.local", async () => {
@@ -1420,5 +1563,53 @@ describe("toPattern", () => {
     const regex = new RegExp(toPattern([{ enabled: true, text: "art" }]), "i");
     expect(regex.test("modern art show")).toBe(true);
     expect(regex.test("smart cartel")).toBe(false);
+  });
+
+  it("compiles a configuration far larger than the examples", () => {
+    // 200 phrases in one alternation, with the only one on the "page" last: a
+    // pattern that silently truncated would show up here.
+    const topicsList = Array.from({ length: 200 }, (_, index) => ({
+      enabled: true,
+      text: [`phrase-${index}`],
+    }));
+    const regex = new RegExp(toPattern(topicsList), "i");
+
+    expect(regex.test("nothing about phrase-199 here")).toBe(true);
+    expect(regex.test("tomatoes and basil")).toBe(false);
+  });
+});
+
+// Topics are not English-only. The boundaries are built from `\w`, which is
+// ASCII, so how a phrase behaves at its edges depends on the script it is
+// written in.
+describe("toPattern in other scripts", () => {
+  const toRegex = (text) =>
+    new RegExp(toPattern([{ enabled: true, text }]), "i");
+
+  it("matches an accented phrase whatever its case", () => {
+    const regex = toRegex("élection");
+    expect(regex.test("une élection demain")).toBe(true);
+    expect(regex.test("une ÉLECTION demain")).toBe(true);
+  });
+
+  it("does not match an accented phrase inside a longer word", () => {
+    expect(toRegex("élection").test("les électeurs votent")).toBe(false);
+  });
+
+  it("matches a Cyrillic phrase", () => {
+    expect(toRegex("выборы").test("завтра выборы")).toBe(true);
+  });
+
+  // `\w` matches no CJK character, so the boundaries never bite and the phrase
+  // matches inside a longer run. In a script written without spaces that is the
+  // only way a phrase could match at all.
+  it("matches a phrase in a script that does not space its words", () => {
+    const regex = toRegex("日本語");
+    expect(regex.test("日本語")).toBe(true);
+    expect(regex.test("これは日本語のページです")).toBe(true);
+  });
+
+  it("matches a phrase written with an emoji", () => {
+    expect(toRegex("🌱 gardening").test("a 🌱 gardening thread")).toBe(true);
   });
 });

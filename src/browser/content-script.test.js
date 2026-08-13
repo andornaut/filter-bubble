@@ -164,6 +164,28 @@ describe("FilterBubble.enable", () => {
     error.mockRestore();
   });
 
+  // Sync and import can deliver a website with no selectors at all. Nothing is
+  // filtered, and the instance is left able to filter once one arrives.
+  it("filters nothing for a website with no selectors, and wedges nothing", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable({ selectors: [] });
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 0 },
+    });
+
+    // Giving it a selector afterwards starts filtering, which is the evidence
+    // that the empty one left nothing broken behind it. Wait out the first
+    // pass's throttle window, which the second pass is otherwise queued behind.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    enable();
+
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
   it("ignores an invalid selector and still applies valid ones", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable({ selectors: ["::::bad", ".post"] });
@@ -411,6 +433,68 @@ describe("FilterBubble re-filtering", () => {
     expect(el.classList.contains("filter-bubble")).toBe(true);
 
     enable({ pattern: toPattern("cherry") });
+
+    expect(el.classList.contains("filter-bubble")).toBe(false);
+  });
+
+  it("keeps up with more mutations than the throttle can service", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    // More appends than the 200ms throttle runs passes for: the trailing pass
+    // has to catch whatever the throttled ones missed.
+    for (let i = 0; i < 25; i += 1) {
+      const added = document.createElement("div");
+      added.className = "post";
+      added.textContent = `banana ${i}`;
+      document.body.appendChild(added);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(document.querySelectorAll(".post.filter-bubble")).toHaveLength(26);
+    expect(sendMessage).toHaveBeenCalledWith({
+      command: "count",
+      data: { count: 26 },
+    });
+  });
+
+  // Every tab event re-sends `enable` carrying the state the tab already has.
+  // Those repeats re-run filtering and nothing else, so an item whose text has
+  // since stopped matching stays hidden rather than reappearing when the user
+  // switches tabs.
+  it("does not release a filtered item when the same state is re-sent", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    const state = {
+      filterMode: "hide",
+      pattern: toPattern("banana"),
+      selectors: [".post"],
+    };
+    window.filterBubble.enable(state);
+    const el = document.querySelector(".post");
+    el.textContent = "something else entirely";
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    // A distinct object with the same keys in the same order, which is what
+    // the background builds for every repeat.
+    window.filterBubble.enable({ ...state });
+
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
+
+  // The comparison is of the serialized payload, so the sender has to keep its
+  // key order stable: this is what a reordered one would do to every repeat.
+  it("treats a reordered payload as a change and releases the item", async () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    const el = document.querySelector(".post");
+    el.textContent = "something else entirely";
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    window.filterBubble.enable({
+      pattern: toPattern("banana"),
+      selectors: [".post"],
+      filterMode: "hide",
+    });
 
     expect(el.classList.contains("filter-bubble")).toBe(false);
   });

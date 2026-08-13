@@ -36,8 +36,6 @@ npm start
 
 `npm test`, `npm run lint`, and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
 
-`npm run test:e2e` runs the end-to-end suite: a real Chromium with the built extension loaded, driven by [Playwright](https://playwright.dev/). Run `npx playwright install chromium` once first. See [`tests/e2e/README.md`](./tests/e2e/README.md).
-
 ### Android
 
 `npm run start:android` runs the extension on a USB-connected device. See the [Extension Workshop guide](https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/) for the full walkthrough:
