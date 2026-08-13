@@ -21,7 +21,7 @@ test.describe("the options entry point", () => {
     // difference decides a role: an embedded view answers `tabs.getCurrent()`
     // the way the browser-action popup does, so `isPopup()` has a second signal
     // to fall back on there. Here the tab is the answer, and it must stay one.
-    expect(await extension.windowTypeFor(extension.popupUrl())).toBe("normal");
+    expect(await extension.windowTypeFor(ui)).toBe("normal");
   });
 
   test("does not preview the page it was opened over", async ({

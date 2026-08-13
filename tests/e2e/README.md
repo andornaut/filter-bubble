@@ -159,7 +159,18 @@ Negative assertions need care: filtering is asynchronous and throttled to one
 pass per 200ms, so "still not filtered" has to be given time to be wrong.
 `settle(page)` from `helpers/fixtures.js` is that wait; use it rather than a
 bare `waitForTimeout`, which should mean "this test needs its own wait, for a
-reason it states".
+reason it states". The same goes for anything else asserted absent while the
+write that would disprove it is still in flight - a second import that must add
+nothing, a re-seed that must not happen.
+
+A positive assertion on stored data needs the opposite care, and a poll rather
+than a wait: a control's label follows the store, which changes before the write
+it triggers has landed, so a storage read taken straight after a click can
+arrive first.
+
+```js
+await expect.poll(() => extension.syncStorage()).toMatchObject({ schema: 2 });
+```
 
 Assert on a list with an array, never a bare string, even where you expect one
 item:

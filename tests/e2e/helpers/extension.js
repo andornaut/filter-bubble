@@ -162,18 +162,26 @@ export class Extension {
     );
   }
 
-  // Record which tab `page` is showing. `tabId` comes from whatever opened the
-  // page; without one, the browser's tabs are asked, which only answers while
-  // there is a single tab to be had - the state a browser starts in.
-  async trackTab(page, tabId) {
-    this.tabIds.set(
-      page,
-      tabId ??
-        (await this.evaluate(() =>
-          chrome.tabs.query({}).then((tabs) => tabs[0]?.id ?? null),
-        )),
-    );
+  // Record which tab `page` is showing, from the id the call that opened it
+  // reported. Refuse a missing one rather than fall back to a guess: a wrong
+  // tab recorded here is silent, and reports another tab's badge as this
+  // page's, which is the whole failure this bookkeeping exists to stop.
+  trackTab(page, tabId) {
+    if (tabId === null || tabId === undefined) {
+      throw new Error(`No tab id for the page opened at ${page.url()}`);
+    }
+    this.tabIds.set(page, tabId);
     return page;
+  }
+
+  // The browser's first page, identified by being the only tab there is. Any
+  // more than that and it cannot be told which is which, so leave it to the
+  // URL lookup, which says so rather than guessing.
+  async trackFirstTab(page) {
+    const ids = await this.evaluate(() =>
+      chrome.tabs.query({}).then((tabs) => tabs.map((tab) => tab.id)),
+    );
+    return ids.length === 1 ? this.trackTab(page, ids[0]) : page;
   }
 
   async tabIdFor(page) {
@@ -246,8 +254,7 @@ export class Extension {
     );
     const page = await opened;
     await page.waitForLoadState("domcontentloaded");
-    await this.trackTab(page, tabId);
-    return page;
+    return this.trackTab(page, tabId);
   }
 
   // The extension UI the way the browser itself opens it: "Extension options"
@@ -275,18 +282,20 @@ export class Extension {
     }
   }
 
-  // The type of window hosting the tab at `url`, which is how a tab in an
-  // ordinary window is told from a view the browser hosts in its own UI.
-  async windowTypeFor(url) {
+  // The type of window hosting `page`, which is how a tab in an ordinary window
+  // is told from a view the browser hosts inside its own UI.
+  async windowTypeFor(page) {
+    const tabId = await this.tabIdFor(page);
+    if (tabId === null) {
+      throw new Error(`No tab found for ${page.url()}`);
+    }
     return this.evaluate(
-      (u) =>
-        chrome.tabs.query({ url: u }).then(([tab]) => {
-          if (!tab) {
-            return null;
-          }
-          return chrome.windows.get(tab.windowId).then((window) => window.type);
-        }),
-      url,
+      (id) =>
+        chrome.tabs
+          .get(id)
+          .then(({ windowId }) => chrome.windows.get(windowId))
+          .then((window) => window.type),
+      tabId,
     );
   }
 
@@ -312,7 +321,7 @@ export class Extension {
   }
 }
 
-export const getExtensionId = async (context) => {
+const getExtensionId = async (context) => {
   const worker = await waitForServiceWorker(context);
   await waitForExtensionApis(worker);
   return new URL(worker.url()).host;
@@ -325,7 +334,7 @@ export const createExtension = async (context) => {
   const extension = new Extension(context, await getExtensionId(context));
   const [page] = context.pages();
   if (page) {
-    await extension.trackTab(page);
+    await extension.trackFirstTab(page);
   }
   return extension;
 };

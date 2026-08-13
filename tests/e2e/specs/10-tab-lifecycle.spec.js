@@ -70,11 +70,19 @@ test.describe("tab lifecycle", () => {
 
     await page.goto(server.url("feed.html", "127.0.0.1"));
 
-    // The user deletes the website while looking at something else, then goes
-    // back. The restored document comes back exactly as it was left, with the
-    // content still hidden, so the repair has to arrive from the background:
-    // nothing in the page itself knows the rules have changed.
-    await extension.removeSyncStorage(["w:site-localhost"]);
+    // The website is deleted while the user is looking at something else, then
+    // they go back. A delete writes a tombstone rather than dropping the key,
+    // so this is the write itself, whether it was made here or synced in. The
+    // restored document comes back exactly as it was left, with the content
+    // still hidden, so the repair has to arrive from the background: nothing in
+    // the page itself knows the rules have changed.
+    await extension.setSyncStorage({
+      "w:site-localhost": {
+        deleted: true,
+        id: "site-localhost",
+        modifiedDate: "2024-01-01T00:00:00.000Z",
+      },
+    });
     await page.goBack({ waitUntil: "commit" });
 
     expect(await page.evaluate(() => window.filterBubbleTestMark)).toBe(true);
