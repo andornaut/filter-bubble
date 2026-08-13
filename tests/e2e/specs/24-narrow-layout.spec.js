@@ -60,14 +60,25 @@ test.describe("the UI at narrow widths", () => {
 
     // Reachable is the point: a control pushed off the side of a viewport that
     // does not scroll sideways cannot be used at all.
-    for (const control of [
-      ui.getByRole("button", { name: "Add", exact: true }),
-      ui.getByRole("button", { name: "Disable" }),
-      ui.locator(".footer__status-link"),
+    for (const [name, control] of [
+      ["Add", ui.getByRole("button", { name: "Add", exact: true })],
+      ["Disable", ui.getByRole("button", { name: "Disable" })],
+      ["the off switch", ui.locator(".footer__status-link")],
     ]) {
+      // A control that is not rendered at all is one of the ways this fails,
+      // and `boundingBox()` answers null for it: assert it visible first, so
+      // that case says so rather than raising on the next line. Name each
+      // control too, since the box alone does not say which one it came from.
+      await expect(control, `${name} is not visible at 360px`).toBeVisible();
       const box = await control.boundingBox();
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(360);
+      expect(
+        box.x,
+        `${name} starts left of the viewport`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        box.x + box.width,
+        `${name} runs past the right edge`,
+      ).toBeLessThanOrEqual(360);
     }
 
     // And still working, not merely visible.
