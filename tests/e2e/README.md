@@ -149,11 +149,16 @@ test("filters a matching item", async ({ extension, page, server }) => {
 Assert on what the user would see (`toBeHidden`, computed styles, the badge
 text) rather than only on the classes the content script adds.
 
-An empty badge after a navigation is not evidence of anything the extension
-did. Chrome resets a tab-scoped badge when a new document commits, so that
-assertion holds with the background's clearing removed altogether; it is the
-same-document cases that show whether the extension clears. Check a mutation
-fails the test before trusting one of these.
+Before trusting a new test, break the behaviour it is about and watch it fail.
+A test that passes with the code it covers removed is pinning the browser, or
+nothing at all, and both read exactly like coverage from here. Then measure the
+change against the whole suite rather than the test it targets: a fix that
+passes its own test by breaking something two files away has happened here.
+
+An empty badge after a navigation is one to check that way. Chrome resets a
+tab-scoped badge when a new document commits, so that assertion holds with the
+background's clearing removed altogether; it is the same-document cases that
+show whether the extension clears.
 
 Negative assertions need care: filtering is asynchronous and throttled to one
 pass per 200ms, so "still not filtered" has to be given time to be wrong.
