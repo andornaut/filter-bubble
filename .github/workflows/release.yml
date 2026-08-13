@@ -80,21 +80,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7.0.1
 
-      - name: Delete previous dev release
-        if: github.ref == 'refs/heads/main'
-        run: |
-          gh release delete dev --yes || true
-          git push --delete origin refs/tags/dev || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download release artifact
         uses: actions/download-artifact@v8
         with:
           name: extension-package
           path: artifacts
 
-      - name: Create release
+      # `dev` is a moving target, so its asset carries no version: the URL a
+      # consumer fetches stays the same across re-cuts, and each upload replaces
+      # its predecessor instead of accumulating beside the one before it.
+      - name: Name the dev asset without its version
+        if: github.ref == 'refs/heads/main'
+        run: mv artifacts/filter_bubble-*.zip artifacts/filter_bubble-dev.zip
+
+      # A release follows its tag, and updating one below does not move the tag
+      # GitHub already has, so `dev` has to be repointed here or the release's
+      # commit link and source archives would describe an older build than the
+      # assets beside them. Unmasked on purpose: a rejected tag push (tag
+      # protection, or credentials the checkout did not persist) has to fail
+      # the job rather than quietly publish binaries with the wrong commit.
+      - name: Move the dev tag to this commit
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git tag --force dev
+          git push --force origin refs/tags/dev
+
+      # Updated in place rather than deleted and recreated. Deleting first left
+      # `dev` a 404 for the length of the upload, and permanently if the run
+      # died in between; every asset name here is deterministic, so each upload
+      # replaces its predecessor and nothing from the previous cut survives.
+      - name: Publish release
         uses: softprops/action-gh-release@v3.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
