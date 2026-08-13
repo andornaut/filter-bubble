@@ -99,6 +99,12 @@ export class Extension {
   constructor(context, id) {
     this.context = context;
     this.id = id;
+    // Which browser tab each page is showing. Playwright has no notion of a tab
+    // id, and a URL does not stand in for one: two windows showing the same
+    // page match a URL equally well, so a lookup by URL would hand back one
+    // window's tab for the other window's page. Pages are recorded here as they
+    // are opened, while what opened them still says which tab it made.
+    this.tabIds = new WeakMap();
   }
 
   // MV3 service workers are torn down when idle, so never hold on to the
@@ -156,12 +162,40 @@ export class Extension {
     );
   }
 
+  // Record which tab `page` is showing. `tabId` comes from whatever opened the
+  // page; without one, the browser's tabs are asked, which only answers while
+  // there is a single tab to be had - the state a browser starts in.
+  async trackTab(page, tabId) {
+    this.tabIds.set(
+      page,
+      tabId ??
+        (await this.evaluate(() =>
+          chrome.tabs.query({}).then((tabs) => tabs[0]?.id ?? null),
+        )),
+    );
+    return page;
+  }
+
   async tabIdFor(page) {
+    const tracked = this.tabIds.get(page);
+    if (tracked !== undefined) {
+      return tracked;
+    }
+    // A page nobody recorded - one a spec opened itself - can still be found by
+    // its URL, as long as that URL picks out one tab. Refuse to guess when it
+    // does not, rather than reporting another window's tab as this one's.
     const url = page.url();
-    return this.evaluate(
-      (u) => chrome.tabs.query({ url: u }).then((tabs) => tabs[0]?.id ?? null),
+    const ids = await this.evaluate(
+      (u) =>
+        chrome.tabs.query({ url: u }).then((tabs) => tabs.map((t) => t.id)),
       url,
     );
+    if (ids.length > 1) {
+      throw new Error(
+        `${url} is open in ${ids.length} tabs: open it with newWindow(), which records the tab it made`,
+      );
+    }
+    return ids[0] ?? null;
   }
 
   // Toolbar badge text for the tab showing `page`, which is where the content
@@ -203,9 +237,16 @@ export class Extension {
   // tab of its own window: the background only re-evaluates active tabs.
   async newWindow(url) {
     const opened = this.context.waitForEvent("page");
-    await this.evaluate((u) => chrome.windows.create({ url: u }), url);
+    const tabId = await this.evaluate(
+      (u) =>
+        chrome.windows
+          .create({ url: u })
+          .then((window) => window.tabs?.[0]?.id ?? null),
+      url,
+    );
     const page = await opened;
     await page.waitForLoadState("domcontentloaded");
+    await this.trackTab(page, tabId);
     return page;
   }
 
@@ -235,4 +276,16 @@ export const getExtensionId = async (context) => {
   const worker = await waitForServiceWorker(context);
   await waitForExtensionApis(worker);
   return new URL(worker.url()).host;
+};
+
+// The driver for `context`, with the tab the browser opens itself recorded.
+// Build it before opening anything else: that first page is identified by being
+// the only one there is.
+export const createExtension = async (context) => {
+  const extension = new Extension(context, await getExtensionId(context));
+  const [page] = context.pages();
+  if (page) {
+    await extension.trackTab(page);
+  }
+  return extension;
 };

@@ -50,12 +50,11 @@ test.describe("several windows at once", () => {
   }) => {
     await extension.seed(SEED);
     await page.goto(server.url("feed.html"));
-    // A different page in the second window, and one more match in the first:
-    // neither window can pass by reporting the other's count, and the badge
-    // helper resolves a tab by its URL, so two windows on one page are one tab
-    // as far as it can tell.
-    const second = await extension.newWindow(server.url("nested.html"));
+    const second = await extension.newWindow(server.url("feed.html"));
 
+    // Two windows on the same page, with one more match in the first: neither
+    // window can pass by reporting the other's count, and neither tab can be
+    // told from the other by its URL.
     await page.click("#append");
     await expect.poll(() => extension.badgeText(page)).toBe("2");
     await expect.poll(() => extension.badgeText(second)).toBe("1");
@@ -66,9 +65,7 @@ test.describe("several windows at once", () => {
     // one counts again. The badge is per tab, and each window's toolbar shows
     // the tab in front of it.
     await expect(page.locator("#a1")).toHaveClass(/filter-bubble--highlight/);
-    await expect(second.locator("#outer")).toHaveClass(
-      /filter-bubble--highlight/,
-    );
+    await expect(second.locator("#a1")).toHaveClass(/filter-bubble--highlight/);
     await expect.poll(() => extension.badgeText(page)).toBe("2");
     await expect.poll(() => extension.badgeText(second)).toBe("1");
 

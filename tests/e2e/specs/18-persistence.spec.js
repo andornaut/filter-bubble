@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { Extension, getExtensionId } from "../helpers/extension.js";
+import { createExtension } from "../helpers/extension.js";
 import { expect, launchBrowser, settle, test } from "../helpers/fixtures.js";
 import { SEED } from "../helpers/seed.js";
 
@@ -12,7 +12,7 @@ import { SEED } from "../helpers/seed.js";
 // is the one place that names a profile directory and cleans it up itself.
 const launch = async (userDataDir) => {
   const context = await launchBrowser(userDataDir);
-  const extension = new Extension(context, await getExtensionId(context));
+  const extension = await createExtension(context);
   return { context, extension, page: context.pages()[0] };
 };
 

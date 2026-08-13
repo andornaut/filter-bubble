@@ -1,6 +1,6 @@
 import { test as base, chromium } from "@playwright/test";
 
-import { Extension, getExtensionId } from "./extension.js";
+import { createExtension } from "./extension.js";
 import { EXTENSION_DIR } from "./paths.js";
 import { startServer } from "./server.js";
 
@@ -46,7 +46,7 @@ export const test = base.extend({
   },
 
   extension: async ({ context }, use) => {
-    await use(new Extension(context, await getExtensionId(context)));
+    await use(await createExtension(context));
   },
 
   // The tab every test starts from: the persistent context opens one itself,
