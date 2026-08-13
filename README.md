@@ -13,15 +13,18 @@ Filter Bubble is a Chrome and Firefox browser extension that hides web content m
 1. For each website, add [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) targeting the content blocks or feed items that might contain those topics.
 1. When a topic appears inside a targeted element, the element is hidden or removed.
 
-A handful of websites are configured out of the box. Adding others means writing the selectors yourself, and granting Filter Bubble access to them.
+A handful of websites are configured out of the box. Adding others means writing the selectors yourself and granting Filter Bubble access to them.
 
-Topic phrases match as whole words, case-insensitively, and literally: punctuation is punctuation, not a pattern. Only the text inside a targeted element is considered, and only text a browser actually renders.
+Topic phrases match as whole words, case-insensitively, and literally: punctuation is punctuation, not a pattern. Only rendered text inside a targeted element counts.
 
-- Each website chooses whether matches are **removed** (the block goes) or **hidden** (the block keeps its space).
-- While the popup is open, matched content is **highlighted** instead of filtered, so you can see what your rules catch.
-- The toolbar badge counts the blocks filtered on the current tab.
-- The off switch pauses all filtering in this browser without changing anything you have configured.
-- Topics and websites sync between browsers signed into the same profile; the off switch stays local. **Export** and **Import** move a configuration between browsers as a JSON file.
+| Feature       | What it does                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| Remove / hide | Per website: the block goes, or keeps its space                                                    |
+| Highlight     | While the popup is open, matches stay on screen, highlighted                                       |
+| Badge         | Counts the blocks filtered on the current tab                                                      |
+| Off switch    | Pauses filtering in this browser, changing nothing you configured                                  |
+| Sync          | Topics and websites sync between browsers signed into the same profile; the off switch stays local |
+| Export/Import | Moves a configuration between browsers as a JSON file                                              |
 
 [![Per-website selectors](./resources/screenshots/screenshot-websites.png)](./resources/screenshots/screenshot-websites.png)
 
@@ -34,7 +37,7 @@ npm install
 npm start
 ```
 
-`npm test`, `npm run lint`, and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
+`npm test`, `npm run lint` and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
 
 ### Android
 
