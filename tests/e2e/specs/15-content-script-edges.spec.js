@@ -87,6 +87,39 @@ test.describe("content script edges", () => {
     await expect(page.locator("#e-mutable")).not.toHaveClass(/filter-bubble/);
   });
 
+  test("does not release what it filtered when the state is re-sent", async ({
+    context,
+    page,
+  }) => {
+    await expect(page.locator("#e-mutable")).toHaveClass(
+      /filter-bubble--remove/,
+    );
+    await page.click("#rewrite");
+    await settle(page);
+    await expect(page.locator("#e-mutable")).toHaveClass(
+      /filter-bubble--remove/,
+    );
+
+    // Every tab event re-sends `enable`, carrying the state the tab already
+    // has. Those repeats have to be told apart from a real change, which is
+    // done by comparing the serialized payload: an unchanged one re-runs
+    // filtering and nothing else. Were it to compare unequal - the sender
+    // building the payload in a different key order would do it - every repeat
+    // would be a full reset, releasing this item because its text no longer
+    // matches. The user would watch content reappear on switching tabs.
+    const other = await context.newPage();
+    await other.goto("about:blank");
+    await page.bringToFront();
+    await settle(page);
+
+    await expect(page.locator("#e-mutable")).toHaveClass(
+      /filter-bubble--remove/,
+    );
+    await expect(page.locator("#e-visible")).toHaveClass(
+      /filter-bubble--remove/,
+    );
+  });
+
   test("counts an already filtered item once when it grows", async ({
     extension,
     page,
