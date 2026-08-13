@@ -108,7 +108,7 @@ describe("ErrorBoundary", () => {
   });
 
   // Retrying into the same failure has to leave the message and the button
-  // where they were: a button that empties the page is worse than no button.
+  // where they were, rather than clearing the boundary and rendering nothing.
   it("holds the failure when retrying changes nothing", async () => {
     render(
       <ErrorBoundary>

@@ -29,8 +29,7 @@ describe("Errors", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The newest failure is the one the user just caused, so it goes on top
-  // rather than below whatever is still on screen from earlier.
+  // The newest failure is the one the user just caused, so it goes on top.
   it("shows the most recent message first", () => {
     renderErrors([
       error("older", "2026-01-01T00:00:00.000Z"),

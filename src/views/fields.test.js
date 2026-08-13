@@ -2,22 +2,36 @@ import { render, screen } from "@testing-library/react";
 
 import { checkboxField, textField } from "./fields";
 
+const hint = () => document.querySelector(".form__hint");
+
 describe("textField", () => {
-  it("renders with defaultValue for uncontrolled input", () => {
+  // Forms are uncontrolled and read on submit, so the stored value has to
+  // arrive as a default rather than as a value React would hold.
+  it("seeds the input with the stored value, uncontrolled", () => {
     render(textField({ label: "Name", name: "name", value: "test value" }));
+
     const input = screen.getByRole("textbox");
+    // `name` is what the submit handler serializes the field under.
     expect(input).toHaveAttribute("name", "name");
     expect(input.defaultValue).toBe("test value");
   });
 
-  it("renders with empty defaultValue when value is null", () => {
+  // An item that has never held this field arrives as null, which React renders
+  // as an uncontrolled-to-controlled warning and an input the user cannot type
+  // into.
+  it("seeds an empty string when there is no stored value", () => {
     render(textField({ label: "Name", name: "name", value: null }));
-    const input = screen.getByRole("textbox");
-    expect(input.defaultValue).toBe("");
+
+    expect(screen.getByRole("textbox").defaultValue).toBe("");
   });
 
-  it("renders hint when provided", () => {
-    render(
+  it("renders a hint only when one is given", () => {
+    const { rerender } = render(
+      textField({ label: "Name", name: "name", value: "" }),
+    );
+    expect(hint()).toBeNull();
+
+    rerender(
       textField({
         hint: "Enter your name",
         label: "Name",
@@ -25,18 +39,15 @@ describe("textField", () => {
         value: "",
       }),
     );
-    expect(screen.getByText("Enter your name")).toBeInTheDocument();
-  });
 
-  it("does not render hint when not provided", () => {
-    render(textField({ label: "Name", name: "name", value: "" }));
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(hint()).toHaveTextContent("Enter your name");
   });
 
   // The visible label has to be announced with the field, not merely sit above
   // it, or a screen reader reaches an unlabelled edit box.
   it("associates the visible label with the input", () => {
     render(textField({ label: "Domain names", name: "addresses", value: "" }));
+
     expect(screen.getByLabelText("Domain names")).toBe(
       screen.getByRole("textbox"),
     );
@@ -44,29 +55,39 @@ describe("textField", () => {
 });
 
 describe("checkboxField", () => {
-  it("renders with defaultChecked for uncontrolled input", () => {
+  it("seeds the checkbox from the stored value, uncontrolled", () => {
     render(checkboxField({ label: "Enabled", name: "enabled", value: true }));
+
     const input = screen.getByRole("checkbox");
     expect(input).toHaveAttribute("name", "enabled");
     expect(input.defaultChecked).toBe(true);
   });
 
-  it("renders unchecked when value is false", () => {
+  it("leaves the checkbox clear for a false value", () => {
     render(checkboxField({ label: "Enabled", name: "enabled", value: false }));
-    const input = screen.getByRole("checkbox");
-    expect(input.defaultChecked).toBe(false);
+
+    expect(screen.getByRole("checkbox").defaultChecked).toBe(false);
   });
 
-  it("renders hint when provided", () => {
-    render(
+  // The hint is rendered outside the wrapping label, so it needs covering here
+  // as well as in `textField`. "Hide instead of remove" is the only checkbox the
+  // app has, and this hint is the only explanation of what it does.
+  it("renders a hint only when one is given", () => {
+    const { rerender } = render(
+      checkboxField({ label: "Enabled", name: "enabled", value: false }),
+    );
+    expect(hint()).toBeNull();
+
+    rerender(
       checkboxField({
-        hint: "Toggle this option",
-        label: "Option",
-        name: "option",
+        hint: "Keep the space the block occupied",
+        label: "Enabled",
+        name: "enabled",
         value: false,
       }),
     );
-    expect(screen.getByText("Toggle this option")).toBeInTheDocument();
+
+    expect(hint()).toHaveTextContent("Keep the space the block occupied");
   });
 
   // Labelled by wrapping the input rather than by id, which is why this file
@@ -79,6 +100,7 @@ describe("checkboxField", () => {
         value: false,
       }),
     );
+
     expect(screen.getByLabelText("Hide instead of remove")).toBe(
       screen.getByRole("checkbox"),
     );

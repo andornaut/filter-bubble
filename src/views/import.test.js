@@ -150,8 +150,8 @@ describe("Import", () => {
     expect(grantButton()).toBeNull();
   });
 
-  // If the check itself fails, err toward showing the prompt: it is harmless
-  // when access is already granted, and silently skipping it is not.
+  // A failed check shows the prompt: re-granting access already held costs the
+  // user one dialog, skipping it leaves the import unable to filter.
   it("offers the prompt when the permission check fails", async () => {
     contains.mockRejectedValue(new Error("no permissions API"));
 

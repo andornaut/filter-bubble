@@ -120,24 +120,16 @@ describe("App permission banner", () => {
 });
 
 describe("App status and errors", () => {
-  it("reports that filtering is on", () => {
-    renderApp("");
+  // The footer's own states are covered in footer.test.js; what App owns is
+  // passing the flag down. Both directions, or a footer wired to a constant
+  // would report the wrong one to every user who is in it.
+  it.each([
+    [false, "Turn all filtering off in this browser", "Enabled"],
+    [true, "Turn all filtering on in this browser", "Disabled"],
+  ])("passes isDisabled %p through to the footer", (isDisabled, name, text) => {
+    renderApp("", { isDisabled });
 
-    expect(
-      screen.getByRole("link", {
-        name: "Turn all filtering off in this browser",
-      }),
-    ).toHaveTextContent("Enabled");
-  });
-
-  it("reports that filtering is paused", () => {
-    renderApp("", { isDisabled: true });
-
-    expect(
-      screen.getByRole("link", {
-        name: "Turn all filtering on in this browser",
-      }),
-    ).toHaveTextContent("Disabled");
+    expect(screen.getByRole("link", { name })).toHaveTextContent(text);
   });
 
   it("surfaces a handler failure where the user is working", () => {

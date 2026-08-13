@@ -2,8 +2,10 @@ import { render, screen } from "@testing-library/react";
 
 import { List } from "./list";
 
-// Display order is the whole purpose of `sortDate`: the list is ordered by when
-// the user last put each item there, newest first.
+// The list is ordered newest first, through `sortByDateDesc`. What that helper
+// does with each date field is covered in helpers.test.js; what is pinned here
+// is that `List` goes through it, including for an item carrying only the sync
+// clock, which is every seeded default.
 const item = (text, dates) => ({ enabled: true, id: text, text, ...dates });
 
 const renderList = (list, selectedId = "") =>
@@ -30,7 +32,10 @@ describe("List", () => {
 
   it("puts the most recently changed item first", () => {
     renderList([
-      item("middle", { sortDate: "2022-06-01T00:00:00.000Z" }),
+      // "middle" carries no `sortDate`, as a seeded default and anything stored
+      // before the field existed. It has to sort on `modifiedDate`, which lands
+      // it between the other two rather than at the end.
+      item("middle", { modifiedDate: "2022-06-01T00:00:00.000Z" }),
       item("oldest", { sortDate: "2021-01-01T00:00:00.000Z" }),
       item("newest", { sortDate: "2023-01-01T00:00:00.000Z" }),
     ]);
@@ -40,34 +45,6 @@ describe("List", () => {
       "middleDisable",
       "oldestDisable",
     ]);
-  });
-
-  // Items stored before `sortDate` existed, and the seeded defaults, carry only
-  // the sync clock.
-  it("falls back to modifiedDate for an item with no sortDate", () => {
-    renderList([
-      item("older", { modifiedDate: "2021-01-01T00:00:00.000Z" }),
-      item("newer", { modifiedDate: "2023-01-01T00:00:00.000Z" }),
-    ]);
-
-    expect(shown()).toEqual(["newerDisable", "olderDisable"]);
-  });
-
-  // Toggling bumps `modifiedDate` so the change wins the sync merge, and leaves
-  // `sortDate` alone so switching an item off does not move it.
-  it("orders on sortDate rather than the sync clock", () => {
-    renderList([
-      item("stays first", {
-        modifiedDate: "2021-01-01T00:00:00.000Z",
-        sortDate: "2023-01-01T00:00:00.000Z",
-      }),
-      item("just toggled", {
-        modifiedDate: "2026-01-01T00:00:00.000Z",
-        sortDate: "2022-01-01T00:00:00.000Z",
-      }),
-    ]);
-
-    expect(shown()).toEqual(["stays firstDisable", "just toggledDisable"]);
   });
 
   it("marks the selected item wherever it lands in the order", () => {

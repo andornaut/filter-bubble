@@ -3,9 +3,8 @@ import { join } from "path";
 
 // `src/browser/*.js` ship unbundled, so they cannot import the modules that own
 // these values and must restate them. Nothing at build or run time notices when
-// a copy drifts: the background would simply read no items, match no URL, or
-// miss the disabled flag, with no error anywhere. These tests are the only
-// thing holding the copies together.
+// a copy drifts: the background would read no items, match no URL, or miss the
+// disabled flag, with no error anywhere. Nothing else keeps the copies in step.
 
 const source = (path) => readFileSync(join(__dirname, path), "utf8");
 

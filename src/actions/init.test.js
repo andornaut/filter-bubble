@@ -1,9 +1,8 @@
-// `initState` wires the store to both storage areas: without those
-// subscriptions nothing the user configures outlives the popup, a change synced
-// in from another device never reaches an open UI, and a rejected write is
-// never surfaced. It also holds a module-level "subscribed once" flag, so each
-// case loads the module fresh, and takes statezero and the actions from the
-// same registry to talk to the instance `init.js` is using.
+// `initState` wires the store to both storage areas: hydration, the subscriber
+// that persists every commit, and the `storage.onChanged` listener. It holds a
+// module-level "subscribed once" flag, so each case loads the module fresh and
+// takes statezero and the actions from that same registry, to reach the
+// instance `init.js` is using.
 const load = () => {
   let modules;
   jest.isolateModules(() => {

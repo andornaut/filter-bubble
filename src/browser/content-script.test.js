@@ -164,9 +164,8 @@ describe("FilterBubble.enable", () => {
     error.mockRestore();
   });
 
-  // Sync and import can deliver a website with no selectors at all. Nothing is
-  // filtered, and the instance is left able to filter once one arrives.
-  it("filters nothing for a website with no selectors, and wedges nothing", async () => {
+  // Sync and import can deliver a website with no selectors at all.
+  it("filters nothing for a website with no selectors, and still filters later", async () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable({ selectors: [] });
 
@@ -177,9 +176,9 @@ describe("FilterBubble.enable", () => {
       data: { count: 0 },
     });
 
-    // Giving it a selector afterwards starts filtering, which is the evidence
-    // that the empty one left nothing broken behind it. Wait out the first
-    // pass's throttle window, which the second pass is otherwise queued behind.
+    // A selector arriving afterwards filters, so the empty one left the
+    // instance usable. Wait out the first pass's throttle window, which the
+    // second pass is otherwise queued behind.
     await new Promise((resolve) => setTimeout(resolve, 250));
     enable();
 
@@ -406,15 +405,14 @@ describe("FilterBubble re-filtering", () => {
     expect(el.classList.contains("filter-bubble")).toBe(true);
     sendMessage.mockClear();
 
-    // Filtering is sticky. A page that recycles this node for other content
-    // leaves it hidden, which is the accepted trade: re-testing would release
-    // any container that is transiently non-matching mid-update and show
-    // content the user asked to hide. Only a full reset releases it.
+    // Filtering is sticky: re-testing would release any container that is
+    // transiently non-matching mid-update and show content the user asked to
+    // hide. The cost is that a recycled node stays hidden until a full reset.
     el.textContent = "something else entirely";
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     expect(el.classList.contains("filter-bubble")).toBe(true);
-    // Still filtered, so still counted.
+    // Still filtered, so the badge does not drop to zero.
     expect(sendMessage).not.toHaveBeenCalledWith({
       command: "count",
       data: { count: 0 },

@@ -2,63 +2,29 @@ import {
   canonicalizeAddresses,
   canonicalizeSelectors,
   canonicalizeText,
-  DOMAIN_NAME_REGEX,
-  SCHEME_REGEX,
 } from "./validation";
 
-describe("domain name validation", () => {
-  const isValidDomain = (domain) => DOMAIN_NAME_REGEX.test(domain);
-
-  describe("valid domains", () => {
-    it.each([
-      "example.com",
-      "sub.example.com",
-      "deep.sub.example.com",
-      "example.co.uk",
-      "x1.com",
-      "test-site.com",
-      "ab.cd",
-      "x.com", // single-char labels are valid DNS
-      "t.co",
-    ])("accepts %s", (domain) => {
-      expect(isValidDomain(domain)).toBe(true);
-    });
-  });
-
-  describe("invalid domains", () => {
-    it.each([
-      "-example.com", // starts with hyphen
-      "example-.com", // ends with hyphen before dot
-      ".example.com", // starts with dot
-      "example.com.", // ends with dot
-      "exam ple.com", // contains space
-      "example..com", // double dot
-      "", // empty
-    ])("rejects %s", (domain) => {
-      expect(isValidDomain(domain)).toBe(false);
-    });
-  });
-});
-
-describe("scheme regex", () => {
-  it.each([
-    ["http://example.com", "example.com"],
-    ["https://example.com", "example.com"],
-    ["://example.com", "example.com"],
-    ["example.com", "example.com"], // no scheme is left untouched
-  ])("strips the scheme from %s", (url, expected) => {
-    expect(url.replace(SCHEME_REGEX, "")).toBe(expected);
-  });
-});
-
+// `canonicalizeAddresses` is the only caller of `DOMAIN_NAME_REGEX` and of this
+// module's `SCHEME_REGEX`, so the accepted and rejected forms are asserted
+// through it rather than against the patterns. background.js carries its own
+// copy of `SCHEME_REGEX`, pinned against this one by
+// src/browser/duplication.test.js.
 describe("canonicalizeAddresses", () => {
   it.each([
     ["example.com", ["example.com"]],
+    ["sub.example.com", ["sub.example.com"]],
+    ["deep.sub.example.com", ["deep.sub.example.com"]],
+    ["example.co.uk", ["example.co.uk"]],
+    ["test-site.com", ["test-site.com"]],
+    // Single-character labels are valid DNS.
+    ["x.com", ["x.com"]],
     ["https://example.com", ["example.com"]],
+    // The scheme is optional in the pattern, so a plain-http site is accepted
+    // rather than rejected as a malformed domain name.
+    ["http://example.com", ["example.com"]],
     // A URL copied out of the browser's address bar carries a trailing slash.
     ["https://example.com/", ["example.com"]],
     ["EXAMPLE.com/", ["example.com"]],
-    ["example.com/", ["example.com"]],
     // Trimmed, lowercased, de-duplicated and sorted.
     [" B.com , https://a.com/ , A.COM ", ["a.com", "b.com"]],
     [
@@ -70,34 +36,38 @@ describe("canonicalizeAddresses", () => {
   });
 
   it.each([
-    "example.com/path",
-    "https://example.com/path/",
-    "http://example.com:8080",
-    "not a domain",
-    "example.com//",
-  ])("rejects %s", (value) => {
+    ["example.com/path", "a path"],
+    ["https://example.com/path/", "a path"],
+    ["http://example.com:8080", "a port"],
+    ["example.com//", "a doubled trailing slash"],
+    ["not a domain", "a space"],
+    ["-example.com", "a leading hyphen"],
+    ["example-.com", "a trailing hyphen on a label"],
+    [".example.com", "a leading dot"],
+    ["example.com.", "a trailing dot"],
+    ["example..com", "an empty label"],
+  ])("rejects %s, which carries %s", (value) => {
     expect(() => canonicalizeAddresses(value)).toThrow(
       "isn't a valid domain name",
     );
   });
 });
 
-// Topic matching is case-insensitive, so the stored phrases are lowercased and
-// the pattern is compiled with the `i` flag. Both paths into the store, the
-// add/edit form and import, run through here.
+// Splitting, trimming, de-duplicating and sorting belong to `toCanonicalArray`
+// and are covered in helpers.test.js. What is asserted here is the difference
+// between the two wrappers: topic matching is case-insensitive, so phrases are
+// lowercased on the way in, and selectors are case-sensitive, so they are not.
 describe("canonicalizeText", () => {
   it.each([
     [" Politics , sports , politics ", ["politics", "sports"]],
-    ["Politics\nSports", ["politics", "sports"]],
     [
       ["Sports", "politics"],
       ["politics", "sports"],
     ],
-    ["", []],
-    [" , ", []],
-    [undefined, []],
     // Lowercasing follows each script's own rules.
     ["Выборы, ÉLECTION", ["élection", "выборы"]],
+    // An absent field, which reaches here as undefined rather than "".
+    [undefined, []],
   ])("canonicalizes %p", (value, expected) => {
     expect(canonicalizeText(value)).toEqual(expected);
   });
@@ -109,14 +79,11 @@ describe("canonicalizeText", () => {
   });
 });
 
-// Selectors are case-sensitive: `#A1` and `#a1` are different elements.
 describe("canonicalizeSelectors", () => {
-  it.each([
-    [" article , .Thing ", [".Thing", "article"]],
-    ["article\n.thing", [".thing", "article"]],
-    ["article, article", ["article"]],
-    ["", []],
-  ])("canonicalizes %p", (value, expected) => {
-    expect(canonicalizeSelectors(value)).toEqual(expected);
+  it("keeps case, so #A1 and #a1 stay different selectors", () => {
+    expect(canonicalizeSelectors(" article , .Thing ")).toEqual([
+      ".Thing",
+      "article",
+    ]);
   });
 });

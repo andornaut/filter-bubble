@@ -23,13 +23,18 @@ describe("Footer enable/disable toggle", () => {
     );
   });
 
-  it("toggles Filter Bubble on click", () => {
+  // Both directions: the link is the only way back, so a toggle that only ever
+  // sets the flag would leave filtering off for good.
+  it("toggles Filter Bubble on click, and back on the next one", () => {
     setState("isDisabled", false);
     render(<Footer isDisabled={false} />);
+    const link = screen.getByRole("link", { name: OFF_LABEL });
 
-    fireEvent.click(screen.getByRole("link", { name: OFF_LABEL }));
-
+    fireEvent.click(link);
     expect(getState("isDisabled")).toBe(true);
+
+    fireEvent.click(link);
+    expect(getState("isDisabled")).toBe(false);
   });
 });
 

@@ -1,7 +1,8 @@
 import { action } from "statezero/src";
 
+// `isDisabled` arrives from `fromLocalStorage`, which reads it as `=== true`.
 export const hydrateSettings = action(({ commit, state }, { isDisabled }) => {
-  state.isDisabled = Boolean(isDisabled);
+  state.isDisabled = isDisabled;
   commit(state);
 });
 

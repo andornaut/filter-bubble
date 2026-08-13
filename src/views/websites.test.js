@@ -158,8 +158,9 @@ describe("Websites", () => {
     expect(storedWebsites()[0].hideInsteadOfRemove).toBe(true);
   });
 
-  // An added website does not filter until its host permission is granted, so
-  // the form asks for it while it still has the user's click to spend.
+  // An added website does not filter until its host permission is granted.
+  // `permissions.request` needs a user gesture, so the form asks during the
+  // submit rather than afterwards.
   it("asks for access to a website as it is added", async () => {
     renderWebsites();
 

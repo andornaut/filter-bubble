@@ -176,6 +176,9 @@ describe("matchedWebsite", () => {
     expect(matchedWebsite(websitesList, "https://example.com")).toBeNull();
   });
 
+  // The boundary rule is `matchesAddress`'s, but it is pinned here too: a
+  // `matchedWebsite` that compared with `startsWith` alone would filter
+  // "reddit.companyx.com" with reddit.com's selectors.
   it("returns null when a boundary is not respected", () => {
     expect(
       matchedWebsite(websitesList, "https://reddit.companyx.com"),
@@ -347,13 +350,11 @@ describe("active tab re-evaluation", () => {
   });
 
   // `updateTab` awaits `executeScript` between deciding what to send and
-  // sending it, and a storage change arriving in that window runs `updateTab`
-  // again for the same tab. The second call takes the unmatched path, which
-  // sends `disable` with nothing to await in front of it, so the first call
-  // must not follow it with the `enable` it decided on earlier: the tab would
-  // be left filtering on a topic that no longer exists, with no further event
-  // due to repair it. The real window is a millisecond wide, so hold the
-  // injection open by hand rather than trying to land a change inside it.
+  // sending it. A storage change arriving in that window runs `updateTab` again
+  // and its `disable` goes out first, so the earlier call must not follow it
+  // with the `enable` it decided on: the tab would keep filtering on a deleted
+  // topic, with no later event due to repair it. The real window is a
+  // millisecond wide, so the injection is held open by hand.
   it("does not send an enable it decided before a change that has since disabled the tab", async () => {
     const syncStore = { ...SYNC_STORE };
     const { mock, onActivated, onChanged, sendMessage } = await evaluate(
@@ -1127,8 +1128,10 @@ describe("tabs.onUpdated listener", () => {
     expect(executeScript).not.toHaveBeenCalled();
   });
 
-  // This is the higher-traffic of the two `updateTab` call sites, so it needs
-  // its own coverage: the other one passing says nothing about this one.
+  // The `.catch` is `updateTabSafely`'s, but each call site chooses whether to
+  // go through it, so both are covered. This is the higher-traffic site: it
+  // fires on every navigation, and calling `updateTab` directly here would turn
+  // a throw into a silent unhandled rejection.
   it("logs a failure inside a tab update rather than leaving it unhandled", async () => {
     const consoleError = jest
       .spyOn(console, "error")
@@ -1235,7 +1238,7 @@ describe("a synchronous throw from chrome.tabs.query", () => {
 
   // `updateState` calls `resetActiveTabs` from inside the read queue, so a throw
   // escaping it would land in that chain's catch and be reported as a storage
-  // failure, sending anyone reading the log after the wrong subsystem.
+  // failure, which names the wrong subsystem.
   it("is not reported as a storage failure when a storage change drives it", async () => {
     const { onChanged } = await evaluateThenBreakQuery();
 
@@ -1457,14 +1460,6 @@ describe("runtime.onMessage listener", () => {
 });
 
 describe("toPattern", () => {
-  it("returns an empty string when there are no topics", () => {
-    expect(toPattern([])).toBe("");
-  });
-
-  it("excludes disabled topics", () => {
-    expect(toPattern([{ enabled: false, text: "spoilers" }])).toBe("");
-  });
-
   it("wraps the alternation in non-word lookarounds once", () => {
     expect(toPattern([{ enabled: true, text: "spoilers" }])).toBe(
       "(?<!\\w)(?:spoilers)(?!\\w)",
@@ -1495,16 +1490,17 @@ describe("toPattern", () => {
     );
   });
 
-  it("never returns a pattern that matches everything", () => {
-    // A falsy pattern is the "filter nothing" signal, so an empty topic set
-    // must not compile to an empty alternation, which matches every string.
-    [
-      [],
-      [{ enabled: false, text: "spoilers" }],
-      [{ enabled: true, text: [] }],
-      [{ enabled: true, text: "" }],
-      [{ enabled: true, text: ["", ""] }],
-    ].forEach((list) => expect(toPattern(list)).toBe(""));
+  // A falsy pattern is the "filter nothing" signal, so a topic set with no
+  // usable phrase must compile to "" rather than to an empty alternation,
+  // which matches every string.
+  it.each([
+    ["no topics", []],
+    ["only a disabled topic", [{ enabled: false, text: "spoilers" }]],
+    ["a topic with no phrases", [{ enabled: true, text: [] }]],
+    ["a topic whose phrase is empty", [{ enabled: true, text: "" }]],
+    ["a topic of empty phrases", [{ enabled: true, text: ["", ""] }]],
+  ])("returns an empty pattern for %s", (_, list) => {
+    expect(toPattern(list)).toBe("");
   });
 
   it("drops empty phrases rather than admitting an always-matching branch", () => {

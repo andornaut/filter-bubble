@@ -76,22 +76,18 @@ describe("sortByDateDesc", () => {
     expect(sortByDateDesc(items).map((i) => i.id)).toEqual([2, 1]);
   });
 
-  it("does not throw on a non-string date", () => {
-    const items = [
-      { id: 1, sortDate: 12345 },
-      { id: 2, modifiedDate: {} },
-      { id: 3, sortDate: "2024-02-01" },
-    ];
-    expect(() => sortByDateDesc(items)).not.toThrow();
-  });
-
-  it("does not mutate original array", () => {
+  // The list it sorts is statezero state, which the views also read in stored
+  // order.
+  it("does not reorder the array it was given", () => {
     const items = [
       { id: 1, sortDate: "2024-01-01" },
       { id: 2, sortDate: "2024-02-01" },
+      { id: 3, sortDate: "2024-03-01" },
     ];
+
     sortByDateDesc(items);
-    expect(items[0].id).toBe(1);
+
+    expect(items.map((item) => item.id)).toEqual([1, 2, 3]);
   });
 });
 

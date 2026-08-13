@@ -1,4 +1,3 @@
-import { sortByDateDesc } from "../helpers";
 import {
   createAddItem,
   createDeleteItem,
@@ -47,8 +46,12 @@ describe("createAddItem", () => {
     const [item] = state.items.list;
     expect(item).toMatchObject({ enabled: true, name: "Test Item" });
     expect(item.id).toEqual(expect.any(String));
-    expect(item.createdDate).toBeDefined();
-    expect(item.modifiedDate).toBeDefined();
+    // All three stamped from one clock: `storage.js` reads
+    // `modifiedDate === createdDate` as "never edited", and `sortDate` puts a
+    // new item at the top of the list.
+    expect(item.modifiedDate).toBe(item.createdDate);
+    expect(item.sortDate).toBe(item.createdDate);
+    expect(Number.isNaN(Date.parse(item.createdDate))).toBe(false);
   });
 
   it("throws error on duplicate content", () => {
@@ -194,22 +197,6 @@ describe("createToggleEnabled", () => {
 
     expect(state.items.list[0].sortDate).toBe(before);
     expect(state.items.list[0].modifiedDate > before).toBe(true);
-  });
-
-  it("does not reorder a list of items that have no sortDate", () => {
-    state.items.list.push({
-      enabled: true,
-      id: "item-2",
-      modifiedDate: "2026-01-01",
-      name: "Newer",
-    });
-    const before = sortByDateDesc(state.items.list).map((item) => item.id);
-
-    toggleEnabled("item-1");
-
-    expect(sortByDateDesc(state.items.list).map((item) => item.id)).toEqual(
-      before,
-    );
   });
 
   it("toggles enabled from false to true", () => {

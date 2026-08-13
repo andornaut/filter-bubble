@@ -34,10 +34,10 @@ export const toIsoDate = (value) =>
 // Display clock, set on create/edit and left alone by changes that must not
 // reorder the list (toggling `enabled`, importing). Falls back to the
 // `modifiedDate` sync clock for items stored before this field existed, for the
-// seeded defaults, and for errors. Coerced because `localeCompare` needs a
-// string; normalization happens where untrusted dates enter.
-export const toSortDate = (item) =>
-  String(item.sortDate || item.modifiedDate || "");
+// seeded defaults, and for errors. Returns the stored value as it stands: an
+// untrusted date is normalized to an ISO string by `toIsoDate` where it enters,
+// which is the import path.
+export const toSortDate = (item) => item.sortDate || item.modifiedDate || "";
 
 // Decorate-sort-undecorate so each sort key is derived once per item rather
 // than twice per comparison. ISO dates order lexicographically, so a plain

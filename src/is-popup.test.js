@@ -56,7 +56,8 @@ describe("isPopup", () => {
   });
 
   it("is false when the tab lookup fails", () => {
-    // Callers act intrusively on a true answer, so silence is the safer default.
+    // A true answer opens the background port that pins highlight mode on every
+    // filtered page, so false is the safer default.
     mockChrome({
       getCurrent: () => Promise.reject(new Error("no tabs permission")),
       getViews: () => [window],
