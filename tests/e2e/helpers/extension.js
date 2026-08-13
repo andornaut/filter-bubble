@@ -250,6 +250,46 @@ export class Extension {
     return page;
   }
 
+  // The extension UI the way the browser itself opens it: "Extension options"
+  // in Chrome's UI calls this, and `options_ui` decides what it does. Distinct
+  // from `openWindow("options")`, which puts the same page somewhere of the
+  // test's choosing rather than where the manifest says it goes.
+  async openOptionsPage() {
+    await this.evaluate(() => chrome.runtime.openOptionsPage());
+    // Where it lands is the browser's call: a tab of its own, or the blank tab
+    // the window is already showing, which fires no "page" event because no
+    // page is new. Look for the page rather than for either event.
+    const deadline = Date.now() + 10_000;
+    for (;;) {
+      const page = this.context
+        .pages()
+        .find((candidate) => candidate.url() === this.popupUrl());
+      if (page) {
+        await page.waitForLoadState("domcontentloaded");
+        return waitForApp(page);
+      }
+      if (Date.now() > deadline) {
+        throw new Error("The options page did not open");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+
+  // The type of window hosting the tab at `url`, which is how a tab in an
+  // ordinary window is told from a view the browser hosts in its own UI.
+  async windowTypeFor(url) {
+    return this.evaluate(
+      (u) =>
+        chrome.tabs.query({ url: u }).then(([tab]) => {
+          if (!tab) {
+            return null;
+          }
+          return chrome.windows.get(tab.windowId).then((window) => window.type);
+        }),
+      url,
+    );
+  }
+
   // The extension UI in a window of its own, which is the closest an automated
   // browser gets to the browser-action popup floating over the current tab.
   async openWindow(role = "options") {
