@@ -7,10 +7,13 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # TODO: remove both ignores once eslint-plugin-import and
-      # eslint-plugin-react accept eslint 10. Their peers cap at ^9 and ^9.7, so
-      # eslint 10 breaks npm ci, and @eslint/js 10 pulls eslint 10 in through
-      # the same peers under a name the first rule does not match.
+      # WORKAROUND: eslint-plugin-import and eslint-plugin-react do not accept
+      # eslint 10. Their peers cap at ^9 and ^9.7, so eslint 10 breaks npm ci,
+      # and @eslint/js 10 pulls eslint 10 in through the same peers under a name
+      # the first rule does not match. Remove both ignores once each ships:
+      # https://github.com/import-js/eslint-plugin-import/issues/3278 (support
+      # merged, release not cut) and
+      # https://github.com/jsx-eslint/eslint-plugin-react/issues/4027.
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
       - dependency-name: "@eslint/js"
