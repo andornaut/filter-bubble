@@ -38,6 +38,15 @@ jobs:
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
     uses: ./.github/workflows/ai-attributions.yml
 
+  # Publishing waits on the same suite that guards main, rather than on the
+  # build alone: something that builds cleanly still ships whatever the tests
+  # would have caught. Called only where a release can follow, since the Test
+  # workflow already runs on every push and pull request of its own accord, and
+  # the jobs below are gated the same way.
+  test:
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    uses: ./.github/workflows/test.yml
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -54,12 +63,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
 
       - name: Check size
         run: npm run size
@@ -78,7 +81,7 @@ jobs:
           path: web-ext-artifacts/filter_bubble-*.zip
 
   release:
-    needs: [build, attributions]
+    needs: [build, test, attributions]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     # The one job that writes: it creates and deletes releases and tags.
