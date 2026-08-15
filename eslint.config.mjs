@@ -2,9 +2,30 @@ import js from "@eslint/js";
 import importPlugin from "eslint-plugin-import";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
-import sortDestructureKeys from "eslint-plugin-sort-destructure-keys";
 import globals from "globals";
+
+import { plugins, sourceRules, toolingRules } from "./eslint.config.base.mjs";
+
+// React is local to this repository and amp-media-player: the plugins and the
+// rules turned off below are about JSX, not about house style.
+const reactPlugins = {
+  ...plugins,
+  import: importPlugin,
+  react,
+  "react-hooks": reactHooks,
+};
+
+const reactRules = {
+  ...react.configs.recommended.rules,
+  ...react.configs["jsx-runtime"].rules,
+  ...reactHooks.configs.recommended.rules,
+  ...sourceRules,
+  "react-hooks/refs": "off", // False positives with wrapper functions
+  "react/display-name": "off",
+  "react/jsx-no-target-blank": "off",
+  "react/no-unescaped-entities": "off",
+  "react/prop-types": "off",
+};
 
 export default [
   {
@@ -28,40 +49,8 @@ export default [
       },
       sourceType: "module",
     },
-    plugins: {
-      import: importPlugin,
-      react,
-      "react-hooks": reactHooks,
-      "simple-import-sort": simpleImportSort,
-      "sort-destructure-keys": sortDestructureKeys,
-    },
-    rules: {
-      ...react.configs.recommended.rules,
-      ...react.configs["jsx-runtime"].rules,
-      ...reactHooks.configs.recommended.rules,
-      "max-len": ["error", { code: 120 }],
-      "no-restricted-syntax": ["error", "WithStatement"],
-      "no-unused-expressions": ["error", { allowTaggedTemplates: false }],
-      "react-hooks/refs": "off", // False positives with wrapper functions
-      "react/display-name": "off",
-      "react/jsx-no-target-blank": "off",
-      "react/no-unescaped-entities": "off",
-      "react/prop-types": "off",
-      "simple-import-sort/exports": "error",
-      "simple-import-sort/imports": [
-        "error",
-        {
-          groups: [
-            // External packages
-            ["^@?\\w"],
-            // Internal/relative imports
-            ["^", "^\\."],
-          ],
-        },
-      ],
-      "sort-destructure-keys/sort-destructure-keys": ["error"],
-      "sort-keys": ["error"],
-    },
+    plugins: reactPlugins,
+    rules: reactRules,
     settings: {
       react: {
         version: "detect",
@@ -79,9 +68,8 @@ export default [
       },
       sourceType: "module",
     },
-    rules: {
-      "sort-keys": "off",
-    },
+    plugins,
+    rules: toolingRules,
   },
   // Tooling configs (CommonJS)
   {
@@ -93,9 +81,8 @@ export default [
       },
       sourceType: "commonjs",
     },
-    rules: {
-      "sort-keys": "off",
-    },
+    plugins,
+    rules: toolingRules,
   },
   // Vanilla scripts (background, content-script), no React, no bundling
   {
@@ -109,11 +96,8 @@ export default [
       },
       sourceType: "script",
     },
-    rules: {
-      "max-len": ["error", { code: 120 }],
-      "no-restricted-syntax": ["error", "WithStatement"],
-      "sort-keys": "off",
-    },
+    plugins,
+    rules: toolingRules,
   },
   // Test files (last, so it overrides sourceType/globals regardless of location)
   {
