@@ -19,7 +19,19 @@ export const plugins = {
 // it reads well over a source file's object literals and fights build scripts,
 // where argument order and option order carry meaning that alphabet does not.
 export const sourceRules = {
-  "max-len": ["error", { code: 120 }],
+  // Strings, template literals and regexes are exempt because wrapping one
+  // means changing the code rather than reflowing it: a long URL, a fixture, or
+  // an excerpt a mutation test matches against source verbatim cannot be broken
+  // without concatenation that reads worse than the long line did.
+  "max-len": [
+    "error",
+    {
+      code: 120,
+      ignoreRegExpLiterals: true,
+      ignoreStrings: true,
+      ignoreTemplateLiterals: true,
+    },
+  ],
   "no-restricted-syntax": ["error", "WithStatement"],
   "no-unused-expressions": ["error", { allowTaggedTemplates: false }],
   "simple-import-sort/exports": "error",
