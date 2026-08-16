@@ -31,7 +31,9 @@ const watchStatic = () => {
   watchers.forEach(({ path, toDest }) => {
     watch(path, { recursive: true }, (_, filename) => {
       const dest = toDest(filename || "");
-      if (!dest) return;
+      if (!dest) {
+        return;
+      }
       try {
         cpSync(`${path}/${filename || ""}`.replace(/\/$/, ""), dest);
         log(`Copied ${path}/${filename || ""}`);

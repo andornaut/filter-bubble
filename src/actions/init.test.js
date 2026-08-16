@@ -17,7 +17,10 @@ const load = () => {
   return modules;
 };
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 
 const TOPIC = {
   createdDate: "2026-01-01T00:00:00.000Z",

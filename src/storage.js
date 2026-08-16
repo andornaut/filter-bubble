@@ -51,12 +51,20 @@ const stableStringify = (value) => {
 // back whatever they pick, so picking "mine" on both would have them overwrite
 // each other forever.
 const mergeByModified = (a, b) => {
-  if (!a) return b;
-  if (!b) return a;
+  if (!a) {
+    return b;
+  }
+  if (!b) {
+    return a;
+  }
   const am = a.modifiedDate || "";
   const bm = b.modifiedDate || "";
-  if (bm > am) return b;
-  if (am > bm) return a;
+  if (bm > am) {
+    return b;
+  }
+  if (am > bm) {
+    return a;
+  }
   return stableStringify(b) > stableStringify(a) ? b : a;
 };
 

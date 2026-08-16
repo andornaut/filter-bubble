@@ -6,7 +6,9 @@ import { withError } from "./with-error";
 const formToJson = (form) =>
   Array.from(form.elements).reduce((acc, input) => {
     const { name, type, value } = input;
-    if (!name || value === "") return acc;
+    if (!name || value === "") {
+      return acc;
+    }
     acc[name] = type === "checkbox" ? input.checked : value.trim();
     return acc;
   }, {});

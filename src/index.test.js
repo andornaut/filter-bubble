@@ -10,7 +10,9 @@ const load = async () => {
     boundary = require("./views/error-boundary");
   });
   // Let `init()` settle: it awaits `initState()` and then `isPopup()`.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
   return boundary;
 };
 
@@ -162,13 +164,19 @@ describe("popup entry point", () => {
     initState.mockResolvedValue(undefined);
     let releaseIsPopup;
     isPopup.mockReturnValue(
-      new Promise((resolve) => (releaseIsPopup = resolve)),
+      new Promise((resolve) => {
+        releaseIsPopup = resolve;
+      }),
     );
     onRetry();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     onRetry();
     releaseIsPopup(true);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
     expect(initState).toHaveBeenCalledTimes(2);
     expect(chrome.runtime.connect).toHaveBeenCalledTimes(1);

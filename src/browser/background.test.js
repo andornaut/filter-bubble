@@ -241,7 +241,10 @@ describe("isCommitted", () => {
 });
 
 describe("active tab re-evaluation", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const flush = () =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
   const SYNC_STORE = {
     schema: 2,
@@ -1028,7 +1031,10 @@ describe("active tab re-evaluation", () => {
 });
 
 describe("tabs.onUpdated listener", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const flush = () =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
   let executeScript;
   let onUpdated;
@@ -1177,7 +1183,10 @@ describe("tabs.onUpdated listener", () => {
 // late to see it. Each case drives a different one of those handlers and pins
 // the failure to `tabs.query`, rather than to whichever caller is on the stack.
 describe("a synchronous throw from chrome.tabs.query", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const flush = () =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
   const evaluateThenBreakQuery = async () => {
     let onActivated;
@@ -1295,7 +1304,10 @@ describe("a synchronous throw from chrome.tabs.query", () => {
 });
 
 describe("toolbar button", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const flush = () =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
   const DEFAULT_PATH = { 16: "/icons/16.png", 32: "/icons/32.png" };
   const DISABLED_PATH = {
@@ -1461,7 +1473,9 @@ describe("runtime.onMessage listener", () => {
     expect(() =>
       onMessage({ command: "count", data: { count: 3 } }, { tab: { id: 7 } }),
     ).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
     expect(consoleDebug).toHaveBeenCalledWith(
       "filter-bubble: setBadge() failed:",
