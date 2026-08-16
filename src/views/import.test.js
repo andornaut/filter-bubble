@@ -93,6 +93,19 @@ describe("Import", () => {
     expect(screen.getByText("Imported 2 topics and 0 websites.")).toBeVisible();
   });
 
+  // Dismissing the file dialog fires `change` with no file. Reading one anyway
+  // throws, and the catch below turns every throw into a message on screen, so
+  // the user would be told their import failed for something they never began.
+  it("says nothing when the file dialog is dismissed", async () => {
+    fireEvent.change(document.querySelector('input[type="file"]'), {
+      target: { files: [] },
+    });
+    await settle();
+
+    expect(document.querySelector(".import__status")).toBeNull();
+    expect(getState("topics").list).toEqual([]);
+  });
+
   it("reports a malformed file and applies nothing", async () => {
     await choose("not json at all");
 
