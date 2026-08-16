@@ -323,6 +323,44 @@ describe("fromStorage", () => {
     expect(remove).toHaveBeenCalledWith("state");
   });
 
+  // A v1 item can already carry an `id`, from a release that assigned them
+  // before the per-item layout. That id is the key other devices already know
+  // it by, so deriving a fresh one would leave the same item stored twice. It
+  // wins over the addresses-to-default-id mapping for the same reason.
+  it("keeps a v1 item's own id rather than deriving one", async () => {
+    get.mockResolvedValue({
+      state: {
+        topics: {
+          list: [topic("kept-topic", ["a"], "2026-01-01T00:00:00.000Z")],
+        },
+        websites: {
+          list: [
+            {
+              // Addresses that map to a shipped default, which the migration
+              // claims that id for only when the item brings none of its own.
+              addresses: ["tildes.net"],
+              createdDate: "2026-01-01T00:00:00.000Z",
+              enabled: true,
+              id: "kept-website",
+              selectors: [".mine"],
+            },
+          ],
+        },
+      },
+    });
+
+    const lists = await fromStorage();
+
+    const written = set.mock.calls[0][0];
+    expect(written["t:kept-topic"]).toMatchObject({ id: "kept-topic" });
+    expect(written["w:kept-website"]).toMatchObject({ id: "kept-website" });
+    expect(written["w:default-tildes"]).toBeUndefined();
+    expect(lists.topics.list.map((item) => item.id)).toEqual(["kept-topic"]);
+    expect(lists.websites.list.map((item) => item.id)).toEqual([
+      "kept-website",
+    ]);
+  });
+
   // A v1 blob can hold a collection this version never wrote, e.g. an export
   // taken before websites existed. An absent collection migrates as empty, and
   // the blob is still dropped.

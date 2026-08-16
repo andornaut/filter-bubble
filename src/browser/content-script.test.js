@@ -8,7 +8,10 @@ const source = readFileSync(join(__dirname, "content-script.js"), "utf8");
 
 const sendMessage = jest.fn(() => Promise.resolve());
 
-const toPattern = (word) => `(?:\\b${word}\\b)`;
+// Stands in for whatever the background sends, which the content script only
+// ever compiles and applies. It is not a copy of background.js's `toPattern`,
+// whose own boundary rule is covered in background.test.js.
+const patternFor = (word) => `(?:\\b${word}\\b)`;
 
 // Passes are throttled to one per 200ms, so a mutation made during a pass is
 // only serviced by the trailing pass after that window. Waiting it out is how a
@@ -36,7 +39,7 @@ beforeEach(() => {
 const enable = (overrides = {}) =>
   window.filterBubble.enable({
     filterMode: "hide",
-    pattern: toPattern("banana"),
+    pattern: patternFor("banana"),
     selectors: [".post"],
     ...overrides,
   });
@@ -342,7 +345,7 @@ describe("FilterBubble failure recovery", () => {
         throw new Error("no documentElement");
       });
 
-    expect(() => enable({ pattern: toPattern("cherry") })).toThrow();
+    expect(() => enable({ pattern: patternFor("cherry") })).toThrow();
     // Wait out the first pass's throttle window before the retry: a pass still
     // queued behind it would filter the node appended below on its own, with or
     // without an observer attached, and the case would prove nothing.
@@ -452,7 +455,7 @@ describe("FilterBubble re-filtering", () => {
     await afterThrottle();
     expect(el.classList.contains("filter-bubble")).toBe(true);
 
-    enable({ pattern: toPattern("cherry") });
+    enable({ pattern: patternFor("cherry") });
 
     expect(el.classList.contains("filter-bubble")).toBe(false);
   });
@@ -486,7 +489,7 @@ describe("FilterBubble re-filtering", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     const state = {
       filterMode: "hide",
-      pattern: toPattern("banana"),
+      pattern: patternFor("banana"),
       selectors: [".post"],
     };
     window.filterBubble.enable(state);
@@ -511,7 +514,7 @@ describe("FilterBubble re-filtering", () => {
     await afterThrottle();
 
     window.filterBubble.enable({
-      pattern: toPattern("banana"),
+      pattern: patternFor("banana"),
       selectors: [".post"],
       filterMode: "hide",
     });
