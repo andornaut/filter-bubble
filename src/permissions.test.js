@@ -1,4 +1,4 @@
-import { getState, setState } from "statezero/src";
+import { getState, setState, subscribeSync, unsubscribe } from "statezero/src";
 
 import {
   checkAllPermissions,
@@ -82,6 +82,34 @@ describe("checkAllPermissions", () => {
 
     expect(getState().unpermissionedWebsiteIds).toEqual([]);
     expect(getState().hasPermissions).toBe(true);
+  });
+
+  // The sweep runs on every open, on every sync arrival, and after every
+  // toggle or delete. A commit re-renders and runs the storage subscriber, so
+  // one that reports the same ids has to be recognised as no change - and by
+  // membership, since `contains()` settles in whatever order it settles in.
+  it("does not commit when the sweep finds the same ids in another order", async () => {
+    seed([website("1", ["a.com"]), website("2", ["b.com"])], { origins: [] });
+    await checkAllPermissions(getState());
+    expect(getState().unpermissionedWebsiteIds).toEqual(["1", "2"]);
+
+    // The same two websites, swept the other way round.
+    setState("websites", {
+      list: [website("2", ["b.com"]), website("1", ["a.com"])],
+    });
+    const before = getState();
+    const onChange = jest.fn();
+    const callback = subscribeSync(onChange);
+    try {
+      await checkAllPermissions(getState());
+    } finally {
+      unsubscribe(callback);
+    }
+
+    // No commit, so the stored order is the one the first sweep left.
+    expect(getState()).toBe(before);
+    expect(getState().unpermissionedWebsiteIds).toEqual(["1", "2"]);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   // Callers fire and forget, so a rejection has nowhere to surface. Swallowing

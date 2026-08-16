@@ -531,6 +531,91 @@ describe("active tab re-evaluation", () => {
     expect(message.data.selectors).toEqual([".mine"]);
   });
 
+  // The website's "Hide instead of remove" checkbox reaches the page only as
+  // this mode, so nothing else connects the setting to what it does. The
+  // unchecked case sends "remove", which the popup-close case below covers.
+  it("sends hide mode for a website set to hide instead of remove", async () => {
+    const { onActivated, sendMessage } = await evaluate(
+      { id: 1, status: "complete", url: "https://reddit.com/" },
+      {},
+      {
+        schema: 2,
+        "t:1": { enabled: true, id: "1", text: ["spoilers"] },
+        "w:9": {
+          addresses: ["reddit.com"],
+          enabled: true,
+          hideInsteadOfRemove: true,
+          id: "9",
+          selectors: [".post"],
+        },
+      },
+    );
+    onActivated({ windowId: 1 });
+    await flush();
+
+    const [, message] = sendMessage.mock.calls.at(-1);
+    expect(message.data.filterMode).toBe("hide");
+  });
+
+  // A tab still holding the outgoing document's URL would be filtered with the
+  // rules of the site it is leaving. `isCommitted` is what the sweep screens
+  // them out with; `onUpdated` screens its own events separately.
+  it("skips a pre-commit tab during a sweep", async () => {
+    const { executeScript, onActivated, sendMessage } = await evaluate({
+      id: 1,
+      pendingUrl: "https://example.org/",
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  // The content script cannot add the stylesheet itself: a page's `style-src`
+  // policy can block it, and then filtered content is marked with classes that
+  // have no rules and stays fully visible. It is added through `scripting`
+  // instead, and only for an injection that installed a new instance.
+  it("adds the stylesheet for a newly installed content script", async () => {
+    const { mock, onActivated } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    mock.scripting.executeScript = jest
+      .fn()
+      .mockResolvedValue([{ result: { isInstalled: false } }]);
+    const insertCSS = jest.fn(() => Promise.resolve());
+    mock.scripting.insertCSS = insertCSS;
+
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(insertCSS).toHaveBeenCalledWith({
+      files: ["/css/content-script.css"],
+      target: { tabId: 1 },
+    });
+  });
+
+  it("does not re-add the stylesheet to a tab that already has it", async () => {
+    const { mock, onActivated } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+    const insertCSS = jest.fn(() => Promise.resolve());
+    mock.scripting.insertCSS = insertCSS;
+
+    // The default mock reports an instance already installed, which is what
+    // every pass after the first sees.
+    onActivated({ windowId: 1 });
+    await flush();
+
+    expect(insertCSS).not.toHaveBeenCalled();
+  });
+
   // The content script tells a repeat call from a real change by comparing the
   // serialized payload, so a reordered payload downgrades every repeat to a
   // full reset, releasing content whose text has since stopped matching.

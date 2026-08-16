@@ -20,8 +20,11 @@ const renderList = (list, selectedId = "") =>
     />,
   );
 
+// The details each row renders, without the toggle button's own label.
 const shown = () =>
-  screen.getAllByRole("listitem").map((element) => element.textContent);
+  screen
+    .getAllByRole("listitem")
+    .map((element) => element.querySelector(".list__details").textContent);
 
 describe("List", () => {
   it("renders nothing at all for an empty list", () => {
@@ -40,11 +43,7 @@ describe("List", () => {
       item("newest", { sortDate: "2023-01-01T00:00:00.000Z" }),
     ]);
 
-    expect(shown()).toEqual([
-      "newestDisable",
-      "middleDisable",
-      "oldestDisable",
-    ]);
+    expect(shown()).toEqual(["newest", "middle", "oldest"]);
   });
 
   it("marks the selected item wherever it lands in the order", () => {

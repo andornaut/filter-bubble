@@ -100,16 +100,23 @@ describe("importData", () => {
   });
 
   it("stamps imported items with a fresh modifiedDate so they win the sync merge", () => {
+    const before = new Date().toJSON();
+
     importData({
       topics: [{ id: "1", modifiedDate: "2024-01-01", text: ["cats"] }],
     });
-    const { topics } = getState();
+
+    const [topic] = getState().topics.list;
     // Normalized to full ISO, which parses to the same instant, so ids derived
     // from `createdDate` are unchanged.
-    expect(topics.list[0].createdDate).toBe("2024-01-01T00:00:00.000Z");
-    expect(topics.list[0].modifiedDate > "2024-01-01").toBe(true);
+    expect(topic.createdDate).toBe("2024-01-01T00:00:00.000Z");
+    // Against the import moment, not against the file's own date: the file
+    // carries "2024-01-01", and the normalized "2024-01-01T00:00:00.000Z" is
+    // greater than that as text, so comparing the two would hold for an item
+    // that kept its own clock and lost the merge.
+    expect(topic.modifiedDate >= before).toBe(true);
     // Carried over from the file, so importing does not reshuffle the list.
-    expect(topics.list[0].sortDate).toBe("2024-01-01T00:00:00.000Z");
+    expect(topic.sortDate).toBe("2024-01-01T00:00:00.000Z");
   });
 
   it("prefers an exported sortDate over modifiedDate for list order", () => {

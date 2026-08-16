@@ -16,11 +16,14 @@ describe("textField", () => {
     expect(input.defaultValue).toBe("test value");
   });
 
-  // An item that has never held this field arrives as null, which React renders
-  // as an uncontrolled-to-controlled warning and an input the user cannot type
-  // into.
-  it("seeds an empty string when there is no stored value", () => {
-    render(textField({ label: "Name", name: "name", value: null }));
+  // A field an item has never held arrives as null. What must not happen is a
+  // form that opens with the text "null" in it, which is what stringifying the
+  // value rather than defaulting it would put there.
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+  ])("opens an empty field for a value of %s", (_, value) => {
+    render(textField({ label: "Name", name: "name", value }));
 
     expect(screen.getByRole("textbox").defaultValue).toBe("");
   });
