@@ -31,6 +31,13 @@ const chromeMock = {
   },
 };
 
+// Let the pending microtask/timer queue drain: the source initializes `state`
+// from storage asynchronously, and every handler is gated on that read.
+const flush = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+
 const { isCommitted, matchedWebsite, matchesAddress, toLists, toPattern } =
   new Function(
     "chrome",
@@ -241,11 +248,6 @@ describe("isCommitted", () => {
 });
 
 describe("active tab re-evaluation", () => {
-  const flush = () =>
-    new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
-
   const SYNC_STORE = {
     schema: 2,
     "t:1": { enabled: true, id: "1", text: ["spoilers"] },
@@ -1031,11 +1033,6 @@ describe("active tab re-evaluation", () => {
 });
 
 describe("tabs.onUpdated listener", () => {
-  const flush = () =>
-    new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
-
   let executeScript;
   let onUpdated;
   let sendMessage;
@@ -1183,11 +1180,6 @@ describe("tabs.onUpdated listener", () => {
 // late to see it. Each case drives a different one of those handlers and pins
 // the failure to `tabs.query`, rather than to whichever caller is on the stack.
 describe("a synchronous throw from chrome.tabs.query", () => {
-  const flush = () =>
-    new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
-
   const evaluateThenBreakQuery = async () => {
     let onActivated;
     let onChanged;
@@ -1304,11 +1296,6 @@ describe("a synchronous throw from chrome.tabs.query", () => {
 });
 
 describe("toolbar button", () => {
-  const flush = () =>
-    new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
-
   const DEFAULT_PATH = { 16: "/icons/16.png", 32: "/icons/32.png" };
   const DISABLED_PATH = {
     16: "/icons/16-disabled.png",
@@ -1413,8 +1400,11 @@ describe("runtime.onMessage listener", () => {
   beforeEach(() => {
     setBadgeText = jest.fn(() => Promise.resolve());
     const mock = {
+      // Spread the action mock rather than replacing it: the initial state read
+      // also reaches `setIcon`/`setTitle`, which would otherwise log a failure
+      // over every case in this block.
       ...chromeMock,
-      action: { setBadgeText },
+      action: { ...chromeMock.action, setBadgeText },
       runtime: {
         ...chromeMock.runtime,
         onMessage: {
@@ -1615,8 +1605,11 @@ describe("toPattern in other scripts", () => {
     expect(regex.test("une ÉLECTION demain")).toBe(true);
   });
 
+  // "élections" holds "élection" followed by a word character, so the trailing
+  // lookahead is what refuses it. A phrase that merely differs from the one in
+  // the text would not reach the boundary rule at all.
   it("does not match an accented phrase inside a longer word", () => {
-    expect(toRegex("élection").test("les électeurs votent")).toBe(false);
+    expect(toRegex("élection").test("les élections demain")).toBe(false);
   });
 
   it("matches a Cyrillic phrase", () => {

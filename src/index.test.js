@@ -92,10 +92,10 @@ describe("popup entry point", () => {
     await load();
 
     expect(chrome.runtime.connect).not.toHaveBeenCalled();
-    // It is still a full UI, so the permission banner is still computed, and
-    // from the state: `checkAllPermissions()` with no argument throws on
-    // `state.websites`, which its own `.catch` swallows into a console error,
-    // so the flags are never set and the banner keeps a stale value.
+    // It is still a full UI, so the banner is still computed - and from the
+    // state: called with no argument, `checkAllPermissions` throws on
+    // `state.websites` into its own `.catch`, leaving the flags unset and the
+    // banner showing whatever it last held.
     expect(checkAllPermissions).toHaveBeenCalledWith(expect.any(Object));
   });
 

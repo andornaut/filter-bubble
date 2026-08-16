@@ -17,7 +17,6 @@ const renderItem = (overrides = {}) => {
 };
 
 describe("Item", () => {
-  // "politics" names the item; "Disable" names the action on it.
   it("names the item and the action on it separately", () => {
     renderItem();
 

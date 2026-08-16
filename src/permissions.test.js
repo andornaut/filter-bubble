@@ -59,17 +59,6 @@ describe("checkAllPermissions", () => {
     expect(getState().hasPermissions).toBe(true);
   });
 
-  it("flags nothing when a broad grant covers everything", async () => {
-    seed([website("1", ["a.com"]), website("2", ["b.com"])], {
-      origins: ["<all_urls>"],
-    });
-
-    await checkAllPermissions(getState());
-
-    expect(getState().unpermissionedWebsiteIds).toEqual([]);
-    expect(getState().hasPermissions).toBe(true);
-  });
-
   it("requires every address of a multi-address website to be granted", async () => {
     seed([website("1", ["a.com", "b.com"])], { origins: ["*://a.com/*"] });
 
@@ -78,11 +67,13 @@ describe("checkAllPermissions", () => {
     expect(getState().unpermissionedWebsiteIds).toEqual(["1"]);
   });
 
-  it("honors a broader-than-exact grant, which contains() resolves", async () => {
-    // A `*://*.example.com/*` grant made in the browser's own UI covers
-    // `sub.example.com`, which exact origin membership would miss.
+  // The verdict is `contains()`'s alone, so a grant that covers an address
+  // without naming it - `<all_urls>`, or a `*://*.example.com/*` made in the
+  // browser's own UI - counts, where exact membership in `getAll()` would miss
+  // it.
+  it("flags nothing when a grant covers an address without naming it", async () => {
     seed(
-      [website("1", ["sub.example.com"])],
+      [website("1", ["sub.example.com"]), website("2", ["b.com"])],
       { origins: [] },
       jest.fn().mockResolvedValue(true),
     );

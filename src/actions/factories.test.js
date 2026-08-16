@@ -8,21 +8,31 @@ import {
 } from "./factories";
 
 describe("createToContentKey", () => {
-  it("extracts a content key from the specified field", () => {
+  // A stored array is used as it stands. Legacy items can hold the same values
+  // in a different order, and re-canonicalizing here would fold them onto one
+  // key: they would collide as duplicates and become uneditable.
+  it("keeps a stored array's order rather than re-canonicalizing it", () => {
     const key = createToContentKey("name");
-    expect(key({ name: ["apple", "banana"] })).toBe("apple,banana");
+
+    expect(key({ name: ["banana", "apple"] })).toBe("banana,apple");
   });
 
-  it("canonicalizes string values", () => {
+  // A string is what the add/edit form submits, before anything has stored it.
+  it("canonicalizes a string field the form has not stored yet", () => {
     const key = createToContentKey("tags");
+
     expect(key({ tags: "foo, bar, baz" })).toBe("bar,baz,foo");
   });
 
-  it("handles empty/null field values", () => {
-    const key = createToContentKey("field");
-    expect(key({ field: "" })).toBe("");
-    expect(key({ field: null })).toBe("");
-    expect(key({})).toBe("");
+  // An empty key still has to compare equal to another empty one, so refusing
+  // a second content-less item is the collision rule's decision, not a throw
+  // here.
+  it.each([
+    ["an empty string", { field: "" }],
+    ["null", { field: null }],
+    ["an absent field", {}],
+  ])("returns an empty key for %s", (_, item) => {
+    expect(createToContentKey("field")(item)).toBe("");
   });
 });
 
@@ -39,7 +49,7 @@ describe("createAddItem", () => {
     addItem = createAddItem(toRoot, createDuplicateConflict(toContentKey));
   });
 
-  it("adds item with a generated id and metadata", () => {
+  it("stores the item enabled, with an id and all three dates", () => {
     addItem({ name: "Test Item" });
 
     expect(state.items.list).toHaveLength(1);
@@ -54,14 +64,17 @@ describe("createAddItem", () => {
     expect(Number.isNaN(Date.parse(item.createdDate))).toBe(false);
   });
 
-  it("throws error on duplicate content", () => {
+  it("refuses an item whose content another one already holds", () => {
     state.items.list = [{ id: "1", name: "Existing" }];
 
     expect(() => addItem({ name: "Existing" })).toThrow(
       "Duplicate item: Existing",
     );
+    expect(state.items.list).toHaveLength(1);
   });
 
+  // Ids become the `t:` / `w:` storage keys, and the id is derived from a clock
+  // that two adds in the same millisecond read the same value from.
   it("assigns distinct ids to items created together", () => {
     addItem({ name: "One" });
     addItem({ name: "Two" });
@@ -89,17 +102,17 @@ describe("createDeleteItem", () => {
     deleteItem = createDeleteItem(toRoot);
   });
 
-  it("removes item by id", () => {
+  it("removes the named item and leaves the rest", () => {
     deleteItem("item-1");
 
-    expect(state.items.list).toHaveLength(1);
-    expect(state.items.list[0].id).toBe("item-2");
+    expect(state.items.list.map((item) => item.id)).toEqual(["item-2"]);
   });
 
-  it("throws error when item not found", () => {
+  it("refuses an id that is not in the list", () => {
     expect(() => deleteItem("nonexistent")).toThrow(
       "Item not found: nonexistent",
     );
+    expect(state.items.list).toHaveLength(2);
   });
 });
 
@@ -127,7 +140,7 @@ describe("createEditItem", () => {
     editItem = createEditItem(toRoot, createDuplicateConflict(toContentKey));
   });
 
-  it("updates content, keeps id and createdDate, bumps modifiedDate", () => {
+  it("updates content, keeps id and createdDate, bumps both clocks", () => {
     const before = state.items.list[0].modifiedDate;
 
     editItem("item-1", { name: "Updated" });
@@ -135,19 +148,34 @@ describe("createEditItem", () => {
     const [item] = state.items.list;
     expect(item.name).toBe("Updated");
     expect(item.id).toBe("item-1");
+    // Left alone, so `storage.js` can still tell an edited item from one that
+    // only ever carried the values it was created with.
     expect(item.createdDate).toBe("2024-01-01");
-    expect(item.modifiedDate).not.toBe(before);
+    expect(item.modifiedDate > before).toBe(true);
+    // An edit is what moves an item to the top of the list.
+    expect(item.sortDate > before).toBe(true);
   });
 
-  it("throws when the edit duplicates another item's content", () => {
+  // `exceptId` is the item being edited. Without it, saving a form whose
+  // content field was left as it was would refuse the item as a duplicate of
+  // itself, so nothing else about it could ever be changed.
+  it("does not treat the edited item as its own duplicate", () => {
+    expect(() =>
+      editItem("item-1", { name: "Original", note: "added" }),
+    ).not.toThrow();
+    expect(state.items.list[0].note).toBe("added");
+  });
+
+  it("refuses an edit that duplicates another item's content", () => {
     state.items.list.push({ id: "item-2", name: "Second" });
 
     expect(() => editItem("item-1", { name: "Second" })).toThrow(
       "Duplicate item: Second",
     );
+    expect(state.items.list[0].name).toBe("Original");
   });
 
-  it("throws error when original item not found", () => {
+  it("refuses an id that is not in the list", () => {
     expect(() => editItem("nonexistent", { name: "New" })).toThrow(
       "Item not found: nonexistent",
     );
@@ -199,6 +227,8 @@ describe("createToggleEnabled", () => {
     expect(state.items.list[0].modifiedDate > before).toBe(true);
   });
 
+  // Both directions: the toggle is the only way back, so one that merely set
+  // the flag would leave the item switched off for good.
   it("toggles enabled from false to true", () => {
     state.items.list[0].enabled = false;
 
@@ -207,7 +237,7 @@ describe("createToggleEnabled", () => {
     expect(state.items.list[0].enabled).toBe(true);
   });
 
-  it("throws error when item not found", () => {
+  it("refuses an id that is not in the list", () => {
     expect(() => toggleEnabled("nonexistent")).toThrow(
       "Item not found: nonexistent",
     );
