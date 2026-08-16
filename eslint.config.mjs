@@ -8,6 +8,11 @@ import { plugins, sourceRules, toolingRules } from "./eslint.config.base.mjs";
 
 // React is local to this repository and amp-media-player: the plugins and the
 // rules turned off below are about JSX, not about house style.
+//
+// These two also stay on eslint 9 where the other JavaScript repositories here
+// run 10: eslint-plugin-react and eslint-plugin-import both end their peer
+// range at eslint 9, and both are already at their newest release. Moving to 10
+// means dropping or replacing one of those plugins.
 const reactPlugins = {
   ...plugins,
   import: importPlugin,
