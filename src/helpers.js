@@ -43,7 +43,7 @@ export const toSortDate = (item) => item.sortDate || item.modifiedDate || "";
 // than twice per comparison. ISO dates order lexicographically, so a plain
 // string comparison suffices.
 export const sortByDateDesc = (arr) =>
-  Array.from(arr)
+  arr
     .map((item) => [toSortDate(item), item])
     .sort((a, b) => (a[0] === b[0] ? 0 : a[0] < b[0] ? 1 : -1))
     .map(([, item]) => item);
