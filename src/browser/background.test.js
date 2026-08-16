@@ -71,6 +71,28 @@ describe("toLists", () => {
     });
   });
 
+  // The blob is only read while `schema` is unset. A migration whose write
+  // landed but whose `remove("state")` did not leaves both in place - which
+  // `storage.js` handles on its side by folding the blob in again - and reading
+  // it here in preference would have the background go on filtering by whatever
+  // the store held before the migration, on every wake, indefinitely.
+  it("prefers the per-item keys over a v1 blob that is still present", () => {
+    const raw = {
+      schema: 2,
+      state: {
+        topics: { list: [{ enabled: true, text: "stale" }] },
+        websites: {
+          list: [{ addresses: ["stale.example"], enabled: true }],
+        },
+      },
+      "t:1": { enabled: true, id: "1", text: ["current"] },
+    };
+    expect(toLists(raw)).toEqual({
+      topicsList: [{ enabled: true, id: "1", text: ["current"] }],
+      websitesList: [],
+    });
+  });
+
   it("returns empty lists for empty storage", () => {
     expect(toLists({})).toEqual({ topicsList: [], websitesList: [] });
   });

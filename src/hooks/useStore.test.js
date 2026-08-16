@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { setState, subscribersSync } from "statezero/src";
 
 import { useStore } from "./useStore";
@@ -11,6 +11,21 @@ const Probe = () => <span data-testid="topic">{useStore().topic}</span>;
 describe("useStore", () => {
   beforeEach(() => {
     setState(undefined, { topic: "politics" });
+  });
+
+  // Every change the user makes reaches the screen this way and no other: the
+  // actions commit, and this is what turns a commit into a render. Nothing else
+  // covers it, because the views are handed their state as a prop and read the
+  // store back directly to assert on it.
+  it("re-renders with the state a commit produced", () => {
+    render(<Probe />);
+    expect(screen.getByTestId("topic")).toHaveTextContent("politics");
+
+    act(() => {
+      setState("topic", "gardening");
+    });
+
+    expect(screen.getByTestId("topic")).toHaveTextContent("gardening");
   });
 
   // The popup mounts this on every open, and the subscriber set outlives them
