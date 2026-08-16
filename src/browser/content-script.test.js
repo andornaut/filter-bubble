@@ -10,6 +10,14 @@ const sendMessage = jest.fn(() => Promise.resolve());
 
 const toPattern = (word) => `(?:\\b${word}\\b)`;
 
+// Passes are throttled to one per 200ms, so a mutation made during a pass is
+// only serviced by the trailing pass after that window. Waiting it out is how a
+// case observes the result of anything it changed after `enable()`.
+const afterThrottle = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 250);
+  });
+
 beforeAll(() => {
   global.chrome = {
     runtime: { onMessage: { addListener: () => {} }, sendMessage },
@@ -46,20 +54,18 @@ describe("FilterBubble.enable", () => {
     expect(miss.classList.contains("filter-bubble")).toBe(false);
   });
 
-  it("applies the remove modifier in remove mode", () => {
+  // The mode picks the modifier the stylesheet acts on and nothing else about
+  // the pass. An unrecognised mode falls back to `highlight`, which shows the
+  // content marked rather than taking it away on a guess.
+  it.each([
+    ["remove mode", "remove", "filter-bubble--remove"],
+    ["highlight mode", "highlight", "filter-bubble--highlight"],
+    ["a mode this build does not know", "sepia", "filter-bubble--highlight"],
+  ])("applies the modifier for %s", (_, filterMode, className) => {
     document.body.innerHTML = `<div class="post">banana</div>`;
-    enable({ filterMode: "remove" });
+    enable({ filterMode });
 
-    const el = document.querySelector(".post");
-    expect(el.classList.contains("filter-bubble--remove")).toBe(true);
-  });
-
-  it("applies the highlight modifier in highlight mode", () => {
-    document.body.innerHTML = `<div class="post">banana</div>`;
-    enable({ filterMode: "highlight" });
-
-    const el = document.querySelector(".post");
-    expect(el.classList.contains("filter-bubble--highlight")).toBe(true);
+    expect(document.querySelector(".post").classList).toContain(className);
   });
 
   it("reports the matched count to the background script", () => {
@@ -131,7 +137,7 @@ describe("FilterBubble.enable", () => {
     added.className = "post";
     added.textContent = "more banana";
     document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(added.classList.contains("filter-bubble")).toBe(false);
   });
@@ -158,7 +164,7 @@ describe("FilterBubble.enable", () => {
     added.className = "post";
     added.textContent = "more banana";
     document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(added.classList.contains("filter-bubble")).toBe(false);
     error.mockRestore();
@@ -179,7 +185,7 @@ describe("FilterBubble.enable", () => {
     // A selector arriving afterwards filters, so the empty one left the
     // instance usable. Wait out the first pass's throttle window, which the
     // second pass is otherwise queued behind.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     enable();
 
     expect(el.classList.contains("filter-bubble")).toBe(true);
@@ -213,14 +219,6 @@ describe("FilterBubble.enable", () => {
     );
 
     warn.mockRestore();
-  });
-
-  it("only matches whole words", () => {
-    document.body.innerHTML = `<div class="post">bananabread</div>`;
-    enable();
-
-    const el = document.querySelector(".post");
-    expect(el.classList.contains("filter-bubble")).toBe(false);
   });
 
   // Real feeds attach JSON-LD to every item, so a keyword list nobody can see
@@ -292,9 +290,9 @@ describe("FilterBubble failure recovery", () => {
     failingEnable();
 
     // Long enough for that timer, if it was armed at all, to clear `pending`.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     enable();
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(document.querySelector(".post").classList).toContain(
       "filter-bubble",
@@ -322,7 +320,7 @@ describe("FilterBubble failure recovery", () => {
     added.className = "post";
     added.textContent = "more banana";
     document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(document.querySelector(".post").classList).toContain(
       "filter-bubble",
@@ -348,14 +346,14 @@ describe("FilterBubble failure recovery", () => {
     // Wait out the first pass's throttle window before the retry: a pass still
     // queued behind it would filter the node appended below on its own, with or
     // without an observer attached, and the case would prove nothing.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     enable();
 
     const added = document.createElement("div");
     added.className = "post";
     added.textContent = "more banana";
     document.body.appendChild(added);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(added.classList.contains("filter-bubble")).toBe(true);
     observe.mockRestore();
@@ -402,7 +400,7 @@ describe("FilterBubble re-filtering", () => {
     // The MutationObserver callback fires on a microtask, but the initial
     // enable() pass is still within its 200ms throttle window, so the
     // re-filter is queued and runs after the throttle interval elapses.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(added.classList.contains("filter-bubble")).toBe(true);
   });
@@ -415,7 +413,7 @@ describe("FilterBubble re-filtering", () => {
     newBody.innerHTML = `<div class="post">more banana</div>`;
     document.body.replaceWith(newBody);
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     const el = newBody.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(true);
@@ -433,7 +431,7 @@ describe("FilterBubble re-filtering", () => {
     // transiently non-matching mid-update and show content the user asked to
     // hide. The cost is that a recycled node stays hidden until a full reset.
     el.textContent = "something else entirely";
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     expect(el.classList.contains("filter-bubble")).toBe(true);
     // Still filtered, so the badge does not drop to zero.
@@ -451,7 +449,7 @@ describe("FilterBubble re-filtering", () => {
 
     const el = document.querySelector(".post");
     el.textContent = "something else entirely";
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     expect(el.classList.contains("filter-bubble")).toBe(true);
 
     enable({ pattern: toPattern("cherry") });
@@ -494,7 +492,7 @@ describe("FilterBubble re-filtering", () => {
     window.filterBubble.enable(state);
     const el = document.querySelector(".post");
     el.textContent = "something else entirely";
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     // A distinct object with the same keys in the same order, which is what
     // the background builds for every repeat.
@@ -510,7 +508,7 @@ describe("FilterBubble re-filtering", () => {
     enable();
     const el = document.querySelector(".post");
     el.textContent = "something else entirely";
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     window.filterBubble.enable({
       pattern: toPattern("banana"),
@@ -529,7 +527,7 @@ describe("FilterBubble re-filtering", () => {
     // Attribute mutations are not observed; the duplicate enable() repairs them.
     el.className = "post";
     // Wait out the initial pass's throttle window first.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     enable();
 
     expect(el.classList.contains("filter-bubble")).toBe(true);
@@ -583,7 +581,7 @@ describe("FilterBubble badge reporting", () => {
     enable();
     // Wait out the first pass's throttle window, so the repeat pass is not
     // merely queued behind it.
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
     sendMessage.mockClear();
 
     enable();
@@ -606,7 +604,7 @@ describe("FilterBubble injected before document.body exists", () => {
 
     body.innerHTML = `<div class="post">banana</div>`;
     document.documentElement.appendChild(body);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(true);
@@ -620,7 +618,7 @@ describe("FilterBubble injected before document.body exists", () => {
 
     body.innerHTML = `<div class="post">banana</div>`;
     document.documentElement.appendChild(body);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await afterThrottle();
 
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);

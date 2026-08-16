@@ -72,6 +72,63 @@ describe("Footer help", () => {
   });
 });
 
+describe("Footer export link", () => {
+  // jsdom's `Blob` cannot be read back, so capture what the page serialized on
+  // its way into the constructor. The anchor is removed as soon as it is
+  // clicked, so its filename has to be read during the click.
+  let filename;
+  let serialized;
+  const RealBlob = global.Blob;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    setState(undefined, {
+      topics: { list: [{ id: "t1", text: ["politics"] }] },
+      websites: { list: [{ addresses: ["example.com"], id: "w1" }] },
+    });
+    filename = undefined;
+    serialized = undefined;
+    jest.spyOn(global, "Blob").mockImplementation((parts, options) => {
+      [serialized] = parts;
+      return new RealBlob(parts, options);
+    });
+    global.URL.createObjectURL = jest.fn(() => "blob:fake");
+    global.URL.revokeObjectURL = jest.fn();
+    jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function captureFilename() {
+        filename = this.download;
+      });
+  });
+
+  afterEach(() => {
+    // Let the deferred revoke run before its stub goes away, or it throws into
+    // the next test from a timer this one left behind.
+    jest.runAllTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    delete global.URL.createObjectURL;
+    delete global.URL.revokeObjectURL;
+  });
+
+  // The export is the only copy of a configuration the user can take
+  // elsewhere, so it carries both collections whichever tab is open, and is
+  // named so that two exports do not overwrite each other.
+  it("downloads both collections under a timestamped filename", () => {
+    render(<Footer isDisabled={false} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Export" }));
+
+    expect(JSON.parse(serialized)).toEqual({
+      topics: [{ id: "t1", text: ["politics"] }],
+      websites: [{ addresses: ["example.com"], id: "w1" }],
+    });
+    expect(filename).toMatch(
+      /^filter-bubble-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.json$/,
+    );
+  });
+});
+
 describe("Footer import link", () => {
   const flush = () =>
     new Promise((resolve) => {

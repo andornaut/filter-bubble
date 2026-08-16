@@ -21,10 +21,13 @@ describe("isPopup", () => {
     consoleDebug.mockRestore();
   });
 
-  it("is true in a page that is not a tab and is a registered popup view", () => {
+  it("is true in a page that is not a tab and is a registered popup view", async () => {
     mockChrome({ getCurrent: inPopup, getViews: () => [window] });
 
-    return expect(isPopup()).resolves.toBe(true);
+    await expect(isPopup()).resolves.toBe(true);
+    // The log below belongs to the one branch that withholds a true. Logging
+    // here as well would be noise on every popup open.
+    expect(consoleDebug).not.toHaveBeenCalled();
   });
 
   it("is false on a page hosted in a tab", () => {
@@ -45,17 +48,6 @@ describe("isPopup", () => {
     expect(consoleDebug).toHaveBeenCalledWith(
       "filter-bubble: not a popup view; skipping highlight mode",
     );
-  });
-
-  // The log belongs to that one branch. A `getViews` this code cannot read
-  // resolves true and says nothing, so a log on every call would be noise on
-  // the browsers that take the fallback path below.
-  it("says nothing when it answers true", async () => {
-    mockChrome({ getCurrent: inPopup, getViews: () => [window] });
-
-    await isPopup();
-
-    expect(consoleDebug).not.toHaveBeenCalled();
   });
 
   it("falls back to the tab check when getViews is unavailable", () => {

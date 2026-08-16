@@ -216,18 +216,16 @@ describe("humanDate", () => {
   });
 
   it.each([
-    ["12:05am", [2026, 6, 26, 0, 5], "midnight, which is the 12th hour"],
-    ["12:00pm", [2026, 6, 26, 12, 0], "noon, and a zero-padded minute"],
-    ["9:30am", [2026, 6, 26, 9, 30], "a morning time"],
-    ["1:07pm", [2026, 6, 26, 13, 7], "an afternoon time past the 12th hour"],
-  ])("shows %s for %#, which is %s", (expected, parts) => {
+    ["midnight, which reads as the 12th hour", "12:05am", [2026, 6, 26, 0, 5]],
+    ["noon, with a zero-padded minute", "12:00pm", [2026, 6, 26, 12, 0]],
+    ["a morning time", "9:30am", [2026, 6, 26, 9, 30]],
+    ["an hour past noon", "1:07pm", [2026, 6, 26, 13, 7]],
+  ])("shows %s as %s", (_, expected, parts) => {
     jest.useFakeTimers().setSystemTime(new Date(2026, 6, 26, 18, 0));
 
     expect(humanDate(local(...parts))).toBe(expected);
   });
 
-  // A date is only useful once it is no longer today, and a time is only useful
-  // while it is.
   it("shows the date rather than the time for another day", () => {
     expect(humanDate(local(2020, 0, 15, 12, 0))).toBe("Wed Jan 15 2020");
   });

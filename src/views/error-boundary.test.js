@@ -83,8 +83,8 @@ describe("ErrorBoundary", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
-  // The repair a user has available is on the other device: they cannot edit an
-  // item the UI will not show them. Retrying renders the children again.
+  // The repair is on the other device - the user cannot edit an item the UI
+  // will not show them - so the retry has to pick it up without a reload.
   it("comes back when the cause is gone", async () => {
     let broken = true;
     const Child = () => {
