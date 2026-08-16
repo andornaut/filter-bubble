@@ -137,5 +137,6 @@ jobs:
           tag_name: ${{ github.ref == 'refs/heads/main' && 'dev' || github.ref_name }}
           name: ${{ github.ref == 'refs/heads/main' && 'dev' || github.ref_name }}
           body: ${{ github.ref == 'refs/heads/main' && 'Latest build from main branch' || '' }}
+          generate_release_notes: ${{ github.ref != 'refs/heads/main' }}
           make_latest: ${{ github.ref == 'refs/heads/main' && 'false' || 'true' }}
           files: artifacts/filter_bubble-*.zip
