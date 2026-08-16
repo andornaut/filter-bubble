@@ -186,4 +186,60 @@ describe("Footer import link", () => {
     expect(chrome.tabs.create).toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
   });
+
+  // The popup closes on every use, so clicking Import repeatedly would stack up
+  // a tab each. The query matches the page without its fragment, which is also
+  // the options page, so the existing tab has to be picked out by the full url.
+  it("focuses an import tab that is already open instead of opening another", async () => {
+    setup(undefined);
+    chrome.tabs.query.mockResolvedValue([
+      { id: 3, url: "chrome-extension://id/popup.html", windowId: 9 },
+      { id: 4, url: "chrome-extension://id/popup.html#import", windowId: 9 },
+    ]);
+    chrome.windows = { update: jest.fn(() => Promise.resolve({})) };
+    render(<Footer isDisabled={false} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Import" }));
+    await flush();
+
+    expect(chrome.tabs.update).toHaveBeenCalledWith(4, { active: true });
+    // The tab can be in a window the user is not looking at, so raising the
+    // tab alone would appear to do nothing.
+    expect(chrome.windows.update).toHaveBeenCalledWith(9, { focused: true });
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+
+  // Reusing a tab is the nicety; opening one is the point. Both the lookup and
+  // the tab it finds can fail - the tab may have been closed since - and either
+  // way the user asked to get to the import page.
+  it.each([
+    [
+      "the tab lookup fails",
+      () => chrome.tabs.query.mockRejectedValue(new Error("no tabs API")),
+    ],
+    [
+      "the tab it found is gone",
+      () => {
+        chrome.tabs.query.mockResolvedValue([
+          {
+            id: 4,
+            url: "chrome-extension://id/popup.html#import",
+            windowId: 9,
+          },
+        ]);
+        chrome.tabs.update.mockRejectedValue(new Error("No tab with id: 4"));
+      },
+    ],
+  ])("opens a new import tab when %s", async (_, breakIt) => {
+    setup(undefined);
+    breakIt();
+    render(<Footer isDisabled={false} />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Import" }));
+    await flush();
+
+    expect(chrome.tabs.create).toHaveBeenCalledWith({
+      url: "chrome-extension://id/popup.html#import",
+    });
+  });
 });

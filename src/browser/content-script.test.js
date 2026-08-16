@@ -544,6 +544,25 @@ describe("FilterBubble.disable", () => {
     expect(el.classList.contains("filter-bubble")).toBe(false);
     expect(el.classList.contains("filter-bubble--hide")).toBe(false);
   });
+
+  // A timer left running fires during the next `enable`'s throttle window and
+  // clears `pending` early, so the burst that window exists to coalesce costs
+  // a pass each instead. Counting armed timers pins it directly; the effect
+  // itself is a matter of how many passes run, which nothing else observes.
+  it("leaves no throttle timer armed to fire into the next enable", () => {
+    jest.useFakeTimers();
+    try {
+      document.body.innerHTML = `<div class="post">banana</div>`;
+      enable();
+      expect(jest.getTimerCount()).toBe(1);
+
+      window.filterBubble.disable();
+
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("FilterBubble badge reporting", () => {
@@ -569,6 +588,30 @@ describe("FilterBubble badge reporting", () => {
       command: "count",
       data: { count: 0 },
     });
+  });
+
+  // The count is recorded before the send is awaited, so a second pass that
+  // lands while the first send is still outstanding compares against the count
+  // that is on its way rather than against a stale one. Held open by hand: in
+  // practice the window is one microtask wide.
+  it("does not re-send a count whose send has not settled yet", async () => {
+    reinstall();
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    // Park the first send. In practice the window is one microtask wide.
+    sendMessage.mockImplementationOnce(() => new Promise(() => {}));
+
+    enable();
+
+    // A mutation that leaves the count where it is. The observer queues a pass
+    // behind the throttle, and it arrives at the same count with the first
+    // send still outstanding.
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "nothing to see";
+    document.body.appendChild(added);
+    await afterThrottle();
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
   // The background clears the badge of any tab it evaluates as unmatched, and a

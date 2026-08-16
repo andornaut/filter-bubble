@@ -188,4 +188,42 @@ describe("Collection edit form under a synced rewrite", () => {
     save();
     expect(editItem).toHaveBeenCalledWith("1", { text: "my own edit" });
   });
+
+  // Keeping the user's edit is scoped to the item it was made on. The form is
+  // remounted per selection (`key` in ./collection), which is what discards
+  // both the typed value and the "has been typed into" flag that would
+  // otherwise suppress the reset for the next item too.
+  it("starts clean when the user picks a different item mid-edit", () => {
+    const element = (
+      <Collection
+        actions={{
+          addItem: jest.fn(),
+          deleteItem: jest.fn(),
+          editItem: jest.fn(),
+          toId: (item) => item.id,
+          toggleEnabled: jest.fn(),
+        }}
+        fields={(selected) =>
+          textField({
+            label: "Topics",
+            name: "text",
+            value: (selected?.text || []).join(", "),
+          })
+        }
+        itemDetails={({ text }) => text.join(", ")}
+        list={[
+          dated(["spoilers"], "2026-01-01T00:00:00.000Z"),
+          { id: "2", modifiedDate: "2026-01-01T00:00:00.000Z", text: ["ads"] },
+        ]}
+        transform={(data) => data}
+      />
+    );
+    render(element);
+    fireEvent.click(screen.getByRole("button", { name: /spoilers/ }));
+    fireEvent.input(input(), { target: { value: "my own edit" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /ads/ }));
+
+    expect(input().value).toBe("ads");
+  });
 });

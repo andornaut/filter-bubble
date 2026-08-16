@@ -73,6 +73,10 @@ describe("Topics", () => {
     expect(errorMessages()).toEqual(["Duplicate item: politics"]);
   });
 
+  // A topic is stored as an array and edited as one comma-separated string, so
+  // both the list and the form it reopens in have to render it the way the
+  // form accepts it back. Selecting the item is what makes that a round trip
+  // rather than a claim about the list alone.
   it("shows a topic's phrases the way they are typed back into the form", () => {
     renderTopics([
       {
@@ -83,6 +87,11 @@ describe("Topics", () => {
       },
     ]);
 
-    expect(screen.getByText("politics, sports")).toBeVisible();
+    const listed = screen.getByText("politics, sports");
+    expect(listed).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /politics, sports/ }));
+
+    expect(screen.getByLabelText("Topics").value).toBe("politics, sports");
   });
 });

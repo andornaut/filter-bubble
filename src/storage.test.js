@@ -599,6 +599,43 @@ describe("toStorage", () => {
     expect(set).not.toHaveBeenCalled();
   });
 
+  // The diff compares serialized values, so it has to sort object keys: the
+  // browser is free to hand a stored value back with its keys in another
+  // order, and comparing that verbatim would rewrite every item on every load
+  // and bounce writes back and forth between devices.
+  it("skips the write when only the key order differs", async () => {
+    const stored = topic("1", ["a"], "2026-01-01T00:00:00.000Z");
+    await seed({ "t:1": stored });
+    // Built rather than written out: the same fields, inserted in the opposite
+    // order. A literal cannot express it - this repo's `sort-keys` rule is what
+    // keeps the sources alphabetical, and the browser is under no such rule.
+    const reordered = Object.fromEntries(Object.entries(stored).reverse());
+    expect(Object.keys(reordered)).not.toEqual(Object.keys(stored));
+
+    await toStorage({
+      topics: { list: [reordered] },
+      websites: { list: [] },
+    });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  // Array order is content, not key order, so it must still count as a change.
+  it("writes when only the order within an array differs", async () => {
+    const stored = {
+      ...topic("1", ["a"], "2026-01-01T00:00:00.000Z"),
+      text: ["a", "b"],
+    };
+    await seed({ "t:1": stored });
+
+    await toStorage({
+      topics: { list: [{ ...stored, text: ["b", "a"] }] },
+      websites: { list: [] },
+    });
+
+    expect(set).toHaveBeenCalledTimes(1);
+  });
+
   it("tombstones a removed item", async () => {
     await seed({ "t:1": topic("1", ["a"], "2026-01-01T00:00:00.000Z") });
 
