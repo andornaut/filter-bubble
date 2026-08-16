@@ -73,7 +73,10 @@ describe("Footer help", () => {
 });
 
 describe("Footer import link", () => {
-  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const flush = () =>
+    new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
   const setup = (currentTab) => {
     const close = jest.fn();

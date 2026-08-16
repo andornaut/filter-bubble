@@ -6,7 +6,10 @@ import { Topics } from "./topics";
 
 // The add/edit form is one of the two validation boundaries the store has, so
 // these cover what a phrase becomes on the way in and what is refused outright.
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 
 const renderTopics = (list = []) => {
   setState(undefined, { errors: [], topics: { list } });

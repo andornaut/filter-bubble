@@ -373,7 +373,9 @@ describe("FilterBubble failure recovery", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
 
     expect(() => enable()).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
 
     expect(document.querySelector(".post").classList).toContain(
       "filter-bubble",

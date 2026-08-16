@@ -8,8 +8,12 @@ import { Import } from "./import";
 // is more than one turn of the event loop, so give the whole chain time to run
 // rather than one tick of it.
 const settle = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 };
 
 // The page reads a file the user picked, so only `text()` is reached for.

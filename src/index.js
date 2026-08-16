@@ -92,6 +92,9 @@ const init = async () => {
   try {
     await bootstrap();
   } finally {
+    // The guard is the point: it is read before the await and cleared after,
+    // which is what require-atomic-updates describes and what makes this work.
+    // eslint-disable-next-line require-atomic-updates
     initializing = false;
   }
 };

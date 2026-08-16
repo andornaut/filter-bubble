@@ -4,7 +4,10 @@ import { getState, setState } from "statezero/src";
 import { toId } from "../actions/errors";
 import { Websites } from "./websites";
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 
 const website = (overrides = {}) => ({
   addresses: ["example.com"],

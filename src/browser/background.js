@@ -53,11 +53,11 @@ const matchesAddress = (url, address) => {
 // milliseconds and sorts ahead of a shipped default's `default-*`, which is what
 // lets a user configure a site the extension already ships selectors for.
 const matchedWebsite = (websitesList, url) => {
-  url = url.toLowerCase().replace(SCHEME_REGEX, "");
+  const normalized = url.toLowerCase().replace(SCHEME_REGEX, "");
 
   for (const { addresses, ...website } of websitesList) {
     for (const address of addresses) {
-      if (matchesAddress(url, address)) {
+      if (matchesAddress(normalized, address)) {
         return website;
       }
     }

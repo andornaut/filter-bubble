@@ -265,7 +265,7 @@ describe("fromStorage", () => {
     const written = set.mock.calls[0][0];
     expect(written.schema).toBe(2);
     const topicId = String(Date.parse("2026-01-01T00:00:00.000Z"));
-    expect(written["t:" + topicId]).toMatchObject({
+    expect(written[`t:${topicId}`]).toMatchObject({
       id: topicId,
       text: ["spoilers"],
     });
@@ -338,7 +338,7 @@ describe("fromStorage", () => {
     const lists = await fromStorage();
 
     const topicId = String(Date.parse("2026-01-01T00:00:00.000Z"));
-    expect(set.mock.calls[0][0]["t:" + topicId]).toMatchObject({
+    expect(set.mock.calls[0][0][`t:${topicId}`]).toMatchObject({
       id: topicId,
       text: ["spoilers"],
     });
@@ -367,7 +367,7 @@ describe("fromStorage", () => {
         },
         websites: { list: [] },
       },
-      ["t:" + id]: {
+      [`t:${id}`]: {
         createdDate: created,
         enabled: true,
         id,
@@ -382,7 +382,7 @@ describe("fromStorage", () => {
     expect(lists.topics.list[0].text).toEqual(["edited"]);
     // The already-current value is not rewritten.
     const written = set.mock.calls[0][0];
-    expect(written["t:" + id]).toBeUndefined();
+    expect(written[`t:${id}`]).toBeUndefined();
   });
 
   it("folds an edited v1 item onto its existing key without duplicating it", async () => {
@@ -405,7 +405,7 @@ describe("fromStorage", () => {
         },
         websites: { list: [] },
       },
-      ["t:" + id]: {
+      [`t:${id}`]: {
         createdDate: created,
         enabled: true,
         id,
@@ -418,7 +418,7 @@ describe("fromStorage", () => {
 
     expect(lists.topics.list).toHaveLength(1);
     expect(lists.topics.list[0].text).toEqual(["edited"]);
-    expect(set.mock.calls[0][0]["t:" + id].text).toEqual(["edited"]);
+    expect(set.mock.calls[0][0][`t:${id}`].text).toEqual(["edited"]);
     expect(remove).toHaveBeenCalledWith("state");
   });
 
@@ -438,7 +438,7 @@ describe("fromStorage", () => {
     const lists = await fromStorage();
 
     const written = set.mock.calls[0][0];
-    expect(written["t:" + topicId]).toMatchObject({ text: ["late"] });
+    expect(written[`t:${topicId}`]).toMatchObject({ text: ["late"] });
     expect(remove).toHaveBeenCalledWith("state");
     expect(lists.topics.list.map((t) => t.text)).toEqual(
       expect.arrayContaining([["a"], ["late"]]),
