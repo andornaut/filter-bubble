@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    # The one job that writes: it creates and deletes releases and tags.
+    # The one job that writes: it publishes releases and moves the `dev` tag.
     permissions:
       contents: write
 
