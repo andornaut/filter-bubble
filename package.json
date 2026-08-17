@@ -22,7 +22,6 @@
     "format": "prettier --write . && eslint --fix .",
     "lint": "prettier --check . && eslint --max-warnings 0 .",
     "lint:ext": "npm run build:prod && web-ext lint",
-    "lint:fix": "eslint --fix .",
     "package": "npm run lint:ext && rm -rf web-ext-artifacts/* && web-ext build",
     "prepare": "husky",
     "start": "npm run build && web-ext run",
