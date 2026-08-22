@@ -1,7 +1,7 @@
 # Filter Bubble
 
 [![CI](https://github.com/andornaut/filter-bubble/actions/workflows/release.yml/badge.svg)](https://github.com/andornaut/filter-bubble/actions/workflows/release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)
 
 Filter Bubble is a Chrome and Firefox browser extension that hides web content matching topics you don't want to see.
 
