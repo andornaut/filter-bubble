@@ -5,7 +5,7 @@
 
 Filter Bubble is a Chrome and Firefox browser extension that hides web content matching topics you don't want to see.
 
-- [Install for Chrome](https://chromewebstore.google.com/detail/cdfnpgngpkmlogkkeaafpdahppapgnoo)
+- [Install for Chrome](https://chromewebstore.google.com/detail/filter-bubble/cdfnpgngpkmlogkkeaafpdahppapgnoo)
 - [Install for Firefox](https://addons.mozilla.org/en-CA/firefox/addon/filter-bubble/)
 
 [![Filter out topics](./resources/screenshots/screenshot-topics.png)](./resources/screenshots/screenshot-topics.png)
@@ -13,7 +13,7 @@ Filter Bubble is a Chrome and Firefox browser extension that hides web content m
 ## How it works
 
 1. Add the **topics** you want to hide.
-1. For each website, add [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors) targeting the content blocks or feed items that might contain those topics.
+1. For each website, add [CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors) targeting the content blocks or feed items that might contain those topics.
 1. When a topic appears inside a targeted element, the element is hidden or removed.
 
 A handful of websites are configured out of the box. Adding others means writing the selectors yourself and granting Filter Bubble access to them.
@@ -33,7 +33,7 @@ Topic phrases match as whole words, case-insensitively, and literally: punctuati
 
 ## Developing
 
-Install [Node](https://nodejs.org/) (version in [`.nvmrc`](.nvmrc)), then:
+Install [Node](https://nodejs.org/en) (version in [`.nvmrc`](.nvmrc)), then:
 
 ```bash
 npm install
