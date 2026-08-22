@@ -73,7 +73,7 @@ const bootstrap = async () => {
   // WORKAROUND: Chrome drops a `sendMessage()` issued from a window "unload"
   // handler, so the popup cannot announce its own close. A port does it
   // instead: the background sees `onDisconnect` when this page goes away.
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=31262
+  // https://issues.chromium.org/issues/41069221
   // https://stackoverflow.com/a/39756934
   chrome.runtime.connect();
 };
