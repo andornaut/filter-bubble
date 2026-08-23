@@ -34,8 +34,8 @@
     "zip": "[ -z \"$(git status --porcelain)\" ] || { echo 'Error: uncommitted changes; the source archive packages HEAD. Commit first.' >&2; exit 1; }; mkdir -p web-ext-artifacts && git archive --format=tar.gz --prefix=filter-bubble-$npm_package_version/ -o web-ext-artifacts/filter-bubble-source-$npm_package_version.tar.gz HEAD"
   },
   "dependencies": {
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "statezero": "^0.9.0"
   },
   "devDependencies": {
@@ -47,7 +47,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "eslint-plugin-sort-destructure-keys": "^3.0.0",
     "globals": "^17.11.0",
