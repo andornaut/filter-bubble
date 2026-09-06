@@ -130,7 +130,7 @@ jobs:
       # died in between; every asset name here is deterministic, so each upload
       # replaces its predecessor and nothing from the previous cut survives.
       - name: Publish release
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
