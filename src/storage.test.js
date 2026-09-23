@@ -497,6 +497,22 @@ describe("fromStorage", () => {
     );
   });
 
+  // A migration whose write landed and whose `remove("state")` did not leaves a
+  // blob whose items are all stored already, so there is nothing to write.
+  it("removes a lingering v1 blob whose items are all stored already", async () => {
+    const late = topic("late", ["late"], "2026-02-01T00:00:00.000Z");
+    get.mockResolvedValue({
+      schema: 2,
+      state: { topics: { list: [late] }, websites: { list: [] } },
+      "t:late": late,
+    });
+
+    await fromStorage();
+
+    expect(set).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledWith("state");
+  });
+
   it("still resolves and keeps the v1 blob when the migration write fails", async () => {
     get.mockResolvedValue({
       state: {
@@ -766,6 +782,37 @@ describe("subscribeStorageSync", () => {
     // Taking it into the store would only move the throw to the next write.
     expect(onLists).not.toHaveBeenCalled();
     expect(set).not.toHaveBeenCalled();
+  });
+
+  // Content decides only a tie. Keys serialize sorted, and `enabled` sorts
+  // ahead of `modifiedDate`, so a value switched off on one device serializes
+  // before the older, switched-on copy: a merge that fell through to the
+  // content comparison would keep the older.
+  const toggled = (enabled, modifiedDate) => ({
+    ...topic("1", ["a"], "2025-01-01T00:00:00.000Z"),
+    enabled,
+    modifiedDate,
+  });
+
+  it("applies a newer remote toggle whose content sorts first", async () => {
+    await seed({ "t:1": toggled(true, "2026-01-01T00:00:00.000Z") });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({ "t:1": { newValue: toggled(false, "2026-02-01T00:00:00.000Z") } });
+
+    expect(onLists.mock.calls[0][0].topics.list[0].enabled).toBe(false);
+  });
+
+  it("keeps a newer local toggle whose content sorts first", async () => {
+    await seed({ "t:1": toggled(false, "2026-02-01T00:00:00.000Z") });
+    const onLists = jest.fn();
+    subscribeStorageSync(onLists);
+
+    fire({ "t:1": { newValue: toggled(true, "2026-01-01T00:00:00.000Z") } });
+
+    expect(onLists).not.toHaveBeenCalled();
+    expect(set.mock.calls[0][0]["t:1"].enabled).toBe(false);
   });
 
   it("keeps and writes back the local value when the remote is older", async () => {

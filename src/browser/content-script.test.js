@@ -14,18 +14,22 @@ const sendMessage = jest.fn(() => Promise.resolve());
 const patternFor = (word) => `(?:\\b${word}\\b)`;
 
 // Passes are throttled to one per 200ms, so a mutation made during a pass is
-// only serviced by the trailing pass after that window. Waiting it out is how a
-// case observes the result of anything it changed after `enable()`.
-const afterThrottle = () =>
-  new Promise((resolve) => {
-    setTimeout(resolve, 250);
-  });
+// only serviced by the trailing pass after that window. Advancing past it is how
+// a case observes the result of anything it changed after `enable()`. Timers
+// are faked for the whole file; microtasks are not, since the
+// MutationObserver delivers through them.
+const afterThrottle = () => jest.advanceTimersByTimeAsync(250);
 
 // The installed instance, which the script keeps under a symbol on `window`.
 const INSTANCE_KEY = Symbol.for("filter-bubble");
 const instance = () => window[INSTANCE_KEY];
 
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 beforeAll(() => {
+  jest.useFakeTimers({ doNotFake: ["nextTick", "queueMicrotask"] });
   global.chrome = {
     runtime: { onMessage: { addListener: () => {} }, sendMessage },
   };
@@ -388,9 +392,7 @@ describe("FilterBubble failure recovery", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
 
     expect(() => enable()).not.toThrow();
-    await new Promise((resolve) => {
-      setTimeout(resolve, 0);
-    });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(document.querySelector(".post").classList).toContain(
       "filter-bubble",
@@ -486,6 +488,22 @@ describe("FilterBubble re-filtering", () => {
     expect(el.classList.contains("filter-bubble--remove")).toBe(true);
   });
 
+  // One pass per window: a mutation inside it waits for the trailing pass
+  // rather than running one of its own.
+  it("defers a pass for a mutation inside the throttle window", async () => {
+    enable();
+
+    const added = document.createElement("div");
+    added.className = "post";
+    added.textContent = "banana";
+    document.body.appendChild(added);
+    await Promise.resolve();
+
+    expect(added.classList.contains("filter-bubble")).toBe(false);
+    await afterThrottle();
+    expect(added.classList.contains("filter-bubble")).toBe(true);
+  });
+
   it("keeps up with more mutations than the throttle can service", async () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable();
@@ -498,7 +516,7 @@ describe("FilterBubble re-filtering", () => {
       added.textContent = `banana ${i}`;
       document.body.appendChild(added);
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await jest.advanceTimersByTimeAsync(500);
 
     expect(document.querySelectorAll(".post.filter-bubble")).toHaveLength(26);
     expect(sendMessage).toHaveBeenCalledWith({
@@ -579,18 +597,13 @@ describe("FilterBubble.disable", () => {
   // a pass each instead. Counting armed timers pins it directly; the effect
   // itself is a matter of how many passes run, which nothing else observes.
   it("leaves no throttle timer armed to fire into the next enable", () => {
-    jest.useFakeTimers();
-    try {
-      document.body.innerHTML = `<div class="post">banana</div>`;
-      enable();
-      expect(jest.getTimerCount()).toBe(1);
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+    expect(jest.getTimerCount()).toBe(1);
 
-      instance().disable();
+    instance().disable();
 
-      expect(jest.getTimerCount()).toBe(0);
-    } finally {
-      jest.useRealTimers();
-    }
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
 
@@ -669,6 +682,17 @@ describe("FilterBubble install", () => {
   // Page markup shares this window, and an element's `id` becomes a named
   // property on it. Reading the install marker from such a name would skip
   // the install and leave the page unfiltered.
+  // The background injects on every tab event, so a second injection must
+  // report the instance it finds rather than install another beside it.
+  it("reports an existing install rather than installing again", () => {
+    const existing = instance();
+
+    const result = new Function("chrome", `return ${source}`)(global.chrome);
+
+    expect(result).toEqual({ isInstalled: true });
+    expect(instance()).toBe(existing);
+  });
+
   it("installs on a page with an element named after it", () => {
     const outgoing = instance();
     delete window[INSTANCE_KEY];

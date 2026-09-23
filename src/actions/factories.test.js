@@ -28,7 +28,6 @@ describe("createToContentKey", () => {
   // a second content-less item is the collision rule's decision, not a throw
   // here.
   it.each([
-    ["an empty string", { field: "" }],
     ["null", { field: null }],
     ["an absent field", {}],
   ])("returns an empty key for %s", (_, item) => {

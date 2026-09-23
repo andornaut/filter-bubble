@@ -164,6 +164,7 @@ describe("matchesAddress", () => {
       ["reddit.com.evil.example", "reddit.com"], // address as a left label
       ["notreddit.com", "reddit.com"], // not a prefix
       ["example.com", "reddit.com"], // unrelated
+      ["github.com/tildes", "tildes.net"], // unrelated, separator at its length
       ["", "reddit.com"], // empty url
     ])("%s does not match %s", (url, address) => {
       expect(matchesAddress(url, address)).toBe(false);
@@ -1551,6 +1552,20 @@ describe("runtime.onMessage listener", () => {
       },
     };
     new Function("chrome", source)(mock);
+  });
+
+  it("logs a command it does not know and leaves the badge alone", () => {
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    onMessage({ command: "counts", data: { count: 3 } }, { tab: { id: 7 } });
+
+    expect(setBadgeText).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "filter-bubble: Unknown command: counts",
+    );
+    consoleError.mockRestore();
   });
 
   it("sets the badge for the sender's tab on a count message", () => {

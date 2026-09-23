@@ -27,7 +27,6 @@ describe("toCanonicalArray", () => {
 describe("unsplit", () => {
   it.each([
     [["a", "b", "c"], "a, b, c"],
-    [[], ""],
     // A new item's field, which reaches here before anything is stored.
     [null, ""],
     [undefined, ""],

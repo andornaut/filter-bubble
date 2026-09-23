@@ -93,6 +93,7 @@ describe("canonicalizeSelectors", () => {
     ["article:not(.ad, .promo)", ["article:not(.ad, .promo)"]],
     [":is(h1, h2) a, p", [":is(h1, h2) a", "p"]],
     ['a[title="x, y"], b', ['a[title="x, y"]', "b"]],
+    ['a[title="), b"]', ['a[title="), b"]']],
     [".a\\,b, c", [".a\\,b", "c"]],
   ])("splits %j only between selectors", (input, expected) => {
     expect(canonicalizeSelectors(input)).toEqual(expected);

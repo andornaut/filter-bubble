@@ -50,12 +50,12 @@ const stableStringify = (value) => {
 // Two devices holding different values with the same `modifiedDate` each write
 // back whatever they pick, so picking "mine" on both would have them overwrite
 // each other forever.
+//
+// `a` may be absent (a key this side has not seen); `b` never is, since both
+// callers pass a value they have just checked.
 const mergeByModified = (a, b) => {
   if (!a) {
     return b;
-  }
-  if (!b) {
-    return a;
   }
   const am = a.modifiedDate || "";
   const bm = b.modifiedDate || "";
