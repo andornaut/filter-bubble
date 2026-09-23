@@ -32,7 +32,7 @@
     "128": "icons/128.png"
   },
   "manifest_version": 3,
-  "minimum_chrome_version": "102",
+  "minimum_chrome_version": "121",
   "name": "Filter Bubble",
   "optional_host_permissions": ["<all_urls>"],
   "options_ui": {
