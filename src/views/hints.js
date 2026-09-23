@@ -76,7 +76,8 @@ export const TOPICS_HINT = (
   <>
     A list of case-insensitive keywords (single words or groups of words),
     separated by commas, that will be hidden or removed from the{" "}
-    <a href="#websites">websites that you've configured</a>.
+    <a href="#websites">websites that you've configured</a>. Each is matched
+    literally and as whole words, so "elect" does not match "election".
     <br />
     eg. "cupcakes, apples and oranges"
   </>
@@ -126,7 +127,7 @@ export const CSS_SELECTORS_HINT = (
     >
       HTML elements
     </a>{" "}
-    on any websites that match the "web addresses" configured above. If a
+    on any websites that match the "domain names" configured above. If a
     targeted HTML element contains a filtered topic, then that HTML element will
     be hidden/removed.
   </>

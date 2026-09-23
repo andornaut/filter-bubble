@@ -22,28 +22,35 @@ const copyStatic = () => {
   cpSync("src/data/websites.json", "dist/data/websites.json");
 };
 
+// Single files are watched through their directory, filtered by name: a watch
+// on the file itself reports only its basename, and stops at the first save by
+// an editor that replaces the file rather than writing it in place.
 const watchStatic = () => {
   const watchers = [
-    { path: "static", toDest: (f) => `dist/${f}` },
+    { path: "static", recursive: true, toDest: (f) => `dist/${f}` },
     {
       path: "src/browser",
+      recursive: true,
       toDest: (f) => (isShippableScript(f) ? `dist/js/${f}` : null),
     },
-    { path: "manifest.json", toDest: () => "dist/manifest.json" },
     {
-      path: "src/data/websites.json",
-      toDest: () => "dist/data/websites.json",
+      path: ".",
+      toDest: (f) => (f === "manifest.json" ? "dist/manifest.json" : null),
+    },
+    {
+      path: "src/data",
+      toDest: (f) => (f === "websites.json" ? "dist/data/websites.json" : null),
     },
   ];
-  watchers.forEach(({ path, toDest }) => {
-    watch(path, { recursive: true }, (_, filename) => {
+  watchers.forEach(({ path, recursive = false, toDest }) => {
+    watch(path, { recursive }, (_, filename) => {
       const dest = toDest(filename || "");
       if (!dest) {
         return;
       }
       try {
-        cpSync(`${path}/${filename || ""}`.replace(/\/$/, ""), dest);
-        log(`Copied ${path}/${filename || ""}`);
+        cpSync(`${path}/${filename}`, dest);
+        log(`Copied ${path}/${filename}`);
       } catch {
         // File may have been deleted
       }

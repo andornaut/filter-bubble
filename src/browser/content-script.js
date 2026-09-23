@@ -1,5 +1,10 @@
 (() => {
-  if (window.filterBubble) {
+  // A symbol rather than a named property: the page shares this window's DOM,
+  // and an element with a matching `id` or `name` shows up as a named property
+  // on `window`, which would make the script think it was already installed
+  // and skip installing. Markup cannot produce a symbol key.
+  const INSTANCE_KEY = Symbol.for("filter-bubble");
+  if (window[INSTANCE_KEY]) {
     // Return a non-undefined value, so that the caller can detect successful execution.
     return { isInstalled: true };
   }
@@ -43,15 +48,6 @@
   const UNRENDERED_TAGS = new Set(["NOSCRIPT", "SCRIPT", "STYLE"]);
   const UNRENDERED_SELECTOR = "noscript, script, style";
 
-  // `SHOW_TEXT`, so every node the filter sees is a text node and its parent is
-  // the element that holds it: the content of all three is parsed as raw text,
-  // so it is their own child and never a deeper descendant. (`<noscript>` is raw
-  // text only while scripting is enabled, which it is wherever this runs.)
-  const acceptRendered = ({ parentElement }) =>
-    parentElement && UNRENDERED_TAGS.has(parentElement.tagName)
-      ? NodeFilter.FILTER_REJECT
-      : NodeFilter.FILTER_ACCEPT;
-
   // The container's text with those elements left out, one space between text
   // nodes. `textContent` concatenates them with no separator, so markup with no
   // whitespace between tags (`<span>5 comments</span><a>Trump</a>`) runs a word
@@ -61,16 +57,23 @@
   //
   // Accepted cost: markup inside a word (`Tr<mark>ump</mark>`) splits it, so
   // that word no longer matches.
+  //
+  // Most containers hold none of those elements, so the parent check runs only
+  // for one that does. It is inline rather than a TreeWalker `acceptNode`
+  // filter, which costs a call from native code into JS per text node.
+  // `SHOW_TEXT`, so every node walked is a text node and its parent is the
+  // element that holds it: the content of all three is parsed as raw text, so
+  // it is their own child and never a deeper descendant. (`<noscript>` is raw
+  // text only while scripting is enabled, which it is wherever this runs.)
   const toText = (container) => {
     const hasUnrendered = container.querySelector(UNRENDERED_SELECTOR);
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      hasUnrendered ? { acceptNode: acceptRendered } : null,
-    );
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
     const parts = [];
     while (walker.nextNode()) {
-      parts.push(walker.currentNode.data);
+      const node = walker.currentNode;
+      if (!hasUnrendered || !UNRENDERED_TAGS.has(node.parentElement.tagName)) {
+        parts.push(node.data);
+      }
     }
     return parts.join(" ");
   };
@@ -329,15 +332,16 @@
     }
   }
 
-  window.filterBubble = new FilterBubble();
+  const instance = new FilterBubble();
+  window[INSTANCE_KEY] = instance;
 
   chrome.runtime.onMessage.addListener(({ command, data }) => {
     switch (command) {
       case "enable":
-        window.filterBubble.enable(data);
+        instance.enable(data);
         break;
       case "disable":
-        window.filterBubble.disable();
+        instance.disable();
         break;
       default:
         console.error(`filter-bubble: Unknown command: ${command}`);

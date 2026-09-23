@@ -52,7 +52,11 @@ beforeEach(() => {
       },
       onChanged: {
         addListener: jest.fn((listener) => {
-          onChanged = listener;
+          const previous = onChanged;
+          onChanged = (...args) => {
+            previous?.(...args);
+            listener(...args);
+          };
         }),
       },
       sync: {
@@ -236,6 +240,20 @@ describe("initState sync subscription", () => {
 // `initState` re-runs on the failure boundary's retry. Subscribing again would
 // stack a duplicate statezero subscriber and a duplicate `storage.onChanged`
 // listener, so every later write would be issued twice.
+describe("initState local subscription", () => {
+  // The options page stays open in a tab while the popup flips the switch.
+  it("applies the off switch another page of this browser set", async () => {
+    const { init, statezero } = load();
+    await init.initState();
+
+    onChanged({ disabled: { newValue: true } }, "local");
+    await flush();
+
+    expect(statezero.getState("isDisabled")).toBe(true);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+  });
+});
+
 describe("initState run again", () => {
   it("re-hydrates without subscribing a second time", async () => {
     const { init, statezero, topics } = load();

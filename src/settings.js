@@ -15,6 +15,19 @@ export const fromLocalStorage = async () => {
   return { isDisabled };
 };
 
+// Invoke `onSettings` when another page of this browser changes the flag, e.g.
+// the popup while the options page is open in a tab. The mirror is updated
+// first, so the resulting commit diffs to nothing in `toLocalStorage`.
+export const subscribeLocalStorage = (onSettings) => {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(DISABLED_KEY in changes)) {
+      return;
+    }
+    isDisabled = changes[DISABLED_KEY].newValue === true;
+    onSettings({ isDisabled });
+  });
+};
+
 export const toLocalStorage = (state) => {
   const desired = Boolean(state.isDisabled);
   if (desired === isDisabled) {

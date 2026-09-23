@@ -1,7 +1,11 @@
 import { getState, subscribe } from "statezero/src";
 
 import { checkAllPermissions } from "../permissions";
-import { fromLocalStorage, toLocalStorage } from "../settings";
+import {
+  fromLocalStorage,
+  subscribeLocalStorage,
+  toLocalStorage,
+} from "../settings";
 import { fromStorage, subscribeStorageSync, toStorage } from "../storage";
 import { addError } from "./errors";
 import { hydratePermissions } from "./permissions";
@@ -41,4 +45,6 @@ export const initState = async () => {
     dataHydrators.forEach((hydrate) => hydrate(updatedLists));
     checkAllPermissions(getState());
   });
+  // Apply the off switch when another page of this browser flips it.
+  subscribeLocalStorage(hydrateSettings);
 };

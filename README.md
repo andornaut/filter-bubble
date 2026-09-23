@@ -18,7 +18,9 @@ Filter Bubble is a Chrome and Firefox browser extension that hides web content m
 
 A handful of websites are configured out of the box. Adding others means writing the selectors yourself and granting Filter Bubble access to them.
 
-Topic phrases match as whole words, case-insensitively, and literally: punctuation is punctuation, not a pattern. Only rendered text inside a targeted element counts.
+Topic phrases match as whole words, case-insensitively, and literally: punctuation is punctuation, not a pattern. All text inside a targeted element counts, including text hidden by CSS, except the contents of `<script>`, `<style>` and `<noscript>`.
+
+Filtering marks elements in the page itself, so a website can see what was filtered, and from that infer which topics you filter.
 
 | Feature       | What it does                                                                                       |
 | ------------- | -------------------------------------------------------------------------------------------------- |

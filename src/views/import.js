@@ -79,7 +79,7 @@ export const Import = () => {
       {needsPermissions && (
         <div className="import__permissions">
           <p>
-            The imported websites need access permission before they can filter
+            Some enabled websites need access permission before they can filter
             content.
           </p>
           <button

@@ -33,7 +33,7 @@ describe("List", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("puts the most recently changed item first", () => {
+  it("puts the most recently created or edited item first", () => {
     renderList([
       // "middle" carries no `sortDate`, as a seeded default and anything stored
       // before the field existed. It has to sort on `modifiedDate`, which lands

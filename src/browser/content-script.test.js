@@ -3,7 +3,7 @@ import { join } from "path";
 
 // content-script.js ships as a non-bundled IIFE and exports nothing. Load the
 // source, mock the `chrome` global, and evaluate it against jsdom so these tests
-// drive the real `window.filterBubble` instance the extension installs.
+// drive the real instance the extension installs.
 const source = readFileSync(join(__dirname, "content-script.js"), "utf8");
 
 const sendMessage = jest.fn(() => Promise.resolve());
@@ -21,6 +21,10 @@ const afterThrottle = () =>
     setTimeout(resolve, 250);
   });
 
+// The installed instance, which the script keeps under a symbol on `window`.
+const INSTANCE_KEY = Symbol.for("filter-bubble");
+const instance = () => window[INSTANCE_KEY];
+
 beforeAll(() => {
   global.chrome = {
     runtime: { onMessage: { addListener: () => {} }, sendMessage },
@@ -32,12 +36,12 @@ beforeEach(() => {
   sendMessage.mockClear();
   document.body.innerHTML = "";
   // Reset the shared instance's state between tests.
-  window.filterBubble.disable();
+  instance().disable();
   sendMessage.mockClear();
 });
 
 const enable = (overrides = {}) =>
-  window.filterBubble.enable({
+  instance().enable({
     filterMode: "hide",
     pattern: patternFor("banana"),
     selectors: [".post"],
@@ -320,7 +324,7 @@ describe("FilterBubble failure recovery", () => {
   // content and then never see anything added to it.
   it("retries the reset when attaching the observer fails", async () => {
     const observe = jest
-      .spyOn(window.filterBubble.observer, "observe")
+      .spyOn(instance().observer, "observe")
       .mockImplementationOnce(() => {
         throw new Error("no documentElement");
       });
@@ -350,7 +354,7 @@ describe("FilterBubble failure recovery", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable();
     const observe = jest
-      .spyOn(window.filterBubble.observer, "observe")
+      .spyOn(instance().observer, "observe")
       .mockImplementationOnce(() => {
         throw new Error("no documentElement");
       });
@@ -514,14 +518,14 @@ describe("FilterBubble re-filtering", () => {
       pattern: patternFor("banana"),
       selectors: [".post"],
     };
-    window.filterBubble.enable(state);
+    instance().enable(state);
     const el = document.querySelector(".post");
     el.textContent = "something else entirely";
     await afterThrottle();
 
     // A distinct object with the same keys in the same order, which is what
     // the background builds for every repeat.
-    window.filterBubble.enable({ ...state });
+    instance().enable({ ...state });
 
     expect(el.classList.contains("filter-bubble")).toBe(true);
   });
@@ -535,7 +539,7 @@ describe("FilterBubble re-filtering", () => {
     el.textContent = "something else entirely";
     await afterThrottle();
 
-    window.filterBubble.enable({
+    instance().enable({
       pattern: patternFor("banana"),
       selectors: [".post"],
       filterMode: "hide",
@@ -563,7 +567,7 @@ describe("FilterBubble.disable", () => {
   it("removes all filter classes that were applied", () => {
     document.body.innerHTML = `<div class="post">banana</div>`;
     enable();
-    window.filterBubble.disable();
+    instance().disable();
 
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(false);
@@ -581,7 +585,7 @@ describe("FilterBubble.disable", () => {
       enable();
       expect(jest.getTimerCount()).toBe(1);
 
-      window.filterBubble.disable();
+      instance().disable();
 
       expect(jest.getTimerCount()).toBe(0);
     } finally {
@@ -595,7 +599,7 @@ describe("FilterBubble badge reporting", () => {
   // every new document gets. `beforeEach` has already disabled the outgoing
   // instance, so it holds no filters and observes nothing.
   const reinstall = () => {
-    delete window.filterBubble;
+    delete window[INSTANCE_KEY];
     new Function("chrome", source)(global.chrome);
     sendMessage.mockClear();
   };
@@ -661,6 +665,25 @@ describe("FilterBubble badge reporting", () => {
   });
 });
 
+describe("FilterBubble install", () => {
+  // Page markup shares this window, and an element's `id` becomes a named
+  // property on it. Reading the install marker from such a name would skip
+  // the install and leave the page unfiltered.
+  it("installs on a page with an element named after it", () => {
+    const outgoing = instance();
+    delete window[INSTANCE_KEY];
+    document.body.innerHTML = `<div id="filterBubble"></div><div id="filter-bubble"></div>`;
+    try {
+      const result = new Function("chrome", `return ${source}`)(global.chrome);
+
+      expect(result).toEqual({ isInstalled: false });
+      expect(instance()).not.toBe(outgoing);
+    } finally {
+      window[INSTANCE_KEY] = outgoing;
+    }
+  });
+});
+
 describe("FilterBubble injected before document.body exists", () => {
   // The content script is injected with `injectImmediately`, so it can run
   // before the parser has produced a body. The observer is on
@@ -682,7 +705,7 @@ describe("FilterBubble injected before document.body exists", () => {
     const body = document.body;
     body.remove();
     enable();
-    window.filterBubble.disable();
+    instance().disable();
 
     body.innerHTML = `<div class="post">banana</div>`;
     document.documentElement.appendChild(body);

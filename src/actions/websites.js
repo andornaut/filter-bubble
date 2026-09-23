@@ -32,6 +32,28 @@ export const findAddressConflict = (list, data, exceptId) => {
   return `Already covered by another website: ${unsplit(shared)}`;
 };
 
+// Map each enabled website's id to the addresses on which another enabled
+// website takes precedence, so the list can say which entry is in effect.
+// Mirrors the background's matching: disabled websites are dropped, and the
+// first by storage key order (`w:<id>`, so by id) governs an address. Two
+// entries can share an address despite `findAddressConflict` when the sync
+// merge joins lists added on two devices.
+export const findShadowedAddresses = (list) => {
+  const enabled = list
+    .filter((website) => website.enabled)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const governed = new Set();
+  const shadowed = new Map();
+  enabled.forEach(({ addresses = [], id }) => {
+    const lost = addresses.filter((address) => governed.has(address));
+    if (lost.length) {
+      shadowed.set(id, lost);
+    }
+    addresses.forEach((address) => governed.add(address));
+  });
+  return shadowed;
+};
+
 export const websiteActions = createCollectionActions(
   "websites",
   "addresses",

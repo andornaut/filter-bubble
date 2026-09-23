@@ -1,6 +1,6 @@
 import { getState } from "statezero/src";
 
-import { websiteActions } from "../actions/websites";
+import { findShadowedAddresses, websiteActions } from "../actions/websites";
 import { unsplit } from "../helpers";
 import {
   checkAllPermissions,
@@ -80,11 +80,24 @@ const actions = {
 const UNPERMISSIONED_WARNING =
   "Content on this website won't be filtered until you grant Filter Bubble permission to access it";
 
+const toShadowedWarning = (addresses) =>
+  `Not used for ${unsplit(addresses)}: another website covering that address takes precedence`;
+
 const itemDetails =
-  (unpermissionedIds) =>
+  (unpermissionedIds, shadowed) =>
   ({ addresses, id, selectors }) => (
     <>
       <span className="websites__addresses">
+        {shadowed.has(id) && (
+          <span
+            aria-label={toShadowedWarning(shadowed.get(id))}
+            className="websites__warning"
+            role="img"
+            title={toShadowedWarning(shadowed.get(id))}
+          >
+            ⛔
+          </span>
+        )}
         {unpermissionedIds.includes(id) && (
           <span
             aria-label={UNPERMISSIONED_WARNING}
@@ -107,7 +120,7 @@ export const Websites = ({ list, unpermissionedIds = [] }) => (
     actions={actions}
     callback={callback}
     fields={fields}
-    itemDetails={itemDetails(unpermissionedIds)}
+    itemDetails={itemDetails(unpermissionedIds, findShadowedAddresses(list))}
     list={list}
     transform={transform}
   />

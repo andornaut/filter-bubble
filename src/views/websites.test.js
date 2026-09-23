@@ -85,18 +85,21 @@ describe("Websites", () => {
     expect(storedWebsites()[0].selectors).toEqual([".thing", "article"]);
   });
 
-  it("rejects an address carrying a path or a port", async () => {
-    renderWebsites();
+  it.each([["example.com/path"], ["example.com:8080"]])(
+    "rejects an address carrying a path or a port: %s",
+    async (address) => {
+      renderWebsites();
 
-    fill("Domain names", "example.com/path");
-    fill("CSS selectors", "article");
-    await submit("Add");
+      fill("Domain names", address);
+      fill("CSS selectors", "article");
+      await submit("Add");
 
-    expect(storedWebsites()).toEqual([]);
-    expect(errorMessages()).toEqual([
-      `"example.com/path" isn't a valid domain name`,
-    ]);
-  });
+      expect(storedWebsites()).toEqual([]);
+      expect(errorMessages()).toEqual([
+        `"${address}" isn't a valid domain name`,
+      ]);
+    },
+  );
 
   it("refuses a website with no domain name", async () => {
     renderWebsites();
@@ -207,5 +210,32 @@ describe("Websites", () => {
 
     expect(getState("unpermissionedWebsiteIds")).toEqual(["site-example"]);
     expect(getState("hasPermissions")).toBe(false);
+  });
+
+  // The sync merge can join two lists that each added the same domain, which
+  // the add/edit check cannot prevent. Only the entry the background uses may
+  // look configured.
+  it("marks the website another takes precedence over, and only that one", () => {
+    renderWebsites([
+      website({ addresses: ["example.com"], id: "200", selectors: [".b"] }),
+      website({ addresses: ["example.com"], id: "100", selectors: [".a"] }),
+      website({
+        addresses: ["example.com"],
+        enabled: false,
+        id: "050",
+        selectors: [".c"],
+      }),
+    ]);
+
+    expect(
+      screen.getAllByRole("img", { name: /another website covering/ }),
+    ).toHaveLength(1);
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Not used for example.com: another website covering that address takes precedence",
+        })
+        .closest("li"),
+    ).toHaveTextContent(".b");
   });
 });

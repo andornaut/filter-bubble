@@ -86,4 +86,28 @@ describe("canonicalizeSelectors", () => {
       "article",
     ]);
   });
+
+  // A comma inside a selector's own parentheses, brackets or quotes belongs to
+  // that selector.
+  it.each([
+    ["article:not(.ad, .promo)", ["article:not(.ad, .promo)"]],
+    [":is(h1, h2) a, p", [":is(h1, h2) a", "p"]],
+    ['a[title="x, y"], b', ['a[title="x, y"]', "b"]],
+    [".a\\,b, c", [".a\\,b", "c"]],
+  ])("splits %j only between selectors", (input, expected) => {
+    expect(canonicalizeSelectors(input)).toEqual(expected);
+  });
+
+  // So an unbalanced line cannot swallow the lines after it.
+  it("always splits on a newline", () => {
+    expect(() => canonicalizeSelectors("a:not(.x,\n.y)")).toThrow(
+      '".y)" isn\'t a valid CSS selector',
+    );
+  });
+
+  it("refuses a selector the browser cannot parse", () => {
+    expect(() => canonicalizeSelectors("div[")).toThrow(
+      '"div[" isn\'t a valid CSS selector',
+    );
+  });
 });

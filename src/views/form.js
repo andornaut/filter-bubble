@@ -107,7 +107,7 @@ export const EditForm = ({
         // Omit rather than emit a value the HTML datetime format rejects.
         dateTime={toIsoDate(toSortDate(selected)) || undefined}
       >
-        <span className="form__date-label">Last updated:</span>{" "}
+        <span className="form__date-label">Last edited:</span>{" "}
         {humanDate(toSortDate(selected))}
       </time>
       <div className="form__actions-container">
