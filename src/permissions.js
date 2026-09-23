@@ -9,8 +9,15 @@ const toPermissions = (addresses) => ({
   origins: addresses.map((address) => `*://${address}/*`),
 });
 
+// Enabled websites only, matching the banner this request clears: the prompt
+// is all-or-nothing, so asking for a disabled website's hosts too would leave
+// granting them the only way to hide the banner.
 const getPermissionsFromState = (state) =>
-  toPermissions(state.websites.list.flatMap((website) => website.addresses));
+  toPermissions(
+    state.websites.list
+      .filter((website) => website.enabled)
+      .flatMap((website) => website.addresses),
+  );
 
 // Ids of enabled websites whose host permission is not yet granted. Disabled
 // websites are excluded: the background never filters them, so they need no

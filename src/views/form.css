@@ -38,13 +38,6 @@
   margin-right: var(--spacing);
 }
 
-.form__field input:focus,
-.form__field textarea:focus,
-.form__field input:invalid,
-.form__field textarea:invalid {
-  outline: none;
-}
-
 .form__hint {
   color: var(--subtle-text-color);
   margin-bottom: var(--spacing);

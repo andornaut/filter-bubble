@@ -1,5 +1,6 @@
 import { getState, setState } from "statezero/src";
 
+import defaultWebsites from "../data/websites.json";
 import { sortByDateDesc } from "../helpers";
 import { importData, parseImport } from "./import";
 
@@ -282,5 +283,46 @@ describe("importData", () => {
         ],
       }),
     ).toThrow(/isn't a valid domain name/);
+  });
+
+  describe("a shipped default website", () => {
+    const shipped = defaultWebsites.list[0];
+
+    // An export records the default as the release it came from shipped it.
+    // Restoring that copy verbatim, stamped as edited, would freeze it there.
+    it("is restored as shipped when the file records it as never edited", () => {
+      importData({
+        websites: [
+          {
+            ...shipped,
+            enabled: false,
+            modifiedDate: shipped.createdDate,
+            selectors: ["old-selector"],
+          },
+        ],
+      });
+
+      const [website] = getState().websites.list;
+      expect(website.selectors).toEqual(shipped.selectors);
+      expect(website.enabled).toBe(false);
+      expect(website.modifiedDate).toBe(website.createdDate);
+      expect(website.modifiedDate > shipped.createdDate).toBe(true);
+    });
+
+    it("keeps the file's copy when the file records it as edited", () => {
+      importData({
+        websites: [
+          {
+            ...shipped,
+            modifiedDate: "2025-01-01T00:00:00.000Z",
+            selectors: ["my-selector"],
+          },
+        ],
+      });
+
+      const [website] = getState().websites.list;
+      expect(website.selectors).toEqual(["my-selector"]);
+      expect(website.modifiedDate).not.toBe(website.createdDate);
+    });
   });
 });

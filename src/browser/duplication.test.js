@@ -34,26 +34,33 @@ describe("constants duplicated into the unbundled browser scripts", () => {
   });
 });
 
-// `build.mjs` copies `static/` to `dist/` and `src/browser/` to `dist/js/`, so
-// a runtime path in background.js maps back to exactly one source file.
-const toSource = (runtimePath) =>
-  runtimePath.startsWith("/js/")
-    ? join(__dirname, runtimePath.replace("/js/", "./"))
-    : join(__dirname, "../../static", runtimePath);
+// `build.mjs` copies `static/` to `dist/`, `src/browser/` to `dist/js/` and
+// `src/data/` files to `dist/data/`, so a runtime path in background.js maps
+// back to exactly one source file.
+const toSource = (runtimePath) => {
+  if (runtimePath.startsWith("/js/")) {
+    return join(__dirname, runtimePath.replace("/js/", "./"));
+  }
+  if (runtimePath.startsWith("/data/")) {
+    return join(__dirname, "..", runtimePath);
+  }
+  return join(__dirname, "../../static", runtimePath);
+};
 
 describe("runtime asset paths in background.js", () => {
   // These encode build.mjs's output layout. A mistyped stylesheet path renders
   // filtered pages unstyled with only a console log; a mistyped content-script
   // path fails `executeScript` and reports a misleading missing-permission
   // error. Neither fails the build.
-  it.each([["CONTENT_SCRIPT_PATH"], ["STYLESHEET_PATH"]])(
-    "%s resolves to a file that ships",
-    (name) => {
-      const path = JSON.parse(constant(BACKGROUND, name));
+  it.each([
+    ["CONTENT_SCRIPT_PATH"],
+    ["DEFAULT_WEBSITES_PATH"],
+    ["STYLESHEET_PATH"],
+  ])("%s resolves to a file that ships", (name) => {
+    const path = JSON.parse(constant(BACKGROUND, name));
 
-      expect(() => readFileSync(toSource(path), "utf8")).not.toThrow();
-    },
-  );
+    expect(() => readFileSync(toSource(path), "utf8")).not.toThrow();
+  });
 
   // The toolbar icons are named only here, so manifest.test.js's
   // ships-every-file check does not reach them. A missing one leaves the

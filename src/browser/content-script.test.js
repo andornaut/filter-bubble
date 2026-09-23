@@ -273,6 +273,16 @@ describe("FilterBubble.enable", () => {
     const el = document.querySelector(".post");
     expect(el.classList.contains("filter-bubble")).toBe(true);
   });
+
+  // Markup with no whitespace between tags must not run a word into its
+  // neighbour's letters, where the word boundary would refuse it.
+  it("matches a word that abuts another element's text", () => {
+    document.body.innerHTML = `<div class="post"><span>5 comments</span><a>banana split</a></div>`;
+    enable();
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble")).toBe(true);
+  });
 });
 
 describe("FilterBubble failure recovery", () => {
@@ -458,6 +468,18 @@ describe("FilterBubble re-filtering", () => {
     enable({ pattern: patternFor("cherry") });
 
     expect(el.classList.contains("filter-bubble")).toBe(false);
+  });
+
+  // A reset unfilters everything, so its pass must not wait behind the
+  // throttle window the previous state's pass opened.
+  it("re-filters at once on a state change inside the throttle window", () => {
+    document.body.innerHTML = `<div class="post">banana</div>`;
+    enable();
+
+    enable({ filterMode: "remove" });
+
+    const el = document.querySelector(".post");
+    expect(el.classList.contains("filter-bubble--remove")).toBe(true);
   });
 
   it("keeps up with more mutations than the throttle can service", async () => {

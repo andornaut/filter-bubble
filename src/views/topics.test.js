@@ -54,7 +54,7 @@ describe("Topics", () => {
     await add("   ");
 
     expect(storedTopics()).toEqual([]);
-    expect(errorMessages()).toEqual(['Please fill in the "Text" field']);
+    expect(errorMessages()).toEqual(['Please fill in the "Topics" field']);
   });
 
   it("refuses a topic listing the phrases another one already holds", async () => {

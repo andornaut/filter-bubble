@@ -48,7 +48,7 @@ const transform = (data) => {
     throw new Error('Please fill in the "Domain names" field');
   }
   if (data.selectors.length === 0) {
-    throw new Error('Please fill in the "CSS Selectors" field');
+    throw new Error('Please fill in the "CSS selectors" field');
   }
 
   return data;

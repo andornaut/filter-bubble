@@ -51,6 +51,15 @@ const show = async (hash) => {
 };
 
 describe("popup routing", () => {
+  beforeEach(() => {
+    global.chrome = {
+      permissions: {
+        onAdded: { addListener: () => {} },
+        onRemoved: { addListener: () => {} },
+      },
+    };
+  });
+
   it("renders the import page at #import", async () => {
     const root = await show("#import");
 

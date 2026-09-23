@@ -18,7 +18,7 @@ const transform = (data) => {
   // `formToJson` drops a field only when it is empty, and whitespace is not, so
   // " " reaches here and canonicalizes to no phrases at all. Refuse it.
   if (!data.text.length) {
-    throw new Error('Please fill in the "Text" field');
+    throw new Error('Please fill in the "Topics" field');
   }
   return data;
 };

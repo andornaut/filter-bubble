@@ -24,6 +24,8 @@ const SCHEME_REGEX = /^(https?)?:\/\//;
 // be imported here (service worker, no bundling).
 const TOPIC_PREFIX = "t:";
 const WEBSITE_PREFIX = "w:";
+// The shipped default websites. build.mjs copies src/data/websites.json here.
+const DEFAULT_WEBSITES_PATH = "/data/websites.json";
 // Set while Filter Bubble is disabled, held in `storage.local` so that
 // disabling applies to this browser only. Duplicated from src/settings.js,
 // which cannot be imported here either.
@@ -135,7 +137,11 @@ const toPattern = (topicsList) => {
         .filter(Boolean)
         // Escape regex metacharacters, so a phrase matches as the literal text
         // it is: https://stackoverflow.com/a/17886301
-        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")),
+        .map((text) => text.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"))
+        // Match any whitespace run between words: a page may join them with a
+        // non-breaking space or a line break, and the content script joins
+        // adjacent elements' text with a space. `\s` includes U+00A0.
+        .map((text) => text.replace(/\s+/g, "\\s+")),
     ),
   );
   // Callers treat an empty pattern as "filter nothing", so it must stay the
@@ -456,6 +462,58 @@ const whenStateIsReady =
   };
 
 // =============================================================================
+// Default Websites
+// =============================================================================
+
+// Serialize with object keys sorted, so a record the browser hands back with
+// its keys in another order still compares equal.
+const stableStringify = (value) =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? `{${Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+        .join(",")}}`
+    : JSON.stringify(value);
+
+// Re-apply the shipped defaults over stored copies the user has never edited
+// (`modifiedDate === createdDate`), keeping their stored dates and `enabled`.
+// Mirrors `refreshDefaults` in src/storage.js, which only runs when the popup or
+// options page opens: without this, a corrected selector never reaches a
+// browser whose UI is not opened after an update.
+const refreshDefaults = async () => {
+  const [raw, response] = await Promise.all([
+    chrome.storage.sync.get(null),
+    fetch(chrome.runtime.getURL(DEFAULT_WEBSITES_PATH)),
+  ]);
+  const { list } = await response.json();
+  const changes = {};
+  for (const website of list) {
+    const key = WEBSITE_PREFIX + website.id;
+    const current = (raw || {})[key];
+    if (
+      !current ||
+      typeof current !== "object" ||
+      current.modifiedDate !== current.createdDate
+    ) {
+      continue;
+    }
+    const next = {
+      ...website,
+      createdDate: current.createdDate,
+      enabled: current.enabled,
+      modifiedDate: current.modifiedDate,
+      ...(current.sortDate && { sortDate: current.sortDate }),
+    };
+    if (stableStringify(next) !== stableStringify(current)) {
+      changes[key] = next;
+    }
+  }
+  if (Object.keys(changes).length) {
+    await chrome.storage.sync.set(changes);
+  }
+};
+
+// =============================================================================
 // Event Listeners
 // =============================================================================
 
@@ -486,6 +544,20 @@ const setForceHighlight = (forceHighlight) =>
     // looks at.
     resetActiveTabs(state);
   });
+
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === "update") {
+    refreshDefaults().catch((err) => {
+      console.error("filter-bubble: refreshDefaults() failed:", err);
+    });
+  }
+});
+
+// A tab that could not be injected into before the grant stays unfiltered until
+// its next tab event unless it is re-evaluated here.
+chrome.permissions.onAdded.addListener(
+  whenStateIsReady(() => resetActiveTabs(state)),
+);
 
 // Hide content when the popup is closed; and highlight content when the popup is open.
 // See corresponding call to chrome.runtime.connect() in /src/index.js

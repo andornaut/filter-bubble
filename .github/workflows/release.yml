@@ -68,6 +68,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # A tag the version files disagree with would publish a release named for
+      # one version holding a zip built as another. manifest.test.js keeps
+      # manifest.json in step with package.json.
+      - name: Check the tag matches the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci
 

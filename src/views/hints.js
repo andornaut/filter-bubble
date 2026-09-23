@@ -58,14 +58,14 @@ export const HELP_HTML = (
 export const PERMISSIONS_HINT = (
   <>
     <p>
-      <b>Click above to grant access</b> to all of the{" "}
+      <b>Click above to grant access</b> to all of the enabled{" "}
       <a href="#websites">configured websites</a>, which is needed in order to
       hide or remove content from those websites.
     </p>
     <p>
-      If you don't want to grant access to any of those websites, then delete
-      them on the <a href="#websites">"Websites" tab</a> in order to hide this
-      prompt.
+      If you don't want to grant access to any of those websites, then disable
+      or delete them on the <a href="#websites">"Websites" tab</a> in order to
+      hide this prompt.
     </p>
   </>
 );

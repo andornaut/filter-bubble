@@ -60,7 +60,13 @@ const bootstrap = async () => {
     return;
   }
 
-  checkAllPermissions(getState()); // May update the state.
+  // Re-check on every change as well as now: site access can be granted or
+  // revoked in the browser's own extension settings while the options page,
+  // which stays open in a tab, is showing. Each check may update the state.
+  const recheckPermissions = () => checkAllPermissions(getState());
+  chrome.permissions.onAdded.addListener(recheckPermissions);
+  chrome.permissions.onRemoved.addListener(recheckPermissions);
+  recheckPermissions();
 
   // Connect only from the popup, which closes on blur. The background holds
   // highlight mode on for as long as this port is open, so a role that can stay

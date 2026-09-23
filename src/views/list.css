@@ -51,10 +51,6 @@
   width: 6em;
 }
 
-.list__toggle:focus {
-  outline: none;
-}
-
 .list__item--disabled .list__content {
   border-color: var(--disabled-color);
   color: var(--subtle-text-color);

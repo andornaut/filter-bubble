@@ -121,12 +121,29 @@ describe("the shipped default selectors", () => {
     ).toEqual(["a1", "g1", "g2"]);
   });
 
-  it("apply nothing on an Ars Technica page that is not the home page", () => {
-    // Both selectors are scoped to `body.home`. An article page is not a feed,
-    // so the story you opened stays put, and so does everything around it,
-    // which is why the scoping is there rather than a bare "main article".
+  it("target Ars Technica section page items", () => {
+    // Section feeds such as /ai/ carry `archive` rather than `home`.
     expect(
       targeted("default-arstechnica", {
+        bodyClass: "archive category category-ai",
+        html: `
+          <nav id="site-nav">A menu</nav>
+          <main>
+            <ul><li class="group" id="g1">A story</li></ul>
+            <article id="a1">Another</article>
+          </main>`,
+      }),
+    ).toEqual(["a1", "g1"]);
+  });
+
+  it("apply nothing on an Ars Technica article page", () => {
+    // The selectors are scoped to the feed pages' body classes. An article page
+    // (`single`) is not a feed, so the story you opened stays put, and so does
+    // everything around it, which is why the scoping is there rather than a
+    // bare "main article".
+    expect(
+      targeted("default-arstechnica", {
+        bodyClass: "single",
         html: `
           <main>
             <article id="the-article">A story, opened deliberately</article>

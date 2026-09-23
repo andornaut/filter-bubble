@@ -109,6 +109,9 @@ const defaultIdByAddresses = seededWebsites.reduce((acc, website) => {
 // would reorder the list, which sorts on `modifiedDate` when `sortDate` is
 // absent.
 //
+// Carry `sortDate` across when there is one (an imported default has it), or
+// the list would sort the record by `modifiedDate` instead.
+//
 // Carry `enabled` across for a different reason: a selector correction has no
 // business changing whether the user has the site switched on, and the toggle
 // did not stamp `modifiedDate` before the per-item layout, so a default
@@ -131,6 +134,7 @@ const refreshDefaults = (raw, toWrite) => {
         createdDate: current.createdDate,
         enabled: current.enabled,
         modifiedDate: current.modifiedDate,
+        ...(current.sortDate && { sortDate: current.sortDate }),
       };
     }
   });

@@ -13,8 +13,11 @@ const chromeMock = {
     setIcon: noopPromise,
     setTitle: noopPromise,
   },
+  permissions: { onAdded: { addListener: () => {} } },
   runtime: {
+    getURL: (path) => `chrome-extension://id${path}`,
     onConnect: { addListener: () => {} },
+    onInstalled: { addListener: () => {} },
     onMessage: { addListener: () => {} },
   },
   scripting: { executeScript: noopPromise, insertCSS: noopPromise },
@@ -299,9 +302,17 @@ describe("active tab re-evaluation", () => {
     let onActivated;
     let onChanged;
     let onConnect;
+    let onPermissionsAdded;
     const mock = {
       ...chromeMock,
       action: { ...chromeMock.action, setBadgeText },
+      permissions: {
+        onAdded: {
+          addListener: (listener) => {
+            onPermissionsAdded = listener;
+          },
+        },
+      },
       runtime: {
         ...chromeMock.runtime,
         onConnect: {
@@ -346,6 +357,7 @@ describe("active tab re-evaluation", () => {
       onActivated,
       onChanged,
       onConnect,
+      onPermissionsAdded,
       query,
       sendMessage,
       setBadgeText,
@@ -360,6 +372,23 @@ describe("active tab re-evaluation", () => {
     });
     onActivated({ windowId: 1 });
     await flush();
+    expect(executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+    );
+  });
+
+  // A tab that could not be injected into before the grant has no other event
+  // coming to repair it.
+  it("re-evaluates the active tabs when a host permission is granted", async () => {
+    const { executeScript, onPermissionsAdded } = await evaluate({
+      id: 1,
+      status: "complete",
+      url: "https://reddit.com/",
+    });
+
+    onPermissionsAdded({ origins: ["*://reddit.com/*"] });
+    await flush();
+
     expect(executeScript).toHaveBeenCalledWith(
       expect.objectContaining({ target: { tabId: 1 } }),
     );
@@ -1583,6 +1612,99 @@ describe("runtime.onMessage listener", () => {
   });
 });
 
+describe("refreshing the shipped defaults on update", () => {
+  const SHIPPED = {
+    addresses: ["tildes.net"],
+    createdDate: "2020-01-01T00:00:00.000Z",
+    enabled: true,
+    id: "default-tildes",
+    selectors: ["ol.topic-listing > li"],
+  };
+
+  // Evaluate the source against `syncStore`, fire `onInstalled` with `reason`,
+  // and return what was written to `storage.sync`.
+  const install = async (reason, syncStore) => {
+    const set = jest.fn(() => Promise.resolve());
+    let onInstalled;
+    global.fetch = jest.fn(() =>
+      Promise.resolve({ json: () => Promise.resolve({ list: [SHIPPED] }) }),
+    );
+    new Function("chrome", source)({
+      ...chromeMock,
+      runtime: {
+        ...chromeMock.runtime,
+        onInstalled: {
+          addListener: (listener) => {
+            onInstalled = listener;
+          },
+        },
+      },
+      storage: {
+        ...chromeMock.storage,
+        sync: { get: () => Promise.resolve({ ...syncStore }), set },
+      },
+    });
+    onInstalled({ reason });
+    await flush();
+    delete global.fetch;
+    return set;
+  };
+
+  const stored = (overrides) => ({
+    ...SHIPPED,
+    createdDate: "2024-05-01T00:00:00.000Z",
+    modifiedDate: "2024-05-01T00:00:00.000Z",
+    selectors: ["old-selector"],
+    ...overrides,
+  });
+
+  it("re-applies shipped selectors to a never-edited default", async () => {
+    const set = await install("update", {
+      "w:default-tildes": stored({ enabled: false }),
+    });
+
+    expect(set).toHaveBeenCalledWith({
+      "w:default-tildes": {
+        ...SHIPPED,
+        createdDate: "2024-05-01T00:00:00.000Z",
+        enabled: false,
+        modifiedDate: "2024-05-01T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("keeps a stored sortDate", async () => {
+    const sortDate = "2021-06-01T00:00:00.000Z";
+    const set = await install("update", {
+      "w:default-tildes": stored({ sortDate }),
+    });
+
+    expect(set.mock.calls[0][0]["w:default-tildes"].sortDate).toBe(sortDate);
+  });
+
+  it("leaves an edited default alone", async () => {
+    const set = await install("update", {
+      "w:default-tildes": stored({ modifiedDate: "2025-01-01T00:00:00.000Z" }),
+    });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing when the stored default is already current", async () => {
+    const set = await install("update", {
+      "w:default-tildes": stored({ selectors: SHIPPED.selectors }),
+    });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing on a fresh install", async () => {
+    const set = await install("install", { "w:default-tildes": stored() });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
 describe("toPattern", () => {
   it("wraps the alternation in non-word lookarounds once", () => {
     expect(toPattern([{ enabled: true, text: "spoilers" }])).toBe(
@@ -1677,6 +1799,19 @@ describe("toPattern", () => {
     const regex = new RegExp(toPattern([{ enabled: true, text: "-" }]), "i");
     expect(regex.test("2026-07-26")).toBe(false);
     expect(regex.test("a - b")).toBe(true);
+  });
+
+  // Pages join words with a non-breaking space or a line break, and the
+  // content script joins adjacent elements' text with a space.
+  it("matches a multi-word phrase across any whitespace run", () => {
+    const regex = new RegExp(
+      toPattern([{ enabled: true, text: "elon musk" }]),
+      "i",
+    );
+    expect(regex.test("Elon\u00a0Musk")).toBe(true);
+    expect(regex.test("Elon\n      Musk")).toBe(true);
+    expect(regex.test("Elon  Musk")).toBe(true);
+    expect(regex.test("ElonMusk")).toBe(false);
   });
 
   it("produces a pattern that matches whole words only", () => {

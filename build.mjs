@@ -17,6 +17,9 @@ const copyStatic = () => {
     recursive: true,
   });
   cpSync("manifest.json", "dist/manifest.json");
+  // The background reads the shipped defaults at runtime, since it cannot
+  // import them.
+  cpSync("src/data/websites.json", "dist/data/websites.json");
 };
 
 const watchStatic = () => {
@@ -27,6 +30,10 @@ const watchStatic = () => {
       toDest: (f) => (isShippableScript(f) ? `dist/js/${f}` : null),
     },
     { path: "manifest.json", toDest: () => "dist/manifest.json" },
+    {
+      path: "src/data/websites.json",
+      toDest: () => "dist/data/websites.json",
+    },
   ];
   watchers.forEach(({ path, toDest }) => {
     watch(path, { recursive: true }, (_, filename) => {

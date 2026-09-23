@@ -43,32 +43,36 @@
   const UNRENDERED_TAGS = new Set(["NOSCRIPT", "SCRIPT", "STYLE"]);
   const UNRENDERED_SELECTOR = "noscript, script, style";
 
-  // The container's text with those elements left out.
+  // `SHOW_TEXT`, so every node the filter sees is a text node and its parent is
+  // the element that holds it: the content of all three is parsed as raw text,
+  // so it is their own child and never a deeper descendant. (`<noscript>` is raw
+  // text only while scripting is enabled, which it is wherever this runs.)
+  const acceptRendered = ({ parentElement }) =>
+    parentElement && UNRENDERED_TAGS.has(parentElement.tagName)
+      ? NodeFilter.FILTER_REJECT
+      : NodeFilter.FILTER_ACCEPT;
+
+  // The container's text with those elements left out, one space between text
+  // nodes. `textContent` concatenates them with no separator, so markup with no
+  // whitespace between tags (`<span>5 comments</span><a>Trump</a>`) runs a word
+  // into its neighbour's letters, where the word-boundary lookarounds refuse it.
+  // The background compiles the whitespace inside a phrase to `\s+`, so the
+  // extra space never splits a phrase that spans two elements.
   //
-  // Fast path first: most containers hold none of them, and `textContent` is
-  // one native call, where the walk below is a call per text node. The lookup
-  // that chooses between them is native too, and only containers that are not
-  // already filtered ever reach here.
+  // Accepted cost: markup inside a word (`Tr<mark>ump</mark>`) splits it, so
+  // that word no longer matches.
   const toText = (container) => {
-    if (!container.querySelector(UNRENDERED_SELECTOR)) {
-      return container.textContent;
-    }
-    // `SHOW_TEXT`, so every node the filter sees is a text node and its parent
-    // is the element that holds it: the content of all three is parsed as raw
-    // text, so it is their own child and never a deeper descendant.
-    // (`<noscript>` is raw text only while scripting is enabled, which it is
-    // wherever this runs.)
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-      acceptNode: ({ parentElement }) =>
-        parentElement && UNRENDERED_TAGS.has(parentElement.tagName)
-          ? NodeFilter.FILTER_REJECT
-          : NodeFilter.FILTER_ACCEPT,
-    });
-    let text = "";
+    const hasUnrendered = container.querySelector(UNRENDERED_SELECTOR);
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      hasUnrendered ? { acceptNode: acceptRendered } : null,
+    );
+    const parts = [];
     while (walker.nextNode()) {
-      text += walker.currentNode.data;
+      parts.push(walker.currentNode.data);
     }
-    return text;
+    return parts.join(" ");
   };
 
   // Count only the outermost filtered elements. Overlapping selectors can match
@@ -200,6 +204,13 @@
       this.regex = regex;
       this.state = state;
 
+      // Run this pass now rather than queueing it behind a throttle window a
+      // previous pass opened: the reset above has just unfiltered everything,
+      // and a queued pass would leave it all visible until the window closes.
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = null;
+      this.pending = false;
+      this.queued = false;
       this._runFiltering();
     }
 

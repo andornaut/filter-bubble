@@ -27,7 +27,7 @@ export const Errors = ({ errors }) => {
     return null;
   }
   return (
-    <ul className="errors">
+    <ul className="errors" role="alert">
       {sortByDateDesc(list).map((item) => (
         <ErrorItem item={item} key={toId(item)} />
       ))}

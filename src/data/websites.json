@@ -26,7 +26,10 @@
       "createdDate": "2020-01-01T00:00:00.000Z",
       "enabled": true,
       "id": "default-arstechnica",
-      "selectors": ["body.home main li.group, body.home main article"]
+      "selectors": [
+        "body.home main li.group, body.home main article",
+        "body.archive main li.group, body.archive main article"
+      ]
     }
   ]
 }

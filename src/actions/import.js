@@ -1,5 +1,6 @@
 import { action, getState } from "statezero/src";
 
+import defaultWebsites from "../data/websites.json";
 import { toIsoDate, toItemId } from "../helpers";
 import { toStorage } from "../storage";
 import {
@@ -7,6 +8,10 @@ import {
   canonicalizeSelectors,
   canonicalizeText,
 } from "../validation";
+
+const shippedById = new Map(
+  defaultWebsites.list.map((website) => [website.id, website]),
+);
 
 // Structural validation only: confirm the file is a JSON object with array
 // `topics` / `websites` fields. Missing fields default to empty, so exports
@@ -70,7 +75,37 @@ const normalizeTopic = (ids, item) => {
   return { ...normalizeMeta(ids, item), text };
 };
 
+// A shipped default the file records as never edited (`modifiedDate` equal to
+// `createdDate`) is restored as this release ships it rather than as the file
+// captured it, with both dates set to the import time. That keeps it eligible
+// for the selector corrections `refreshDefaults` applies to never-edited
+// defaults, instead of freezing it at whatever the export's release shipped,
+// and the import-time `modifiedDate` still wins the sync merge.
+const restoreShippedDefault = (meta, item) => {
+  const shipped = shippedById.get(meta.id);
+  const createdDate = toIsoDate(item.createdDate);
+  if (
+    !shipped ||
+    !createdDate ||
+    createdDate !== toIsoDate(item.modifiedDate)
+  ) {
+    return null;
+  }
+  return {
+    ...meta,
+    addresses: shipped.addresses,
+    createdDate: meta.modifiedDate,
+    hideInsteadOfRemove: Boolean(shipped.hideInsteadOfRemove),
+    selectors: shipped.selectors,
+  };
+};
+
 const normalizeWebsite = (ids, item) => {
+  const meta = normalizeMeta(ids, item);
+  const restored = restoreShippedDefault(meta, item);
+  if (restored) {
+    return restored;
+  }
   // Canonicalize/validate exactly like the add/edit form (lowercased, bare
   // domains) so imported websites match the invariant `background.js` relies on;
   // an invalid domain throws with the same message the form shows.
@@ -82,7 +117,7 @@ const normalizeWebsite = (ids, item) => {
     );
   }
   return {
-    ...normalizeMeta(ids, item),
+    ...meta,
     addresses,
     hideInsteadOfRemove: Boolean(item.hideInsteadOfRemove),
     selectors,

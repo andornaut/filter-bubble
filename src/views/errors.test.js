@@ -29,6 +29,14 @@ describe("Errors", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // The list appears where the user is not looking, between the tabs and the
+  // form, so a screen reader has to be told it arrived.
+  it("announces itself to assistive technology", () => {
+    renderErrors([error("Duplicate item: cats", "2026-01-01T00:00:00.000Z")]);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Duplicate item: cats");
+  });
+
   // The newest failure is the one the user just caused, so it goes on top.
   it("shows the most recent message first", () => {
     renderErrors([

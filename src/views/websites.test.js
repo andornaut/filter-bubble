@@ -118,7 +118,7 @@ describe("Websites", () => {
 
     expect(storedWebsites()).toEqual([]);
     expect(errorMessages()).toEqual([
-      'Please fill in the "CSS Selectors" field',
+      'Please fill in the "CSS selectors" field',
     ]);
   });
 

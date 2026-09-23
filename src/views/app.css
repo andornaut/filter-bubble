@@ -12,6 +12,12 @@
   --spacing: 0.5em;
 }
 
+/* One focus ring for every control, shown for keyboard focus only. */
+:focus-visible {
+  outline: 2px solid var(--secondary-color);
+  outline-offset: 2px;
+}
+
 body {
   background-color: #222;
   color: var(--text-color);
@@ -43,10 +49,6 @@ body {
   color: var(--text-color);
   cursor: pointer;
   padding: 0.4em 0.6em;
-}
-
-.btn:focus {
-  outline: none;
 }
 
 .btn--primary {
@@ -95,7 +97,6 @@ body {
   color: var(--subtle-text-color);
   display: inline-block;
   font-size: 1.5em;
-  outline: none;
   padding: var(--spacing);
 }
 

@@ -56,7 +56,13 @@ describe("popup entry point", () => {
     initState.mockResolvedValue(undefined);
     isPopup.mockResolvedValue(true);
     window.location.hash = "";
-    global.chrome = { runtime: { connect: jest.fn() } };
+    global.chrome = {
+      permissions: {
+        onAdded: { addListener: jest.fn() },
+        onRemoved: { addListener: jest.fn() },
+      },
+      runtime: { connect: jest.fn() },
+    };
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -98,6 +104,22 @@ describe("popup entry point", () => {
     // banner showing whatever it last held.
     expect(checkAllPermissions).toHaveBeenCalledWith(expect.any(Object));
   });
+
+  // The options page stays open in a tab while access can change in the
+  // browser's own settings.
+  it.each([["onAdded"], ["onRemoved"]])(
+    "re-checks permissions on %s",
+    async (event) => {
+      isPopup.mockResolvedValue(false);
+      await load();
+      checkAllPermissions.mockClear();
+
+      const [[listener]] = chrome.permissions[event].addListener.mock.calls;
+      listener();
+
+      expect(checkAllPermissions).toHaveBeenCalledWith(expect.any(Object));
+    },
+  );
 
   it("skips the port and the permission check on the import page", async () => {
     // The import page runs its own permission check once a file is applied.

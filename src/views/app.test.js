@@ -82,10 +82,10 @@ describe("App permission banner", () => {
   });
 
   // The banner is the one control that covers the whole configuration, so it
-  // asks for every address of every website in one request rather than for the
-  // first, or one website's worth. Several websites, one of them holding more
+  // asks for every address of every enabled website in one request rather than
+  // for the first, or one website's worth. Several websites, one of them holding more
   // than a single address, or a request built from either first would pass.
-  it("requests access for every address of every configured website", () => {
+  it("requests access for every address of every enabled website", () => {
     renderApp("", {
       hasPermissions: false,
       websites: {
@@ -113,10 +113,10 @@ describe("App permission banner", () => {
     });
   });
 
-  // Disabled websites are excluded from the flags, but not from the request:
-  // the banner asks for the whole configuration at once, so enabling one later
-  // does not need a second trip through the browser's permission dialog.
-  it("includes a disabled website in what it asks for", () => {
+  // The prompt is all-or-nothing, so a disabled website's hosts in it would
+  // make granting them the only way to clear the banner. Enabling it later
+  // shows the banner again.
+  it("leaves a disabled website out of what it asks for", () => {
     renderApp("", {
       hasPermissions: false,
       websites: {
@@ -137,7 +137,7 @@ describe("App permission banner", () => {
     );
 
     expect(chrome.permissions.request).toHaveBeenCalledWith({
-      origins: ["*://example.com/*", "*://off.example/*"],
+      origins: ["*://example.com/*"],
     });
   });
 

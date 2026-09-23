@@ -162,6 +162,20 @@ describe("fromStorage", () => {
     expect(set).not.toHaveBeenCalled();
   });
 
+  // An imported default carries `sortDate`. Dropping it would sort the record
+  // by `modifiedDate` instead, and move it in the list.
+  it("keeps a stored sortDate while refreshing a default", async () => {
+    const sortDate = "2021-06-01T00:00:00.000Z";
+    get.mockResolvedValue({
+      schema: 2,
+      [shippedKey]: { ...refreshed, selectors: ["ul.stale"], sortDate },
+    });
+
+    const lists = await fromStorage();
+
+    expect(lists.websites.list).toEqual([{ ...refreshed, sortDate }]);
+  });
+
   // The toggle did not stamp `modifiedDate` before the per-item layout, so a
   // default disabled on those releases still satisfies the sentinel. Restoring
   // the shipped `enabled` would switch filtering the user turned off back on.

@@ -59,7 +59,7 @@ npm start
 
 ### Publishing
 
-Tagged releases (`v*`) build a packaged extension via [GitHub Actions](.github/workflows/release.yml):
+Tagged releases (`vX.Y.Z`) build a packaged extension via [GitHub Actions](.github/workflows/release.yml):
 
 1. Match `version` in [`package.json`](./package.json) and [`manifest.json`](./manifest.json).
 1. Commit, then tag and push:
@@ -69,4 +69,4 @@ Tagged releases (`v*`) build a packaged extension via [GitHub Actions](.github/w
    git push && git push --tags
    ```
 
-Build locally with `npm run package` (output in `web-ext-artifacts/`). Store dashboards: [Chrome](https://chromewebstore.google.com/devconsole/), [Firefox](https://addons.mozilla.org/en-US/developers/addons).
+Build locally with `npm run package`, then `npm run zip` from the tagged commit for the source archive Firefox review asks for (both output to `web-ext-artifacts/`). Store dashboards: [Chrome](https://chromewebstore.google.com/devconsole/), [Firefox](https://addons.mozilla.org/en-US/developers/addons).
