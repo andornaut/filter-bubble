@@ -55,7 +55,7 @@
     "jest": "^30.5.1",
     "jest-environment-jsdom": "^30.5.2",
     "lint-staged": "^17.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.9",
     "size-limit": "^14.0.0",
     "web-ext": "^10.6.0"
   }
