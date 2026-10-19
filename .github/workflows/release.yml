@@ -97,7 +97,7 @@ jobs:
         run: npm run package
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: extension-package
           path: web-ext-artifacts/filter_bubble-*.zip
