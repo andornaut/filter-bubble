@@ -1,7 +1,7 @@
 // The lint rules every JavaScript repository here shares. Byte-identical in all
-// of them: a sweep compares this file across repositories and reports any copy
-// that has drifted, so edit it in ai-maintainer/lint-configs and let the sweep
-// carry it, rather than here.
+// of them: github-config-drift holds the canonical copy, in
+// configs/javascript/, and its sweep reports any copy that has drifted, so edit
+// it there and copy it out, rather than here.
 //
 // It exports rule sets rather than finished configs because the globs differ per
 // repository - one ships src/, another ergogen/footprints/, another .gs files -
