@@ -34,7 +34,14 @@ const reactRules = {
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "web-ext-artifacts/**"],
+    // .claude/ holds agent git worktrees: full checkouts that would otherwise be
+    // linted as files of this one, with none of the globs below matching them.
+    ignores: [
+      ".claude/**",
+      "dist/**",
+      "node_modules/**",
+      "web-ext-artifacts/**",
+    ],
   },
   js.configs.recommended,
   // Source files (React)
