@@ -58,5 +58,9 @@
     "prettier": "^3.9.10",
     "size-limit": "^14.0.0",
     "web-ext": "^10.8.0"
+  },
+  "//": "WORKAROUND: https://github.com/advisories/GHSA-g3hv-75wg-m249 requires patched minimatch for affected dependency ranges. Remove this override when upstream dependencies require patched versions without it.",
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "11.0.5"
   }
 }
