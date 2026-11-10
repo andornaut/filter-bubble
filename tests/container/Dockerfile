@@ -12,5 +12,6 @@ COPY package.json package-lock.json ./
 # Remove after upstream dependencies include patched versions.
 # https://github.com/advisories/GHSA-gg6h-894w-4m9c
 # https://github.com/advisories/GHSA-238p-pmpm-9mq7
-RUN npm ci --ignore-scripts --no-audit --no-fund
+# Bound npm fetch concurrency within the container file descriptor limit.
+RUN npm ci --maxsockets=1 --ignore-scripts --no-audit --no-fund
 COPY tests/container/check /opt/check/run
