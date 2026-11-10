@@ -1,4 +1,4 @@
 {
-  "*": "tests/container/staged prettier --write --ignore-unknown",
-  "*.{cjs,js,mjs}": "tests/container/staged eslint --fix --max-warnings 0"
+  "*": "prettier --write --ignore-unknown",
+  "*.{cjs,js,mjs}": "eslint --fix --max-warnings 0"
 }

@@ -42,31 +42,25 @@ npm install
 npm start
 ```
 
-Docker 29.9.3 and Make provide the verification interface. `make check` runs
-formatting, Markdown, lint, Jest, development and production builds, bundle size limits, and extension
-validation and packaging in isolated containers. Native `npm run check`, `npm test`,
-`npm run lint`, and `npm run build` delegate to Make.
+Use `make check` for the complete automation gate in the project's test image.
+It runs formatting, Markdown, lint, Jest, development and production builds, bundle size limits, extension validation, and packaging.
+
+Native npm commands in [`package.json`](./package.json) run locally and do not
+delegate to Make. Select the Node.js version in `.nvmrc` and install the lockfile
+dependencies with `npm ci`.
 
 ```bash
 make check
-make test TEST_ARGS='src/helpers.test.js'
-make lint
-make build
-make check-info
-make exec COMMAND='npm install'
+npm test -- src/helpers.test.js
+npm run lint
+npm run build
+npm run format
+npm run test:watch
+npm run watch
 ```
 
-Checks use a source snapshot and write to scratch. `make build` exports
-`dist/` and `web-ext-artifacts/`. `make exec` permits explicit project updates while
-protecting Git metadata. Internal npm scripts are used by the container dispatcher;
-[`package.json`](./package.json) lists the native aliases.
-
-The native pre-commit hook runs `make staged`, keeping automatic staged fixes and
-partial staging.
-Lint-staged manages Git on the host; Prettier and ESLint run in the project
-container. The hook requires Node and the lockfile's local lint-staged install.
-If container shutdown cannot be confirmed, the workflow preserves the working
-tree and backup stash and blocks its Git cleanup until the writer is resolved.
+The pre-commit hook runs `npx lint-staged --concurrent false` with local Prettier
+and ESLint. It automatically fixes staged files while preserving partial staging.
 
 ### Android
 

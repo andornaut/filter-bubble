@@ -12,16 +12,16 @@ run_task() {
     shift
     case "$task" in
     lint)
-        shellcheck -x -P SCRIPTDIR tests/container/run tests/container/check tests/container/staged tests/container/staged-git
-        npm run internal:lint
+        shellcheck -x -P SCRIPTDIR tests/container/run tests/container/check
+        npm run lint
         ;;
     test)
-        npm run internal:test -- --runInBand "$@"
+        npm run test -- --runInBand "$@"
         ;;
     build)
-        npm run internal:build
-        npm run internal:size
-        npm run internal:package
+        npm run build
+        npm run size
+        npm run package
         ;;
     *)
         printf 'Unknown check task: %s\n' "$task" >&2
@@ -32,9 +32,9 @@ run_task() {
 
 case "${1:-}" in
 check)
-    for task in ${CHECK_TASKS:?CHECK_TASKS is required}; do
-        run_task "$task"
-    done
+    run_task lint
+    run_task test
+    run_task build
     ;;
 lint|test|build)
     task=$1
@@ -50,7 +50,7 @@ exec)
     exec sh -ec "$COMMAND"
     ;;
 *)
-    printf 'Usage: check check|lint|test|build|exec\n' >&2
+    printf 'Usage: check check|lint|test|build|exec COMMAND [ARG...]\n' >&2
     exit 2
     ;;
 esac
