@@ -43,7 +43,7 @@ npm start
 ```
 
 Docker 29.9.3 and Make provide the verification interface. `make check` runs
-formatting, lint, Jest, development and production builds, bundle size limits, and extension
+formatting, Markdown, lint, Jest, development and production builds, bundle size limits, and extension
 validation and packaging in isolated containers. Native `npm run check`, `npm test`,
 `npm run lint`, and `npm run build` delegate to Make.
 

@@ -23,7 +23,7 @@
     "build:prod": "make exec COMMAND='npm run internal:build:prod'",
     "internal:format": "prettier --write . && eslint --fix .",
     "format": "make exec COMMAND='npm run internal:format'",
-    "internal:lint": "prettier --check . && eslint --max-warnings 0 .",
+    "internal:lint": "prettier --check . && eslint --max-warnings 0 . && markdownlint-cli2",
     "lint": "make lint",
     "internal:lint:ext": "npm run internal:build:prod && web-ext lint",
     "lint:ext": "make exec COMMAND='npm run internal:lint:ext'",
@@ -66,6 +66,7 @@
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
     "lint-staged": "^17.6.0",
+    "markdownlint-cli2": "0.24.0",
     "prettier": "^3.9.10",
     "size-limit": "^14.0.0",
     "web-ext": "^10.8.0"
