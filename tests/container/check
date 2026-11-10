@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+cd /work
+if [ ! -d node_modules ]; then
+    cp -R /opt/dependencies/node_modules node_modules
+fi
+export PATH="/work/node_modules/.bin:${PATH}"
+
+run_task() {
+    task=$1
+    shift
+    case "$task" in
+    lint)
+        npm run internal:lint
+        ;;
+    test)
+        npm run internal:test -- --runInBand "$@"
+        ;;
+    build)
+        npm run internal:build
+        npm run internal:size
+        npm run internal:package
+        ;;
+    *)
+        printf 'Unknown check task: %s\n' "$task" >&2
+        exit 2
+        ;;
+    esac
+}
+
+case "${1:-}" in
+check)
+    for task in ${CHECK_TASKS:?CHECK_TASKS is required}; do
+        run_task "$task"
+    done
+    ;;
+lint|test|build)
+    task=$1
+    shift
+    run_task "$task" "$@"
+    ;;
+exec)
+    : "${COMMAND:?COMMAND is required}"
+    exec sh -ec "$COMMAND"
+    ;;
+*)
+    printf 'Usage: check check|lint|test|build|exec\n' >&2
+    exit 2
+    ;;
+esac

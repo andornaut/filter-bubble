@@ -42,7 +42,24 @@ npm install
 npm start
 ```
 
-`npm test`, `npm run lint` and `npm run build` cover the rest; [`package.json`](./package.json) lists every script.
+Docker and Make provide the verification interface. `make check` runs formatting,
+lint, Jest, development and production builds, bundle size limits, and extension
+validation and packaging in isolated containers. Native `npm run check`, `npm test`,
+`npm run lint`, and `npm run build` delegate to Make.
+
+```bash
+make check
+make test TEST_ARGS='src/helpers.test.js'
+make lint
+make build
+make check-info
+make exec COMMAND='npm install'
+```
+
+Checks use a source snapshot and write to scratch. `make build` exports
+`dist/` and `web-ext-artifacts/`. `make exec` permits explicit project updates while
+protecting Git metadata. Internal npm scripts are used by the container dispatcher;
+[`package.json`](./package.json) lists the native aliases.
 
 ### Android
 
