@@ -62,11 +62,10 @@ jobs:
           # in .git/config for a later step to read.
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7.1.0
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v5.7.0
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          version: v29.9.3
 
       # A tag the version files disagree with would publish a release named for
       # one version holding a zip built as another. manifest.test.js keeps
@@ -74,24 +73,14 @@ jobs:
       - name: Check the tag matches the version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          version="$(node -p 'require("./package.json").version')"
+          version=$(jq -r '.version' package.json)
           if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match version $version"
             exit 1
           fi
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check size
-        run: npm run size
-
-      # `npm run package` builds, lints that build, then zips it, so `build:prod`
-      # runs here as well as inside `npm run size` above. The build itself is a
-      # fraction of a second, so the repeat costs less than wiring the two steps
-      # to share one output would; `web-ext lint` is what the time goes on.
-      - name: Package extension
-        run: npm run package
+      - name: Build
+        run: make build
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v7.0.2

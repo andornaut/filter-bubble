@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cleanup_staged() {
+    result=$?
+    trap - EXIT INT TERM HUP
+    if [[ -e ${marker} || -L ${marker} ]]; then
+        printf '%s\n' 'Container writer unresolved: Git state, backup stash and guard are preserved.' >&2
+        exit 125
+    fi
+    unlink "${guard_directory}/git"
+    rmdir "${guard_directory}"
+    exit "${result}"
+}
+
+checkout=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd -P)
+if [[ ${1:-} == orchestrate ]]; then
+    shift
+    cd "${checkout}"
+    real_git=${STAGED_REAL_GIT:-$(type -P git || true)}
+    if [[ -z ${real_git} ]]; then
+        printf '%s\n' 'Git is required for staged orchestration.' >&2
+        exit 2
+    fi
+    if [[ ${real_git} != /* ]]; then real_git=${PWD}/${real_git}; fi
+    marker=$("${real_git}" -C "${checkout}" --no-optional-locks \
+        -c core.fsmonitor=false -c core.hooksPath=/dev/null \
+        rev-parse --path-format=absolute --git-path container-exec-active)
+    if [[ -e ${marker} || -L ${marker} ]]; then
+        printf '%s\n' 'Resolve the existing container writer before staging changes.' >&2
+        exit 125
+    fi
+    if ! command -v node >/dev/null || [[ ! -f node_modules/lint-staged/bin/lint-staged.js ]]; then
+        printf '%s\n' 'Staged orchestration requires host Node.js and local lint-staged.' >&2
+        printf '%s\n' 'Prepare project dependencies through make exec before retrying.' >&2
+        exit 2
+    fi
+    guard_directory=$(mktemp -d "${TMPDIR:-/tmp}/staged-git.XXXXXXXX")
+    {
+        head -n 1 tests/container/staged-git
+        printf '# CLEANUP (added %s): Remove after the container writer is resolved.\n' "$(date +%F)"
+        tail -n +2 tests/container/staged-git
+    } > "${guard_directory}/git"
+    chmod 755 "${guard_directory}/git"
+    trap cleanup_staged EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    export STAGED_REAL_GIT=${real_git} STAGED_GIT_MARKER=${marker}
+    export PATH="${guard_directory}:${PATH}"
+    node node_modules/lint-staged/bin/lint-staged.js --concurrent false "$@"
+    exit $?
+fi
+if (( $# == 0 )); then
+    printf '%s\n' 'Specify a staged formatter.' >&2
+    exit 2
+fi
+formatter=$1
+shift
+case "${formatter}" in
+    prettier|eslint) ;;
+    *) printf 'Unsupported staged formatter: %s\n' "${formatter}" >&2; exit 2 ;;
+esac
+
+arguments=()
+for argument in "$@"; do
+    if [[ ${argument} == /* ]]; then
+        if [[ ${argument} != "${checkout}/"* ]]; then
+            printf '%s\n' 'Staged formatter paths must remain inside the checkout.' >&2
+            exit 2
+        fi
+        relative=${argument#"${checkout}/"}
+        parent=$(realpath -m -- "$(dirname -- "${argument}")")
+        if [[ ${parent} != "${checkout}" && ${parent} != "${checkout}/"* ]]; then
+            printf '%s\n' 'Staged formatter paths must not traverse an external symlink.' >&2
+            exit 2
+        fi
+        if [[ -L ${argument} ]]; then
+            printf '%s\n' 'Staged formatters do not follow symbolic links.' >&2
+            exit 2
+        fi
+        case "${relative,,}" in
+            .git|.git/*|*/.git/*|.env|.env.*|*/.env|*/.env.*|*.env|.dev.vars|.dev.vars.*|*/.dev.vars|*/.dev.vars.*|\
+            .npmrc|*/.npmrc|.pypirc|*/.pypirc|.netrc|*/.netrc|.git-credentials|*/.git-credentials|\
+            .private/*|*/.private/*|.ssh/*|*/.ssh/*|.aws/*|*/.aws/*|\
+            credentials|credentials.*|*/credentials|*/credentials.*|*.pem|*.key|*.crt|*.cer|*.p12|*.pfx|*.age|*.gpg|*.sops.*)
+                printf '%s\n' 'Credential-shaped paths cannot be passed to staged formatters.' >&2
+                exit 2
+                ;;
+        esac
+        arguments+=("/work/${relative}")
+    else
+        arguments+=("${argument}")
+    fi
+done
+
+exec "${checkout}/tests/container/run" exec "${formatter}" "${arguments[@]}"

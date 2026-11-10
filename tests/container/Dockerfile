@@ -1,5 +1,9 @@
 ARG NODE_VERSION=24.21.0
+FROM koalaman/shellcheck:v0.11.0 AS shellcheck
+
 FROM node:${NODE_VERSION}
+
+COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 
 ENV HUSKY=0
 WORKDIR /opt/dependencies

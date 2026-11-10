@@ -12,6 +12,7 @@ run_task() {
     shift
     case "$task" in
     lint)
+        shellcheck -x -P SCRIPTDIR tests/container/run tests/container/check tests/container/staged tests/container/staged-git
         npm run internal:lint
         ;;
     test)
@@ -41,6 +42,10 @@ lint|test|build)
     run_task "$task" "$@"
     ;;
 exec)
+    shift
+    if [ "$#" -gt 0 ]; then
+        exec "$@"
+    fi
     : "${COMMAND:?COMMAND is required}"
     exec sh -ec "$COMMAND"
     ;;

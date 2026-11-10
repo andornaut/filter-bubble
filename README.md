@@ -42,8 +42,8 @@ npm install
 npm start
 ```
 
-Docker and Make provide the verification interface. `make check` runs formatting,
-lint, Jest, development and production builds, bundle size limits, and extension
+Docker 29.9.3 and Make provide the verification interface. `make check` runs
+formatting, lint, Jest, development and production builds, bundle size limits, and extension
 validation and packaging in isolated containers. Native `npm run check`, `npm test`,
 `npm run lint`, and `npm run build` delegate to Make.
 
@@ -60,6 +60,13 @@ Checks use a source snapshot and write to scratch. `make build` exports
 `dist/` and `web-ext-artifacts/`. `make exec` permits explicit project updates while
 protecting Git metadata. Internal npm scripts are used by the container dispatcher;
 [`package.json`](./package.json) lists the native aliases.
+
+The native pre-commit hook runs `make staged`, keeping automatic staged fixes and
+partial staging.
+Lint-staged manages Git on the host; Prettier and ESLint run in the project
+container. The hook requires Node and the lockfile's local lint-staged install.
+If container shutdown cannot be confirmed, the workflow preserves the working
+tree and backup stash and blocks its Git cleanup until the writer is resolved.
 
 ### Android
 
