@@ -24,7 +24,7 @@ if [[ ${action} == check || ${action} == lint ]]; then
     stock_run "${node_image}" node -- sh tests/container/node lint
     stock_run "${markdown_image}" markdown -- sh tests/container/markdown lint
     stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
-        tests/container/run tests/container/check tests/container/stock \
+        tests/container/stock \
         tests/container/check-stock tests/container/node tests/container/markdown
 fi
 if [[ ${action} == check || ${action} == test ]]; then
