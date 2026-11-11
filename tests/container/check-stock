@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 checkout=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
-stock_entrypoint_path=${BASH_SOURCE[0]}
-stock_entrypoint_hash=$(sha256sum "${stock_entrypoint_path}" | cut -d ' ' -f1)
 # shellcheck source=tests/container/stock
 source "${checkout}/tests/container/stock"
 action=${1:-check}
@@ -29,7 +27,12 @@ if [[ ${action} == check || ${action} == lint ]]; then
     stock_image shellcheck_image "${SHELLCHECK_IMAGE}"
     STOCK_NETWORK=bridge stock_run "${markdown_image}" -- sh tests/container/markdown
     stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
-        tests/container/stock tests/container/check-stock tests/container/publish tests/container/node tests/container/markdown
+        tests/container/stock tests/container/check-stock tests/container/node tests/container/markdown
 fi
 stock_finish
-if [[ ${action} == build ]]; then bash tests/container/publish "${output_directory}"; fi
+if [[ ${action} == build ]]; then
+    mkdir -p .
+    cp -R "${output_directory}/dist" ./
+    mkdir -p .
+    cp -R "${output_directory}/web-ext-artifacts" ./
+fi

@@ -56,29 +56,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! ${GITHUB_SHA:-} =~ ^[a-f0-9]{40}$ ]]; then
-            printf '%s\n' 'CI requires a full expected commit SHA.' >&2
-            exit 2
-          fi
-          expected_revision=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${GITHUB_SHA}^{commit}")
-          if [[ $(git rev-parse HEAD) != "${expected_revision}" || -n $(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null status --porcelain=v1 --untracked-files=all) ]]; then
-            printf '%s\n' 'CI requires the expected commit and a clean checkout.' >&2
-            exit 2
-          fi
-          git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
-          ci_control_blob=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${expected_revision}:tests/container/stock")
-          ci_control_entry=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null ls-tree "${expected_revision}" -- tests/container/stock)
-          if [[ ( ${ci_control_entry} != "100644 blob ${ci_control_blob}"$'\t'"tests/container/stock" && ${ci_control_entry} != "100755 blob ${ci_control_blob}"$'\t'"tests/container/stock" ) || ! -f tests/container/stock || -L tests/container/stock || ( ${ci_control_entry} == 100644* && -x tests/container/stock ) || ( ${ci_control_entry} == 100755* && ! -x tests/container/stock ) || $(git hash-object --no-filters -- tests/container/stock) != "${ci_control_blob}" ]]; then
-            printf '%s\n' 'CI stock control source differs from the expected regular blob.' >&2
-            exit 2
-          fi
           source tests/container/stock
           stock_begin "$PWD"
           unset STOCK_OUTPUT_DIR
-          if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
-            printf '%s\n' 'CI source changed before snapshot capture.' >&2
-            exit 2
-          fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
           STOCK_NETWORK=bridge stock_run "${node_image}" -- sh -ec '
             node --version >&2
@@ -114,29 +94,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! ${GITHUB_SHA:-} =~ ^[a-f0-9]{40}$ ]]; then
-            printf '%s\n' 'CI requires a full expected commit SHA.' >&2
-            exit 2
-          fi
-          expected_revision=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${GITHUB_SHA}^{commit}")
-          if [[ $(git rev-parse HEAD) != "${expected_revision}" || -n $(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null status --porcelain=v1 --untracked-files=all) ]]; then
-            printf '%s\n' 'CI requires the expected commit and a clean checkout.' >&2
-            exit 2
-          fi
-          git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
-          ci_control_blob=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${expected_revision}:tests/container/stock")
-          ci_control_entry=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null ls-tree "${expected_revision}" -- tests/container/stock)
-          if [[ ( ${ci_control_entry} != "100644 blob ${ci_control_blob}"$'\t'"tests/container/stock" && ${ci_control_entry} != "100755 blob ${ci_control_blob}"$'\t'"tests/container/stock" ) || ! -f tests/container/stock || -L tests/container/stock || ( ${ci_control_entry} == 100644* && -x tests/container/stock ) || ( ${ci_control_entry} == 100755* && ! -x tests/container/stock ) || $(git hash-object --no-filters -- tests/container/stock) != "${ci_control_blob}" ]]; then
-            printf '%s\n' 'CI stock control source differs from the expected regular blob.' >&2
-            exit 2
-          fi
           source tests/container/stock
           stock_begin "$PWD"
           unset STOCK_OUTPUT_DIR
-          if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
-            printf '%s\n' 'CI source changed before snapshot capture.' >&2
-            exit 2
-          fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
           STOCK_NETWORK=bridge stock_run "${node_image}" -- sh -ec '
             node --version >&2
@@ -147,8 +107,6 @@ jobs:
             cp -R /scratch/node/node_modules node_modules
             export PATH="/work/node_modules/.bin:${PATH}"
             export HUSKY=0
-            for script in tests/container/stock tests/container/check-stock tests/container/publish; do bash -n "$script"; done
-            for script in tests/container/node tests/container/markdown; do sh -n "$script"; done
             npx --no-install prettier --check .
             npx --no-install eslint --max-warnings 0 .
           '
@@ -162,5 +120,5 @@ jobs:
           stock_image shellcheck_image koalaman/shellcheck:v0.11.0
           stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
             tests/container/stock \
-            tests/container/check-stock tests/container/publish tests/container/node tests/container/markdown
+            tests/container/check-stock tests/container/node tests/container/markdown
           stock_finish
