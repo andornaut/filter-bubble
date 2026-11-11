@@ -78,7 +78,6 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match version $version"
             exit 1
           fi
-
       - name: Build
         shell: bash
         run: |
@@ -99,32 +98,48 @@ jobs:
             printf '%s\n' 'CI stock control source differs from the expected regular blob.' >&2
             exit 2
           fi
+          ci_publish_blob=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${expected_revision}:tests/container/publish")
+          ci_publish_entry=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null ls-tree "${expected_revision}" -- tests/container/publish)
+          if [[ ( ${ci_publish_entry} != "100644 blob ${ci_publish_blob}"$'\t'"tests/container/publish" && ${ci_publish_entry} != "100755 blob ${ci_publish_blob}"$'\t'"tests/container/publish" ) || ! -f tests/container/publish || -L tests/container/publish || ( ${ci_publish_entry} == 100644* && -x tests/container/publish ) || ( ${ci_publish_entry} == 100755* && ! -x tests/container/publish ) || $(git hash-object --no-filters -- tests/container/publish) != "${ci_publish_blob}" ]]; then
+            printf '%s\n' 'CI output control source differs from the expected regular blob.' >&2
+            exit 2
+          fi
           source tests/container/stock
           stock_begin "$PWD"
+          unset STOCK_OUTPUT_DIR
           if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
             printf '%s\n' 'CI source changed before snapshot capture.' >&2
             exit 2
           fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
-          stock_prepare "${node_image}" node -- sh -ec '
+          output_directory=$(mktemp -d "${scratch}/build-output.XXXXXXXX")
+          STOCK_OUTPUT_DIR=${output_directory} STOCK_NETWORK=bridge stock_run "${node_image}" -- sh -ec '
             node --version >&2
             npm --version >&2
             mkdir -p /scratch/node
             cp package.json package-lock.json /scratch/node/
             npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
-            tar --create --file - --directory / scratch/node/node_modules
-          '
-          outputs=(dist web-ext-artifacts)
-          stock_run "${node_image}" node -- sh -ec '
             cp -R /scratch/node/node_modules node_modules
             export PATH="/work/node_modules/.bin:${PATH}"
             export HUSKY=0
             npm run build
             npm run size
             npm run package
+            test -e dist
+            test ! -L dist
+            if [ -n "$(find -P dist -type l -print -quit)" ]; then exit 2; fi
+            mkdir -p /outputs/.
+            cp -a --no-preserve=ownership dist /outputs/./
+            test -e web-ext-artifacts
+            test ! -L web-ext-artifacts
+            if [ -n "$(find -P web-ext-artifacts -type l -print -quit)" ]; then exit 2; fi
+            mkdir -p /outputs/.
+            cp -a --no-preserve=ownership web-ext-artifacts /outputs/./
+            find -P /outputs -mindepth 1 -type d -exec chmod a+rwX {} +
+            find -P /outputs -mindepth 1 -type f -exec chmod a+rwX {} +
           '
           stock_finish
-
+          bash tests/container/publish "${output_directory}"
       - name: Upload release artifact
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -168,7 +183,6 @@ jobs:
         run: |
           git tag --force dev
           git push --force origin refs/tags/dev
-
       # Updated in place rather than deleted and recreated. Deleting first left
       # `dev` a 404 for the length of the upload, and permanently if the run
       # died in between; every asset name here is deterministic, so each upload

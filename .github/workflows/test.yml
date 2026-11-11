@@ -74,27 +74,24 @@ jobs:
           fi
           source tests/container/stock
           stock_begin "$PWD"
+          unset STOCK_OUTPUT_DIR
           if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
             printf '%s\n' 'CI source changed before snapshot capture.' >&2
             exit 2
           fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
-          stock_prepare "${node_image}" node -- sh -ec '
+          STOCK_NETWORK=bridge stock_run "${node_image}" -- sh -ec '
             node --version >&2
             npm --version >&2
             mkdir -p /scratch/node
             cp package.json package-lock.json /scratch/node/
             npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
-            tar --create --file - --directory / scratch/node/node_modules
-          '
-          stock_run "${node_image}" node -- sh -ec '
             cp -R /scratch/node/node_modules node_modules
             export PATH="/work/node_modules/.bin:${PATH}"
             export HUSKY=0
             npm run test -- --runInBand
           '
           stock_finish
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -135,38 +132,35 @@ jobs:
           fi
           source tests/container/stock
           stock_begin "$PWD"
+          unset STOCK_OUTPUT_DIR
           if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
             printf '%s\n' 'CI source changed before snapshot capture.' >&2
             exit 2
           fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
-          stock_prepare "${node_image}" node -- sh -ec '
+          STOCK_NETWORK=bridge stock_run "${node_image}" -- sh -ec '
             node --version >&2
             npm --version >&2
             mkdir -p /scratch/node
             cp package.json package-lock.json /scratch/node/
             npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
-            tar --create --file - --directory / scratch/node/node_modules
-          '
-          stock_run "${node_image}" node -- sh -ec '
             cp -R /scratch/node/node_modules node_modules
             export PATH="/work/node_modules/.bin:${PATH}"
             export HUSKY=0
-            for script in tests/container/stock tests/container/check-stock; do bash -n "$script"; done
+            for script in tests/container/stock tests/container/check-stock tests/container/publish; do bash -n "$script"; done
             for script in tests/container/node tests/container/markdown; do sh -n "$script"; done
             npx --no-install prettier --check .
             npx --no-install eslint --max-warnings 0 .
           '
           stock_image markdown_image node:24.22.2
-          stock_prepare "${markdown_image}" markdown -- sh -ec '
+          STOCK_NETWORK=bridge stock_run "${markdown_image}" -- sh -ec '
             mkdir -p /scratch/markdown
             cp tests/container/package.json tests/container/package-lock.json /scratch/markdown/
             npm ci --prefix /scratch/markdown --ignore-scripts --no-audit --no-fund --maxsockets=1 >&2
-            tar --create --file - --directory / scratch/markdown
+            exec /scratch/markdown/node_modules/.bin/markdownlint-cli2
           '
-          stock_run "${markdown_image}" markdown -- /scratch/markdown/node_modules/.bin/markdownlint-cli2
           stock_image shellcheck_image koalaman/shellcheck:v0.11.0
           stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
             tests/container/stock \
-            tests/container/check-stock tests/container/node tests/container/markdown
+            tests/container/check-stock tests/container/publish tests/container/node tests/container/markdown
           stock_finish

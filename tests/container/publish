@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+set -euo pipefail
+checkout=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd -P)
+cd -- "${checkout}"
+source_directory=${1:?Expected the private generated-output directory}
+if (( $# != 1 )); then exit 2; fi
+if [[ ! -d ${source_directory} || -L ${source_directory} || $(realpath -e -- "${source_directory}") != "${source_directory}" || $(stat -c %u -- "${source_directory}") != "$(id -u)" || $(stat -c %u -- "$(dirname -- "${source_directory}")") != "$(id -u)" || $(stat -c %a -- "$(dirname -- "${source_directory}")") != 700 ]]; then
+    printf '%s\n' 'Build output staging must have an owned private parent.' >&2
+    exit 2
+fi
+outputs=(dist web-ext-artifacts)
+kinds=(directory directory)
+validation_list=$(mktemp "$(dirname -- "${source_directory}")/publish-entries.XXXXXXXX")
+git_metadata=(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null)
+validate_destination() {
+    local path=$1 parent=${checkout} component entry index_paths head_paths
+    local -a components
+    IFS=/ read -r -a components <<< "${path}"
+    for component in "${components[@]}"; do
+        parent+=/${component}
+        if [[ -L ${parent} || ( -e ${parent} && ! -d ${parent} && ${parent} != "${checkout}/${path}" ) ]]; then
+            printf 'Build destination has an invalid parent or symlink: %s\n' "${path}" >&2
+            return 2
+        fi
+    done
+    index_paths=$("${git_metadata[@]}" ls-files -- "${path}") || return
+    head_paths=$("${git_metadata[@]}" ls-tree -r --name-only HEAD -- "${path}") || return
+    if [[ -n ${index_paths} || -n ${head_paths} ]]; then
+        printf 'Build destination is tracked: %s\n' "${path}" >&2
+        return 2
+    fi
+    "${git_metadata[@]}" check-ignore --no-index --quiet -- "${path}" || return
+    if [[ -e ${path} ]]; then
+        find -P "${path}" -print0 > "${validation_list}" || return
+        while IFS= read -r -d '' entry; do
+            if [[ -L ${entry} || ( ! -d ${entry} && ! -f ${entry} ) || ( -f ${entry} && $(stat -c %h -- "${entry}") != 1 ) ]]; then
+                printf 'Build destination contains a link or special file: %s\n' "${path}" >&2
+                return 2
+            fi
+            "${git_metadata[@]}" check-ignore --no-index --quiet -- "${entry}" || return
+        done < "${validation_list}"
+    fi
+}
+destination_state() {
+    if [[ -e $1 || -L $1 ]]; then
+        find -P "$1" -printf '%P\0%y\0%m\0%s\0%T@\0%C@\0%i\0%n\0' | sha256sum
+    else
+        printf '%s\n' absent
+    fi
+}
+find -P "${source_directory}" -mindepth 1 -print0 > "${validation_list}"
+while IFS= read -r -d '' entry; do
+    relative=${entry#"${source_directory}/"}
+    allowed=false
+    for path in "${outputs[@]}"; do
+        if [[ ${relative} == "${path}" || ${path} == "${relative}/"* || ( -d ${source_directory}/${path} && ${relative} == "${path}/"* ) ]]; then allowed=true; fi
+    done
+    if [[ ${allowed} != true || -L ${entry} || ( ! -d ${entry} && ! -f ${entry} ) || ( -f ${entry} && $(stat -c %h -- "${entry}") != 1 ) ]]; then
+        printf '%s\n' 'Build staging contains undeclared paths, links or special files.' >&2
+        exit 2
+    fi
+done < "${validation_list}"
+for index in "${!outputs[@]}"; do
+    path=${outputs[index]}
+    if [[ ${kinds[index]} == directory ]]; then test -d "${source_directory}/${path}"; else test -f "${source_directory}/${path}"; fi
+    validate_destination "${path}"
+done
+stages=()
+stage_identities=()
+stage_paths=()
+artifact_identities=()
+stage_ready=()
+states=()
+committed=false
+retained=()
+stage_owned() {
+    local index=$1 stage=${stages[$1]}
+    [[ -d ${stage} && ! -L ${stage} && -n ${stage_identities[index]:-} && $(stat -c '%d:%i:%u' -- "${stage}") == "${stage_identities[index]}" && $(realpath -e -- "${stage}") == "${stage_paths[index]}" ]]
+}
+cleanup_publication() {
+    local status=$? index target stage
+    trap - EXIT
+    trap '' INT TERM HUP
+    if [[ ${committed} != true ]]; then
+        for (( index=${#stages[@]}-1; index>=0; index-- )); do
+            stage=${stages[index]}
+            target=${outputs[index]}
+            if ! stage_owned "${index}"; then
+                printf 'Preserve unconfirmed publication stage ownership: %s\n' "${stage}" >&2
+                status=125
+                retained[index]=true
+                continue
+            fi
+            if [[ ${stage_ready[index]:-false} == true && ! -e ${stage}/new ]]; then
+                if [[ -e ${target} || -L ${target} ]]; then
+                    if [[ -L ${target} || $(stat -c '%d:%i' -- "${target}") != "${artifact_identities[index]}" ]]; then
+                        printf 'Concurrent build destination retained; recover owned backup at: %s\n' "${stage}" >&2
+                        status=125
+                        retained[index]=true
+                        continue
+                    fi
+                    if ! mv -T --no-clobber -- "${target}" "${stage}/failed" || [[ -e ${target} ]]; then
+                        printf 'Preserve failed build publication: %s\n' "${stage}" >&2
+                        status=125
+                        retained[index]=true
+                        continue
+                    fi
+                fi
+            fi
+            if [[ -e ${stage}/previous ]]; then
+                if [[ -e ${target} || -L ${target} ]] || ! mv -T --no-clobber -- "${stage}/previous" "${target}" || [[ -e ${stage}/previous ]]; then
+                    printf 'Concurrent build destination retained; recover owned backup at: %s\n' "${stage}" >&2
+                    status=125
+                    retained[index]=true
+                    continue
+                fi
+            fi
+        done
+    fi
+    for index in "${!stages[@]}"; do
+        stage=${stages[index]}
+        if [[ ${retained[index]:-false} == true ]]; then continue; fi
+        if ! stage_owned "${index}"; then
+            printf 'Preserve unconfirmed publication stage ownership: %s\n' "${stage}" >&2
+            status=125
+            continue
+        fi
+        if ! timeout --signal=TERM --kill-after=2 30 find -P "${stage}" -depth -delete; then
+            printf 'Preserve build publication scratch: %s\n' "${stage}" >&2
+            status=2
+        fi
+    done
+    exit "${status}"
+}
+trap cleanup_publication EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+for path in "${outputs[@]}"; do
+    state=$(destination_state "${path}")
+    states+=("${state}")
+    parent=$(dirname -- "${path}")
+    mkdir -p -- "${parent}"
+    deferred_signal=0
+    trap 'deferred_signal=130' INT
+    trap 'deferred_signal=143' TERM
+    trap 'deferred_signal=129' HUP
+    stage=$(mktemp -d "${parent}/.build-publish.XXXXXXXX")
+    stages+=("${stage}")
+    stage_identities+=("$(stat -c '%d:%i:%u' -- "${stage}")")
+    stage_paths+=("$(realpath -e -- "${stage}")")
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    if (( deferred_signal != 0 )); then exit "${deferred_signal}"; fi
+    cp -R --no-dereference --no-preserve=ownership -- "${source_directory}/${path}" "${stage}/new"
+    find -P "${stage}/new" -type d -exec chmod 755 {} +
+    find -P "${stage}/new" -type f -exec chmod u+rw,go+r,go-w {} +
+    artifact_identities+=("$(stat -c '%d:%i' -- "${stage}/new")")
+    stage_ready[${#stages[@]}-1]=true
+done
+for index in "${!outputs[@]}"; do
+    path=${outputs[index]}
+    validate_destination "${path}"
+    state=$(destination_state "${path}")
+    if [[ ${state} != "${states[index]}" ]]; then
+        printf 'Build destination changed during publication: %s\n' "${path}" >&2
+        exit 125
+    fi
+done
+for index in "${!outputs[@]}"; do
+    path=${outputs[index]}
+    stage=${stages[index]}
+    if ! stage_owned "${index}"; then
+        printf 'Preserve unconfirmed publication stage ownership: %s\n' "${stage}" >&2
+        exit 125
+    fi
+    if [[ -e ${path} ]]; then
+        mv -T --no-clobber -- "${path}" "${stage}/previous"
+        if [[ -e ${path} || ! -e ${stage}/previous ]]; then exit 125; fi
+    fi
+    mv -T --no-clobber -- "${stage}/new" "${path}"
+    if [[ -e ${stage}/new ]]; then exit 125; fi
+done
+committed=true

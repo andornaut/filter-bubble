@@ -14,24 +14,22 @@ node_image=
 markdown_image=
 shellcheck_image=
 stock_image node_image "${NODE_IMAGE}"
-stock_prepare "${node_image}" node -- sh tests/container/node prepare
+unset STOCK_OUTPUT_DIR
+output_directory=
+if [[ ${action} == build ]]; then
+    output_directory=$(mktemp -d "${scratch}/build-output.XXXXXXXX")
+    STOCK_OUTPUT_DIR=${output_directory} STOCK_NETWORK=bridge stock_run "${node_image}" -- sh tests/container/node build
+else
+    STOCK_NETWORK=bridge stock_run "${node_image}" -- sh tests/container/node "${action}"
+fi
 if [[ ${action} == check || ${action} == lint ]]; then
     : "${MARKDOWN_IMAGE:?The Makefile declares MARKDOWN_IMAGE}"
     : "${SHELLCHECK_IMAGE:?The Makefile declares SHELLCHECK_IMAGE}"
     stock_image markdown_image "${MARKDOWN_IMAGE}"
     stock_image shellcheck_image "${SHELLCHECK_IMAGE}"
-    stock_prepare "${markdown_image}" markdown -- sh tests/container/markdown prepare
-    stock_run "${node_image}" node -- sh tests/container/node lint
-    stock_run "${markdown_image}" markdown -- sh tests/container/markdown lint
+    STOCK_NETWORK=bridge stock_run "${markdown_image}" -- sh tests/container/markdown
     stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
-        tests/container/stock \
-        tests/container/check-stock tests/container/node tests/container/markdown
-fi
-if [[ ${action} == check || ${action} == test ]]; then
-    stock_run "${node_image}" node -- sh tests/container/node test
-fi
-if [[ ${action} == check || ${action} == build ]]; then
-    if [[ ${action} == build ]]; then outputs=(dist web-ext-artifacts); fi
-    stock_run "${node_image}" node -- sh tests/container/node build
+        tests/container/stock tests/container/check-stock tests/container/publish tests/container/node tests/container/markdown
 fi
 stock_finish
+if [[ ${action} == build ]]; then bash tests/container/publish "${output_directory}"; fi
