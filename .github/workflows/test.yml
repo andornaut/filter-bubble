@@ -56,6 +56,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! ${GITHUB_SHA:-} =~ ^[a-f0-9]{40}$ ]]; then
+            printf '%s\n' 'CI requires a full expected commit SHA.' >&2
+            exit 2
+          fi
+          expected_revision=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${GITHUB_SHA}^{commit}")
+          if [[ $(git rev-parse HEAD) != "${expected_revision}" || -n $(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null status --porcelain=v1 --untracked-files=all) ]]; then
+            printf '%s\n' 'CI requires the expected commit and a clean checkout.' >&2
+            exit 2
+          fi
+          git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
+          if [[ ! -f tests/container/stock || -L tests/container/stock || $(git hash-object tests/container/stock) != $(git rev-parse "${expected_revision}:tests/container/stock") ]]; then
+            printf '%s\n' 'CI stock control source differs from the expected commit.' >&2
+            exit 2
+          fi
           source tests/container/stock
           stock_begin "$PWD"
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
@@ -97,6 +111,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! ${GITHUB_SHA:-} =~ ^[a-f0-9]{40}$ ]]; then
+            printf '%s\n' 'CI requires a full expected commit SHA.' >&2
+            exit 2
+          fi
+          expected_revision=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${GITHUB_SHA}^{commit}")
+          if [[ $(git rev-parse HEAD) != "${expected_revision}" || -n $(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null status --porcelain=v1 --untracked-files=all) ]]; then
+            printf '%s\n' 'CI requires the expected commit and a clean checkout.' >&2
+            exit 2
+          fi
+          git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
+          if [[ ! -f tests/container/stock || -L tests/container/stock || $(git hash-object tests/container/stock) != $(git rev-parse "${expected_revision}:tests/container/stock") ]]; then
+            printf '%s\n' 'CI stock control source differs from the expected commit.' >&2
+            exit 2
+          fi
           source tests/container/stock
           stock_begin "$PWD"
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
@@ -112,8 +140,8 @@ jobs:
             cp -R /scratch/node/node_modules node_modules
             export PATH="/work/node_modules/.bin:${PATH}"
             export HUSKY=0
-            bash -n tests/container/run tests/container/stock tests/container/check-stock
-            sh -n tests/container/check tests/container/node tests/container/markdown
+            for script in tests/container/run tests/container/stock tests/container/check-stock; do bash -n "$script"; done
+            for script in tests/container/check tests/container/node tests/container/markdown; do sh -n "$script"; done
             npx --no-install prettier --check .
             npx --no-install eslint --max-warnings 0 .
           '

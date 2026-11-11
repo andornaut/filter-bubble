@@ -17,8 +17,8 @@ export PATH="/work/node_modules/.bin:${PATH}"
 export HUSKY=0
 case "$1" in
 lint)
-    bash -n tests/container/run tests/container/stock tests/container/check-stock
-    sh -n tests/container/check tests/container/node tests/container/markdown
+    for script in tests/container/run tests/container/stock tests/container/check-stock; do bash -n "$script"; done
+    for script in tests/container/check tests/container/node tests/container/markdown; do sh -n "$script"; done
     npx --no-install prettier --check .
     exec npx --no-install eslint --max-warnings 0 .
     ;;
