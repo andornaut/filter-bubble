@@ -175,11 +175,19 @@ for index in "${!outputs[@]}"; do
         printf 'Preserve unconfirmed publication stage ownership: %s\n' "${stage}" >&2
         exit 125
     fi
+    if [[ -L ${stage}/new || $(stat -c '%d:%i' -- "${stage}/new") != "${artifact_identities[index]}" ]]; then
+        printf 'Preserve changed staged payload: %s\n' "${stage}" >&2
+        retained[index]=true
+        exit 125
+    fi
     if [[ -e ${path} ]]; then
         mv -T --no-clobber -- "${path}" "${stage}/previous"
         if [[ -e ${path} || ! -e ${stage}/previous ]]; then exit 125; fi
     fi
     mv -T --no-clobber -- "${stage}/new" "${path}"
-    if [[ -e ${stage}/new ]]; then exit 125; fi
+    if [[ -e ${stage}/new || -L ${path} || ! -e ${path} || $(stat -c '%d:%i' -- "${path}") != "${artifact_identities[index]}" ]]; then
+        printf 'Build payload identity changed during publication: %s\n' "${path}" >&2
+        exit 125
+    fi
 done
 committed=true
