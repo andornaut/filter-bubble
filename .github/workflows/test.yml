@@ -66,8 +66,10 @@ jobs:
             exit 2
           fi
           git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
-          if [[ ! -f tests/container/stock || -L tests/container/stock || $(git hash-object tests/container/stock) != $(git rev-parse "${expected_revision}:tests/container/stock") ]]; then
-            printf '%s\n' 'CI stock control source differs from the expected commit.' >&2
+          ci_control_blob=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${expected_revision}:tests/container/stock")
+          ci_control_entry=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null ls-tree "${expected_revision}" -- tests/container/stock)
+          if [[ ( ${ci_control_entry} != "100644 blob ${ci_control_blob}"$'\t'"tests/container/stock" && ${ci_control_entry} != "100755 blob ${ci_control_blob}"$'\t'"tests/container/stock" ) || ! -f tests/container/stock || -L tests/container/stock || ( ${ci_control_entry} == 100644* && -x tests/container/stock ) || ( ${ci_control_entry} == 100755* && ! -x tests/container/stock ) || $(git hash-object --no-filters -- tests/container/stock) != "${ci_control_blob}" ]]; then
+            printf '%s\n' 'CI stock control source differs from the expected regular blob.' >&2
             exit 2
           fi
           source tests/container/stock
@@ -125,8 +127,10 @@ jobs:
             exit 2
           fi
           git ls-files --error-unmatch .nvmrc package.json package-lock.json tests/container/stock >/dev/null
-          if [[ ! -f tests/container/stock || -L tests/container/stock || $(git hash-object tests/container/stock) != $(git rev-parse "${expected_revision}:tests/container/stock") ]]; then
-            printf '%s\n' 'CI stock control source differs from the expected commit.' >&2
+          ci_control_blob=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null rev-parse --verify "${expected_revision}:tests/container/stock")
+          ci_control_entry=$(git --no-optional-locks -c core.fsmonitor=false -c core.hooksPath=/dev/null ls-tree "${expected_revision}" -- tests/container/stock)
+          if [[ ( ${ci_control_entry} != "100644 blob ${ci_control_blob}"$'\t'"tests/container/stock" && ${ci_control_entry} != "100755 blob ${ci_control_blob}"$'\t'"tests/container/stock" ) || ! -f tests/container/stock || -L tests/container/stock || ( ${ci_control_entry} == 100644* && -x tests/container/stock ) || ( ${ci_control_entry} == 100755* && ! -x tests/container/stock ) || $(git hash-object --no-filters -- tests/container/stock) != "${ci_control_blob}" ]]; then
+            printf '%s\n' 'CI stock control source differs from the expected regular blob.' >&2
             exit 2
           fi
           source tests/container/stock
