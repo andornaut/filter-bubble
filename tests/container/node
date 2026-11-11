@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+case "${1:-}" in
+prepare)
+    node --version >&2
+    npm --version >&2
+    mkdir -p /scratch/node
+    cp package.json package-lock.json /scratch/node/
+    npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
+    exec tar --create --file - --directory / scratch/node/node_modules
+    ;;
+lint|test|build) ;;
+*) exit 2 ;;
+esac
+cp -R /scratch/node/node_modules node_modules
+export PATH="/work/node_modules/.bin:${PATH}"
+export HUSKY=0
+case "$1" in
+lint)
+    bash -n tests/container/run tests/container/stock tests/container/check-stock
+    sh -n tests/container/check tests/container/node tests/container/markdown
+    npx --no-install prettier --check .
+    exec npx --no-install eslint --max-warnings 0 .
+    ;;
+test)
+    exec npm run test -- --runInBand
+    ;;
+build)
+    npm run build
+    npm run size
+    exec npm run package
+    ;;
+esac

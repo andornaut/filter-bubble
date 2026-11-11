@@ -1,4 +1,4 @@
-ARG NODE_VERSION=24.21.0
+ARG NODE_VERSION=24.22.2
 FROM koalaman/shellcheck:v0.11.0 AS shellcheck
 
 FROM node:${NODE_VERSION}

@@ -52,14 +52,28 @@ jobs:
         with:
           version: v29.9.3
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v4.4.1
-        with:
-          version: v0.38.2
-          driver: docker
-
       - name: Run tests
-        run: make test
+        shell: bash
+        run: |
+          set -euo pipefail
+          source tests/container/stock
+          stock_begin "$PWD"
+          stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
+          stock_prepare "${node_image}" node -- sh -ec '
+            node --version >&2
+            npm --version >&2
+            mkdir -p /scratch/node
+            cp package.json package-lock.json /scratch/node/
+            npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
+            tar --create --file - --directory / scratch/node/node_modules
+          '
+          stock_run "${node_image}" node -- sh -ec '
+            cp -R /scratch/node/node_modules node_modules
+            export PATH="/work/node_modules/.bin:${PATH}"
+            export HUSKY=0
+            npm run test -- --runInBand
+          '
+          stock_finish
 
   lint:
     name: Lint
@@ -79,11 +93,40 @@ jobs:
         with:
           version: v29.9.3
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v4.4.1
-        with:
-          version: v0.38.2
-          driver: docker
-
       - name: Lint
-        run: make lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          source tests/container/stock
+          stock_begin "$PWD"
+          stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
+          stock_prepare "${node_image}" node -- sh -ec '
+            node --version >&2
+            npm --version >&2
+            mkdir -p /scratch/node
+            cp package.json package-lock.json /scratch/node/
+            npm ci --prefix /scratch/node --maxsockets=1 --ignore-scripts --no-audit --no-fund >&2
+            tar --create --file - --directory / scratch/node/node_modules
+          '
+          stock_run "${node_image}" node -- sh -ec '
+            cp -R /scratch/node/node_modules node_modules
+            export PATH="/work/node_modules/.bin:${PATH}"
+            export HUSKY=0
+            bash -n tests/container/run tests/container/stock tests/container/check-stock
+            sh -n tests/container/check tests/container/node tests/container/markdown
+            npx --no-install prettier --check .
+            npx --no-install eslint --max-warnings 0 .
+          '
+          stock_image markdown_image node:24.22.2
+          stock_prepare "${markdown_image}" markdown -- sh -ec '
+            mkdir -p /scratch/markdown
+            cp tests/container/package.json tests/container/package-lock.json /scratch/markdown/
+            npm ci --prefix /scratch/markdown --ignore-scripts --no-audit --no-fund --maxsockets=1 >&2
+            tar --create --file - --directory / scratch/markdown
+          '
+          stock_run "${markdown_image}" markdown -- /scratch/markdown/node_modules/.bin/markdownlint-cli2
+          stock_image shellcheck_image koalaman/shellcheck:v0.11.0
+          stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
+            tests/container/run tests/container/check tests/container/stock \
+            tests/container/check-stock tests/container/node tests/container/markdown
+          stock_finish

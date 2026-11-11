@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+checkout=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
+stock_entrypoint_path=${BASH_SOURCE[0]}
+stock_entrypoint_hash=$(sha256sum "${stock_entrypoint_path}" | cut -d ' ' -f1)
+# shellcheck source=tests/container/stock
+source "${checkout}/tests/container/stock"
+action=${1:-check}
+case "${action}" in check|lint|test|build) ;; *) printf 'Unknown stock check: %s\n' "${action}" >&2; exit 2 ;; esac
+if (( $# > 1 )); then printf '%s\n' 'Stock checks do not accept extra arguments.' >&2; exit 2; fi
+: "${NODE_IMAGE:?The Makefile declares NODE_IMAGE}"
+stock_begin "${checkout}"
+node_image=
+markdown_image=
+shellcheck_image=
+stock_image node_image "${NODE_IMAGE}"
+stock_prepare "${node_image}" node -- sh tests/container/node prepare
+if [[ ${action} == check || ${action} == lint ]]; then
+    : "${MARKDOWN_IMAGE:?The Makefile declares MARKDOWN_IMAGE}"
+    : "${SHELLCHECK_IMAGE:?The Makefile declares SHELLCHECK_IMAGE}"
+    stock_image markdown_image "${MARKDOWN_IMAGE}"
+    stock_image shellcheck_image "${SHELLCHECK_IMAGE}"
+    stock_prepare "${markdown_image}" markdown -- sh tests/container/markdown prepare
+    stock_run "${node_image}" node -- sh tests/container/node lint
+    stock_run "${markdown_image}" markdown -- sh tests/container/markdown lint
+    stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
+        tests/container/run tests/container/check tests/container/stock \
+        tests/container/check-stock tests/container/node tests/container/markdown
+fi
+if [[ ${action} == check || ${action} == test ]]; then
+    stock_run "${node_image}" node -- sh tests/container/node test
+fi
+if [[ ${action} == check || ${action} == build ]]; then
+    if [[ ${action} == build ]]; then outputs=(dist web-ext-artifacts); fi
+    stock_run "${node_image}" node -- sh tests/container/node build
+fi
+stock_finish
