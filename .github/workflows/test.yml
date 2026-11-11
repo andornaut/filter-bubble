@@ -72,6 +72,10 @@ jobs:
           fi
           source tests/container/stock
           stock_begin "$PWD"
+          if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
+            printf '%s\n' 'CI source changed before snapshot capture.' >&2
+            exit 2
+          fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
           stock_prepare "${node_image}" node -- sh -ec '
             node --version >&2
@@ -127,6 +131,10 @@ jobs:
           fi
           source tests/container/stock
           stock_begin "$PWD"
+          if [[ ${revision} != "${expected_revision}" || ${source_dirty} != false ]]; then
+            printf '%s\n' 'CI source changed before snapshot capture.' >&2
+            exit 2
+          fi
           stock_image node_image "node:$(sed 's/^v//' .nvmrc)"
           stock_prepare "${node_image}" node -- sh -ec '
             node --version >&2
