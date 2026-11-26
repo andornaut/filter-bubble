@@ -54,7 +54,7 @@
     "husky": "^9.1.7",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
-    "lint-staged": "^17.6.0",
+    "lint-staged": "^17.6.1",
     "markdownlint-cli2": "0.24.1",
     "prettier": "^3.10.1",
     "size-limit": "^14.0.0",
